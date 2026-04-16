@@ -1,0 +1,216 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using SuttorLibrary.Data;
+using SuttorLibrary.Models;
+
+namespace SuttorLibrary.Core.Services
+{
+    public class FileService(
+        IConfiguration configuration, 
+        ILogger<FileService> logger,
+        AppDbContext context
+        ) : IFileService
+    {
+        private readonly IConfiguration _configuration = configuration;
+        private readonly ILogger<FileService> _logger = logger;
+        private readonly AppDbContext _context = context;
+
+        public async Task<bool> DeleteFileAsync(string fileName)
+        {
+            try
+            {
+                var storagePath = _configuration["FileStorage:Path"];
+                var filePath = Path.Combine(storagePath!, fileName);
+
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                    _logger.LogInformation("File deleted: {FileName}", fileName);
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting file: {FileName}", fileName);
+                throw;
+            }
+        }
+
+        public async Task<FileContentResult> DownloadFileAsync(
+            string fileName, 
+            string pathToFile, 
+            Guid bookId, 
+            string? userId
+            )
+        {
+            try
+            {
+                if (!File.Exists(pathToFile))
+                    throw new FileNotFoundException($"File '{fileName}' not found.");
+
+                // If a user id was provided, try to record the download
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    try
+                    {
+                        var user = await _context.AppUsers.FindAsync(userId);
+                        if (user is not null)
+                        {
+                            var download = new Download
+                            {
+                                Id = Guid.NewGuid(),
+                                BookID = bookId,
+                                UserID = userId,
+                                DownloadedAt = DateTime.UtcNow,
+                                IsFinishReading = false
+                            };
+
+                            _context.Downloads.Add(download);
+                            await _context.SaveChangesAsync();
+                            _logger.LogInformation("Recorded download for user {UserId} and book {BookId}", userId, bookId);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Download attempted by non-existing user {UserId} for book {BookId}", userId, bookId);
+                        }
+                    }
+                    catch (Exception dbEx)
+                    {
+                        // Log but do not block actual file delivery
+                        _logger.LogError(dbEx, "Failed to record download for user {UserId} and book {BookId}", userId, bookId);
+                    }
+                }
+
+                _logger.LogInformation("File download initiated: {FileName}", fileName);
+               
+                var fileBytes = await File.ReadAllBytesAsync(pathToFile);
+                var fileContent = new FileContentResult(fileBytes, "application/octet-stream")
+                {
+                    FileDownloadName = fileName
+                };
+
+                return fileContent;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading file: {FileName}", fileName);
+                throw;
+            }
+        }
+
+        public async Task<string> UploadFileAsync(IFormFile file, IFormFile coverPic)
+        {
+            if (file is null || file.Length == 0)
+                throw new ArgumentException("File is empty.");
+
+            if (!IsValidFileExtension(file.FileName))
+                throw new InvalidOperationException($"File extension not allowed. Allowed: {GetAllowedExtensions()}");
+            
+            if(!IsValidPhotoExtension(coverPic.FileName))
+                throw new InvalidOperationException($"File extension not allowed. Allowed: {GetAllowedPictureExtensions()}");
+
+            if (!IsValidFileSize(file.Length))
+                throw new InvalidOperationException($"File size exceeds maximum allowed size of {GetMaxFileSize()}MB.");
+
+            try
+            {
+                var storagePath = _configuration["FileStorage:Path"];
+                if (string.IsNullOrEmpty(storagePath))
+                    throw new InvalidOperationException("File storage path not configured.");
+
+                var uploadDirectory = storagePath;
+                if (!Directory.Exists(uploadDirectory))
+                    Directory.CreateDirectory(uploadDirectory);
+                Directory.CreateDirectory($"{uploadDirectory}\\Photos");
+
+                var uniqueFileName = file.FileName;
+                var uniqueCoverName = coverPic.FileName;
+                var filePath = Path.Combine(uploadDirectory, uniqueFileName);
+
+                // Use CreateNew to automatically fail if file already exists
+                try
+                {
+                    await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+                }
+                catch (IOException ioEx) when (File.Exists(filePath))
+                {
+                    _logger.LogWarning(ioEx, "Attempted to create a file that already exists: {FilePath}", filePath);
+                    throw new InvalidOperationException("A file with the same name already exists.");
+                }
+
+                //Save the cover picture
+                if(coverPic is not null && coverPic.Length >0)
+                {
+                    var coverExtension = Path.GetExtension(uniqueCoverName);
+                    var coverFileName = $"{Path.GetFileNameWithoutExtension(uniqueFileName)}_cover{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
+                    var storingPath = Path.Combine(uploadDirectory, "Photos");
+                    var coverPath = Path.Combine(storingPath, coverFileName);
+
+                    // Overwrite cover if it exists
+                    await using (var coverStream = new FileStream(coverPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous))
+                    {
+                        await coverPic.CopyToAsync(coverStream);
+                    }
+                }
+
+                _logger.LogInformation("File uploaded successfully: {FileName} at {FilePath}", file.FileName, filePath);
+                return uniqueFileName;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading file: {FileName}", file.FileName);
+                throw;
+            }
+        }
+
+
+
+        public bool IsValidFileExtension(string fileName)
+        {
+            var allowedExtensions = _configuration.GetSection("FileStorage:AllowedExtenstions").Get<List<string>>();
+            if (allowedExtensions is null || allowedExtensions.Count == 0)
+                return true;
+
+            var fileExtension = Path.GetExtension(fileName).ToLowerInvariant();
+            return allowedExtensions.Any(ext => ext.Equals(fileExtension, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public bool IsValidPhotoExtension(string PhotoName)
+        {
+            var allowedExtensions = _configuration.GetSection("FileStorage:PhotoExtensions").Get<List<string>>();
+            if (allowedExtensions is null || allowedExtensions.Count == 0)
+                return true;
+
+            var PhotoExt = Path.GetExtension(PhotoName).ToLowerInvariant();
+            return allowedExtensions.Any(ext => ext.Equals(PhotoExt, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public bool IsValidFileSize(long fileSizeBytes)
+        {
+            var maxSizeMB = _configuration.GetValue<int>("FileStorage:MaxFileSizeMB");
+            var maxSizeBytes = maxSizeMB * 1024 * 1024;
+            return fileSizeBytes <= maxSizeBytes;
+        }
+
+        private string GetAllowedExtensions()
+        {
+            var extensions = _configuration.GetSection("FileStorage:AllowedExtenstions").Get<List<string>>();
+            return extensions is null ? "None configured" : string.Join(", ", extensions);
+        }
+
+        private string GetAllowedPictureExtensions()
+        {
+            var ext = _configuration.GetSection("FileStorage:PhotoExtensions").Get<List<string>>();
+            return ext is null ? "None Configured" : string.Join(", ", ext);
+        }
+
+        private int GetMaxFileSize()
+        {
+            return _configuration.GetValue<int>("FileStorage:MaxFileSizeMB", 100);
+        }
+    }
+}

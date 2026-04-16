@@ -1,0 +1,396 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using SuttorLibrary.Core;
+using SuttorLibrary.Core.Services;
+using SuttorLibrary.DTOs;
+using SuttorLibrary.Models;
+using System.Security.Claims;
+
+namespace SuttorLibrary.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class BooksController(IUnitOfWork unit, ILogger<BooksController> logger, IFileService fileService) : ControllerBase
+    {
+        private readonly IUnitOfWork _unit = unit;
+        private readonly ILogger<BooksController> _logger = logger;
+        private readonly IFileService _fileService = fileService;
+
+        //GET /api/Book/{id}
+        [HttpGet("Book/{bookId}", Name = "GetBookById")]
+        public async Task<IActionResult> GetBookById([FromRoute] string bookId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest();
+            if (string.IsNullOrEmpty(bookId))
+                return BadRequest("Book ID is required.");
+
+            try {
+                var book = await _unit.BookRepo.GetByIdFromQuery(bookId);
+                if (book is null)
+                    return NotFound($"Book with ID '{bookId}' not found.");
+                return Ok(book);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving book by ID {BookId}", bookId);
+                return Problem("An error occurred while retrieving the book.");
+            }
+        }
+
+        //GET /api/Books/ByName?name=...
+        [HttpGet("ByName", Name = "GetBooksByName")]
+        public async Task<IActionResult> GetBooksByName([FromQuery] string name)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest();
+            if (string.IsNullOrEmpty(name))
+                return BadRequest("Book name is required.");
+
+            try
+            {
+                var book = await _unit.BookRepo.GetBookByName(name);
+                if (book is null)
+                    return NotFound($"No books found with the name '{name}'.");
+                return Ok(book);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving books by name {Name}", name);
+                return Problem("An error occurred while retrieving the books.");
+            }
+        }
+
+        //GET /api/Books/ByCategory?category=...
+        [HttpGet("ByCategory", Name = "GetBooksByCategory")]
+        public async Task<IActionResult> GetBooksByCategory([FromQuery] string category)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest();
+            if (string.IsNullOrEmpty(category))
+                return BadRequest("Category name is required.");
+            try
+            {
+                var books = await _unit.BookRepo.GetBooksByCategory(category);
+                if (books is null || !books.Any())
+                    return NotFound($"No books found in the category '{category}'.");
+                return Ok(books);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving books by category {Category}", category);
+                return Problem("An error occurred while retrieving the books.");
+            }
+        }
+
+        //Get /api/Books/authors
+        [HttpGet("authors")]
+        public async Task<IActionResult> GetAuthors([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (page < 1 || pageSize < 1)
+                return BadRequest("Page and pageSize must be positive integers.");
+
+            const int maxPageSize = 200;
+            pageSize = Math.Min(pageSize, maxPageSize);
+
+            try
+            {
+                var allAuthors = await _unit.BookRepo.GetAuthors();
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var searchLower = search.ToLowerInvariant();
+                    allAuthors = allAuthors?.Where(u =>
+                        (u!.Name?.ToLowerInvariant().Contains(searchLower) ?? false)
+                    ).ToList();
+                }
+
+                int total = allAuthors!.Count();
+                var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+                var items = allAuthors!
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                _logger.LogInformation("Admin requested authors page {Page}/{TotalPages} (size {PageSize}) search={Search}",
+                    page, totalPages, pageSize, search ?? "none");
+
+                var result = new
+                {
+                    Total = total,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalPages = totalPages,
+                    Items = items
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving all authors");
+                return Problem("An error occurred while retrieving authors.");
+            }
+        }
+
+        //Get /api/Books/categories?page=5&pageSize=10&search=
+        [HttpGet("categories")]
+        public async Task<IActionResult> GetCategories([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (page < 1 || pageSize < 1)
+                return BadRequest("Page and pageSize must be positive integers.");
+
+            const int maxPageSize = 200;
+            pageSize = Math.Min(pageSize, maxPageSize);
+
+            try
+            {
+                var allCats = await _unit.BookRepo.GetCategories();
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var searchLower = search.ToLowerInvariant();
+                    allCats = allCats?.Where(u =>
+                        (u!.Name?.ToLowerInvariant().Contains(searchLower) ?? false)
+                    ).ToList();
+                }
+
+                var total = allCats!.Count();
+                var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+                var items = allCats!
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                _logger.LogInformation("Admin requested categories page {Page}/{TotalPages} (size {PageSize}) search={Search}",
+                    page, totalPages, pageSize, search ?? "none");
+
+                var result = new
+                {
+                    Total = total,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalPages = totalPages,
+                    Items = items
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving all categories");
+                return Problem("An error occurred while retrieving categories.");
+            }
+        }
+
+        //POST /api/Books/upload
+        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Author")]
+        [HttpPost("upload")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> Upload([FromForm] UploadBookDTO dto)
+        {
+            if(!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if(dto.File.Length == 0 || dto.File is null)
+                return BadRequest("No file is added.");
+
+            try
+            {
+                // Get or create language
+                var lang = (await _unit.BookRepo.GetLanguages())?
+                    .FirstOrDefault(a => a!.Language == dto.language);
+                if (lang is null)
+                    await _unit.BookRepo.AddLanguage(dto.language);
+
+                //Renaming the cover picture to the name of the file
+                var coverName = dto.CoverPic.FileName;
+                var coverExtension = Path.GetExtension(coverName);
+                var coverFileName = $"{Path.GetFileNameWithoutExtension(dto.File.FileName)}_cover{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
+
+
+                //Create a new book
+                var book = new Book 
+                {
+                    Id = Guid.NewGuid(),
+                    Title = dto.File.FileName,
+                    FilePath = $"D:\\\\Books\\{dto.File.FileName}",
+                    Descritpion = dto.Descritpion,
+                    PageCount = dto.PageCount,
+                    PhotoPath = $"D:\\\\Books\\Photos\\{coverFileName}",
+                    FileSize = dto.File.Length,
+                    FileType = dto.File.ContentType.ToLowerInvariant(),
+                    PublishedAT = dto.PublishedAT,
+                    UploadedAt = DateTime.UtcNow,
+                };
+                //Add the book to the database
+                await _unit.BookRepo.Add(book);
+
+                //Filling the linking tables between Books, Authors, Categories, and languages.
+                Category? cate;
+                Author? auth;
+
+                // Get or create category
+                foreach (var catName in dto.Categories_Names)
+                {
+                    cate = (await _unit.BookRepo.GetCategories())?
+                        .FirstOrDefault(c => c!.Name == catName);
+                    if (cate is null)
+                        await _unit.BookRepo.AddCategory(catName);
+
+                    await _unit.BookRepo.LinkBookToCategory(book.Id, cate!.Id);
+                }
+
+                // Get or create author
+                foreach (var authName in dto.Authors_Names)
+                {
+                    auth = (await _unit.BookRepo.GetAuthors())?
+                        .FirstOrDefault(a => a!.Name == authName);
+                    if (auth is null)
+                        await _unit.BookRepo.AddAuthor(authName);
+
+                    await _unit.BookRepo.LinkBookToAuthor(book.Id, auth!.Id);
+                }
+
+                await _unit.BookRepo.LinkBookToLanguage(book.Id, lang!.Id);
+
+                //Save the file to the specified directory in appsettings.json
+                var uploadedFile = await _fileService.UploadFileAsync(dto.File, dto.CoverPic);
+                if (string.Equals(uploadedFile, "A file with the same name already exists.", StringComparison.OrdinalIgnoreCase))
+                    return BadRequest($"The file for '{dto.File.FileName}' already exists.");
+
+                //Check if the adding tho the database is done. IF not throw and delete the file
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    // Database commit failed — delete the uploaded file
+                    _logger.LogError(dbEx, "Database commit failed. Deleting uploaded file: {FileName}", uploadedFile);
+                    await _fileService.DeleteFileAsync(dto.File.FileName);
+                    throw; // Re-throw to be caught by outer catch
+                }
+
+                _logger.LogInformation("Book uploaded successfully: {Title} with file {FileName}", dto.File.FileName, uploadedFile);
+
+                return CreatedAtAction("GetBookById", new { bookId = book.Id }, new
+                {
+                    book.Id,
+                    book.Title,
+                    book.FilePath
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Invalid file for book upload: {Title}", dto.File.FileName);
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading book {Title}", dto.File.FileName);
+                return Problem("An error occurred while uploading the book.");
+            }
+        }
+
+        //GET /api/Books/{id}/download
+        [HttpGet("{id}/download")]
+        public async Task<IActionResult> Download([FromRoute] Guid id) 
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(id.ToString()))
+                return BadRequest("No file to download");
+            try
+            {
+                var book = await _unit.BookRepo.GetById(id.ToString());
+                if (book is null || string.IsNullOrEmpty(book.FilePath))
+                    return NotFound("This book is not found.");
+
+                // Get current user id from Claims (may be null if anonymous)
+                var userId = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                var fileStream = await _fileService.DownloadFileAsync(book.Title, book.FilePath, id, userId!);
+
+                _logger.LogInformation("Book download initiated: {BookId} ({Title}) by user {UserId}", id, book.Title, userId ?? "anonymous");
+
+                return fileStream;
+            }
+            catch (FileNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Book file not found for book ID {BookId}", id);
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading book {BookId}", id);
+                return Problem("An error occurred while downloading the book.");
+            }
+        }
+
+        //Post /api/Books/addAuthop
+        [HttpPost("addCategory")]
+        public async Task<IActionResult> AddBooksCategory([FromBody] string cat)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(cat))
+                return BadRequest("The category name is required");
+
+            try { 
+                var res = await _unit.BookRepo.AddCategory(cat);
+                if (!res)
+                    return BadRequest($"This category: {cat} is already exist");
+
+                return CreatedAtAction(nameof(AddBooksCategory), new { CategoryName = cat }, cat);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Cannot add the category name: {Name}", cat);
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot add the category name: {Name}", cat);
+                return Problem("An error occurred while adding the category.");
+            }
+        }
+
+        //Post /api/Books/addAuthop
+        [HttpPost("addAuthor")]
+        public async Task<IActionResult> AddBooksAuthor([FromBody] string author)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(author))
+                return BadRequest("The author's name is required");
+
+            try
+            {
+                var res = await _unit.BookRepo.AddAuthor(author, "");
+                if (!res)
+                    return BadRequest($"This author: {author} is already exist");
+
+                return CreatedAtAction(nameof(AddBooksCategory), new { CategoryName = author }, author);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Cannot add the author: {Name}", author);
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot add the author: {Name}", author);
+                return Problem("An error occurred while adding the author.");
+            }
+        }
+
+    }
+}

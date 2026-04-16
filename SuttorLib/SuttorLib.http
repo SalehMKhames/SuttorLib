@@ -1,0 +1,6 @@
+@SuttorLib_HostAddress = http://localhost:5100
+
+GET {{SuttorLib_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

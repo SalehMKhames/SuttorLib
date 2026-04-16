@@ -1,0 +1,35 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Build
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Rider
+.idea/
+
+# Logs & DB
+*.log
+*.sqlite
+*.db
+
+# Secret files
+appsettings.*.json
+appsettings.Local.json
+secrets.json
+
+# OS
+Thumbs.db
+.DS_Store
+
+# File storage and uploads (adjust as needed)
+/Books/
+/Books/Photos/
+
+# Git LFS pointer files (if you use LFS)
+*.pdf
+*.epub

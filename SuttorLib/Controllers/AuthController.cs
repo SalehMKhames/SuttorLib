@@ -1,0 +1,277 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using SuttorLibrary.Core;
+using SuttorLibrary.DTOs;
+
+namespace SuttorLibrary.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class AuthController(IUnitOfWork unit, ILogger<AuthController> logger) : ControllerBase
+    {
+        private readonly IUnitOfWork _unit = unit;
+        private readonly ILogger<AuthController> _logger = logger;
+
+        //POST /api/Auth/Register
+        [HttpPost("Register", Name = "RegisterUser")]
+        public async Task<IActionResult> CreateUser([FromBody] RegisterDTO register)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var result = await _unit.AuthRepo.RegisterUser(register);
+                if (result is null)
+                {
+                    _logger.LogInformation("Registration failed for email {Email}", register.Email);
+                    return BadRequest("Email or username already exists.");
+                }
+
+                return CreatedAtAction(nameof(CreateUser), new { userId = result.Id }, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error registering user {Email}", register.Email);
+                return Problem("An error occurred during registration.");
+            }
+        }
+
+        // POST /api/Auth/LogIn
+        [HttpPost("LogIn", Name = "LogInUser")]
+        public async Task<IActionResult> LogIn([FromBody] LoginDTO login)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            
+            try
+            {
+                var result = await _unit.AuthRepo.LoginUser(login);
+                if (result is null)
+                {
+                    _logger.LogInformation("Login failed for email {Email}", login.Email);
+                    return Unauthorized("Invalid email or password.");
+                }
+                await _unit.CompleteAsync();
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during login for {Email}", login.Email);
+                return Problem("An error occurred during login.");
+            }
+        }
+
+        // PUT /api/Auth/Update-User-Info/{{userID}}
+        [Authorize]
+        [HttpPut("Update-User/{userId}", Name = "Update-User")]
+        public async Task<IActionResult> UpdateUser([FromBody] UpdateUserDTO updateDto, [FromRoute] string userId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if(string.IsNullOrWhiteSpace(userId.ToString()))
+                return BadRequest("UserId is required");
+
+            try
+            {
+                var callerId = User.FindFirst("uid")?.Value
+                               ?? User.FindFirst("sub")?.Value
+                               ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                if (!User.IsInRole("Admin") && !string.Equals(callerId, userId, StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
+
+                var result = await _unit.AuthRepo.UpdateUser(userId, updateDto);
+                if (result is null)
+                {
+                    _logger.LogInformation("Update failed: user not found {UserId}", userId);
+                    return NotFound($"User with ID '{userId}' not found.");
+                }
+
+                await _unit.CompleteAsync();
+                return Ok(result);
+            }
+            catch (InvalidOperationException io)
+            {
+                _logger.LogWarning(io, "Invalid operation while updating user {UserId}", userId);
+                return BadRequest(io.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating user {UserId}", userId);
+                return Problem("An error occurred while updating the user.");
+            }
+        }
+
+        // PATCH /api/Auth/ChangePassword
+        [HttpPatch("ChangePassword", Name = "ChangeUserPassword")]
+        public async Task<IActionResult> ChangeUserPassword([FromBody] ChangePasswordDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var callerEmail = User.FindFirst("email")?.Value ?? User.Identity?.Name;
+                if (!User.IsInRole("Admin") 
+                        && !string.Equals(callerEmail, dto.Email, StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
+
+                var result = await _unit.AuthRepo.ChangePassword(dto);
+                await _unit.CompleteAsync();
+                return Ok(new { success = true, message = "Password changed successfully." });
+            }
+            catch (KeyNotFoundException knf)
+            {
+                _logger.LogInformation(knf, "ChangePassword: user not found {Email}", dto.Email);
+                return NotFound(knf.Message);
+            }
+            catch (UnauthorizedAccessException ua)
+            {
+                _logger.LogInformation(ua, "ChangePassword: unauthorized for {Email}", dto.Email);
+                return Unauthorized(ua.Message);
+            }
+            catch (InvalidOperationException io)
+            {
+                _logger.LogWarning(io, "ChangePassword: operation failed for {Email}", dto.Email);
+                return BadRequest(io.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error changing password for {Email}", dto.Email);
+                return Problem("An error occurred while changing the password.");
+            }
+        }
+
+        //PATCH /api/Auth/AssginNewRole
+        [Authorize(Roles = "Admin")]
+        [HttpPatch("AssignRole", Name = "AssignNewRole")]
+        public async Task<IActionResult> AssignNewRole([FromBody] AssignRoleDTO roleDto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var result = await _unit.AuthRepo.AssignRole(roleDto);
+                if (result is null)
+                {
+                    _logger.LogInformation("AssignRole: user not found for {Email}", roleDto.Email);
+                    return NotFound($"User with email '{roleDto.Email}' not found.");
+                }
+
+                if (result.StartsWith("Failed"))
+                {
+                    _logger.LogWarning("AssignRole failed for {Email}: {Message}", roleDto.Email, result);
+                    return BadRequest(result);
+                }
+
+                await _unit.CompleteAsync();
+                return Ok(new { message = result });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error assigning role {Role} to {Email}", roleDto.Role, roleDto.Email);
+                return Problem("An error occurred while assigning the role.");
+            }
+        }
+
+        // DELETE /api/Auth/DeleteUser/{userId}
+        // Admins can delete any user. Non-admins can delete their own account only.
+        [Authorize]
+        [HttpDelete("DeleteUser/{userId}", Name = "DeleteUser")]
+        public async Task<IActionResult> DeleteUser([FromRoute] Guid userId, [FromBody] DeleteUserDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (userId == Guid.Empty)
+                return BadRequest("User ID is required.");
+
+            try
+            {
+                var callerId = User.FindFirst("uid")?.Value
+                               ?? User.FindFirst("sub")?.Value
+                               ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                if (!User.IsInRole("Admin") && !string.Equals(callerId, userId.ToString(), StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
+
+                var success = await _unit.AuthRepo.DeleteUser(userId, dto.Password);
+                if (!success)
+                {
+                    _logger.LogInformation("DeleteUser: user not found {UserId}", userId);
+                    return NotFound($"User with ID '{userId}' not found.");
+                }
+
+                await _unit.CompleteAsync();
+                _logger.LogInformation("DeleteUser: user {UserId} deleted by {Caller}", userId, callerId);
+                return Ok(new { success = true, message = "User deleted successfully." });
+            }
+            catch (UnauthorizedAccessException ua)
+            {
+                _logger.LogInformation(ua, "DeleteUser unauthorized for {UserId}", userId);
+                return Unauthorized(ua.Message);
+            }
+            catch (InvalidOperationException io)
+            {
+                _logger.LogWarning(io, "DeleteUser failed for {UserId}", userId);
+                return BadRequest(io.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error deleting user {UserId}", userId);
+                return Problem("An error occurred while deleting the user.");
+            }
+        }
+
+
+        // POST /api/Auth/Refresh
+        [HttpPost("Refresh", Name = "RefreshToken")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshRequestDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var tokens = await _unit.AuthRepo.RefreshTokensAsync(dto.RefreshToken);
+                if (tokens is null)
+                    return Unauthorized("Invalid or expired refresh token.");
+
+                await _unit.CompleteAsync();
+                return Ok(tokens);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing token");
+                return Problem("An error occurred while refreshing token.");
+            }
+        }
+
+        // POST /api/Auth/Revoke
+        [Authorize]
+        [HttpPost("Revoke", Name = "RevokeRefreshToken")]
+        public async Task<IActionResult> Revoke([FromBody] RevokeRequestDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var result = await _unit.AuthRepo.RevokeRefreshTokenAsync(dto.RefreshToken);
+                if (!result)
+                    return NotFound("Refresh token not found or already revoked.");
+
+                await _unit.CompleteAsync();
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error revoking refresh token");
+                return Problem("An error occurred while revoking refresh token.");
+            }
+        }
+    }
+}
