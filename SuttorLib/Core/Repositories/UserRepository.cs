@@ -48,23 +48,47 @@ namespace SuttorLibrary.Core.Repositories
             return base.GetById(userid);
         }
 
-        public async Task<AppUser?> GetUserByEmail(string email)
+        public async Task<GetUserDTO?> GetUserByEmail(string email)
         {
 
             var user = await _userManager.FindByEmailAsync(email);
             if (user is null)
                 return null;
 
-            return user;
+            var userDto = new GetUserDTO
+            {
+                Id = user.Id,
+                FullName = user.FullName,
+                UserName = user.UserName,
+                Email = user.Email,
+                JoinedAt = user.JoinedAt,
+                XP = user.XP,
+                PhotoPath = user.PhotoPath,
+                IsAuthor = user.IsAuthor
+            };
+
+            return userDto;
         }
 
-        public async Task<AppUser?> GetUserByUsername(string username)
+        public async Task<GetUserDTO?> GetUserByUsername(string username)
         {
             var user = await _userManager.FindByNameAsync(username);
             if (user is null)
                 return null;
 
-            return user;
+            var userDto = new GetUserDTO
+            {
+                Id = user.Id,
+                FullName = user.FullName,
+                UserName = user.UserName,
+                Email = user.Email,
+                JoinedAt = user.JoinedAt,
+                XP = user.XP,
+                PhotoPath = user.PhotoPath,
+                IsAuthor = user.IsAuthor
+            };
+
+            return userDto;
         }
 
         public async Task<List<Category?>?> UpdateUserInterest(UserInterestDTO dto)

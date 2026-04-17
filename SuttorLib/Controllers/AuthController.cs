@@ -105,6 +105,7 @@ namespace SuttorLibrary.Controllers
         }
 
         // PATCH /api/Auth/ChangePassword
+        [Authorize]
         [HttpPatch("ChangePassword", Name = "ChangeUserPassword")]
         public async Task<IActionResult> ChangeUserPassword([FromBody] ChangePasswordDTO dto)
         {

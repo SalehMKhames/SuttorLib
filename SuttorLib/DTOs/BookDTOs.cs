@@ -9,7 +9,7 @@ namespace SuttorLibrary.DTOs
         [Required]
         public required IFormFile CoverPic { get; set; }
         [MaxLength(300)]
-        public string Descritpion { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
         public string language { get; set; } = string.Empty;
         public int PageCount { get; set; }
         public int PublishedAT { get; set; }

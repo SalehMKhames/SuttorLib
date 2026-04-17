@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SuttorLibrary.DTOs
 {
@@ -114,5 +115,28 @@ namespace SuttorLibrary.DTOs
     {
         [Required]
         public string RefreshToken { get; set; } = string.Empty;
+    }
+
+    public class GetUserDTO
+    {
+        public string Id { get; set; }
+
+        [Column(TypeName = "varchar(50)")]
+        [MaxLength(50)]
+        public string FullName { get; set; } = string.Empty;
+
+        [Column(TypeName = "varchar(50)")]
+        [MaxLength(50)]
+        [Required]
+        public string UserName { get; set; } = string.Empty;
+
+        [EmailAddress]
+        [Required]
+        public string Email { get; set; } = string.Empty;
+        public DateTime JoinedAt { get; set; }
+        public int XP { get; set; }
+        public string? PhotoPath { get; set; }
+
+        public bool IsAuthor { get; set; }
     }
 }

@@ -151,14 +151,14 @@ namespace SuttorLibrary.Controllers
                 return BadRequest(ModelState);
 
             if (dto.CategoriesNames is null || dto.CategoriesNames.Count == 0)
-                return BadRequest("You must add some categories that you are interest in!");
+                return BadRequest("You must add some categories that you are interested in!");
 
             try {
                 var isAdded = await _unit.UserRepo.AddUserInterest(dto);
                 if (isAdded == null)
                     return NotFound("User Not Found");
                 if (isAdded == false)
-                    return BadRequest("Can not add your interests right now. Try Again!");
+                    return BadRequest("Cannot add your interests right now. Try again.");
 
                 await _unit.CompleteAsync();
                 return Ok(new { success = true, message = "Your interests have been added." });
@@ -176,7 +176,7 @@ namespace SuttorLibrary.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error adding interests user {UserId}", dto.UserID);
-                return Problem("An error occurred while addin the interests of the user.");
+                return Problem("An error occurred while adding the user's interests.");
             }
         }
 
@@ -188,7 +188,7 @@ namespace SuttorLibrary.Controllers
                 return BadRequest(ModelState);
 
             if (dto.CategoriesNames is null || dto.CategoriesNames.Count == 0)
-                return BadRequest("You must add some categories that you are interest in!");
+                return BadRequest("You must add some categories that you are interested in!");
 
             try
             {
@@ -218,7 +218,7 @@ namespace SuttorLibrary.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error adding interests user {UserId}", dto.UserID);
-                return Problem("An error occurred while addin the interests of the user.");
+                return Problem("An error occurred while adding the user's interests.");
             }
         }
     }

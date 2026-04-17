@@ -141,7 +141,7 @@ namespace SuttorLibrary.Data
 
             // -------- Identity seed data (Users + Roles) ---------
 
-            // Satble GUIDs fro seeded data
+            // Stable GUIDs fro seeded data
             string adminRoleId = Guid.NewGuid().ToString();
             string userRoleId = Guid.NewGuid().ToString();
             string authorId = Guid.NewGuid().ToString();
@@ -304,7 +304,7 @@ namespace SuttorLibrary.Data
                     new Category
                     {
                         Id = Guid.NewGuid(),
-                        Name = "Computer Sceince & A.I."
+                        Name = "Computer Science & A.I."
                     },
                     new Category
                     {
@@ -375,7 +375,7 @@ namespace SuttorLibrary.Data
                     new Category
                     {
                         Id = Guid.NewGuid(),
-                        Name = "Anthropology & Archaelogy"
+                        Name = "Anthropology & Archaeology"
                     },
                     new Category
                     {
@@ -415,7 +415,7 @@ namespace SuttorLibrary.Data
                     new Category
                     {
                         Id = Guid.NewGuid(),
-                        Name = "Business & Enteroreneurship"
+                        Name = "Business & Entrepreneurship"
                     },
                     new Category
                     {

@@ -17,7 +17,7 @@ namespace SuttorLibrary.Controllers
         private readonly IFileService _fileService = fileService;
 
         //GET /api/Book/{id}
-        [HttpGet("Book/{bookId}", Name = "GetBookById")]
+        [HttpGet("{bookId}", Name = "GetBookById")]
         public async Task<IActionResult> GetBookById([FromRoute] string bookId)
         {
             if (!ModelState.IsValid)
@@ -222,7 +222,7 @@ namespace SuttorLibrary.Controllers
                     Id = Guid.NewGuid(),
                     Title = dto.File.FileName,
                     FilePath = $"D:\\\\Books\\{dto.File.FileName}",
-                    Descritpion = dto.Descritpion,
+                    Description = dto.Description,
                     PageCount = dto.PageCount,
                     PhotoPath = $"D:\\\\Books\\Photos\\{coverFileName}",
                     FileSize = dto.File.Length,
@@ -266,7 +266,7 @@ namespace SuttorLibrary.Controllers
                 if (string.Equals(uploadedFile, "A file with the same name already exists.", StringComparison.OrdinalIgnoreCase))
                     return BadRequest($"The file for '{dto.File.FileName}' already exists.");
 
-                //Check if the adding tho the database is done. IF not throw and delete the file
+                //Check if adding to the database succeeded. If not, delete the uploaded file and return an error.
                 try
                 {
                     await _unit.CompleteAsync();
@@ -335,7 +335,7 @@ namespace SuttorLibrary.Controllers
             }
         }
 
-        //Post /api/Books/addAuthop
+        //Post /api/Books/addCategory
         [HttpPost("addCategory")]
         public async Task<IActionResult> AddBooksCategory([FromBody] string cat)
         {
@@ -347,7 +347,7 @@ namespace SuttorLibrary.Controllers
             try { 
                 var res = await _unit.BookRepo.AddCategory(cat);
                 if (!res)
-                    return BadRequest($"This category: {cat} is already exist");
+                    return BadRequest($"This category: {cat} already exists");
 
                 return CreatedAtAction(nameof(AddBooksCategory), new { CategoryName = cat }, cat);
             }
@@ -363,7 +363,7 @@ namespace SuttorLibrary.Controllers
             }
         }
 
-        //Post /api/Books/addAuthop
+        //Post /api/Books/addAuthor
         [HttpPost("addAuthor")]
         public async Task<IActionResult> AddBooksAuthor([FromBody] string author)
         {
@@ -376,9 +376,9 @@ namespace SuttorLibrary.Controllers
             {
                 var res = await _unit.BookRepo.AddAuthor(author, "");
                 if (!res)
-                    return BadRequest($"This author: {author} is already exist");
+                    return BadRequest($"This author: {author} already exists");
 
-                return CreatedAtAction(nameof(AddBooksCategory), new { CategoryName = author }, author);
+                return CreatedAtAction(nameof(AddBooksAuthor), new { AuthorName = author }, author);
             }
             catch (InvalidOperationException ex)
             {
