@@ -6,6 +6,7 @@ namespace SuttorLibrary.Core.Services
     {
         Task<string> UploadFileAsync(IFormFile file, IFormFile coverPic);
         Task<FileContentResult> DownloadFileAsync(string fileName, string pathToFile, Guid bookId, string userId);
+        Task<string> UploadUserPicAsync(IFormFile userPic, string username);
         Task<bool> DeleteFileAsync(string fileName);
 
         bool IsValidFileExtension(string fileName);

@@ -5,7 +5,7 @@ namespace SuttorLibrary.Core.Interfaces
 {
     public interface IAuthRepository : IGenericRepo<AppUser>
     {
-        public Task<AppUser?> RegisterUser(RegisterDTO register);
+        public Task<AppUser?> RegisterUser(RegisterDTO register, string picName);
         public Task<AppUser?> LoginUser(LoginDTO login);
         public Task<bool> ChangePassword(ChangePasswordDTO passwordDTO);
         public Task<AppUser?> UpdateUser(string id, UpdateUserDTO userDTO);

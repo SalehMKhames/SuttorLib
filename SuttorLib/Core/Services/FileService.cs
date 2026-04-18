@@ -14,17 +14,14 @@ namespace SuttorLibrary.Core.Services
         private readonly ILogger<FileService> _logger = logger;
         private readonly AppDbContext _context = context;
 
-        public async Task<bool> DeleteFileAsync(string fileName)
+        public async Task<bool> DeleteFileAsync(string filePath)
         {
             try
             {
-                var storagePath = _configuration["FileStorage:Path"];
-                var filePath = Path.Combine(storagePath!, fileName);
-
                 if (File.Exists(filePath))
                 {
                     File.Delete(filePath);
-                    _logger.LogInformation("File deleted: {FileName}", fileName);
+                    _logger.LogInformation("File deleted: {FileName}", filePath);
                     return true;
                 }
 
@@ -32,7 +29,7 @@ namespace SuttorLibrary.Core.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting file: {FileName}", fileName);
+                _logger.LogError(ex, "Error deleting file: {FileName}", filePath);
                 throw;
             }
         }
@@ -167,7 +164,49 @@ namespace SuttorLibrary.Core.Services
             }
         }
 
+        public async Task<string> UploadUserPicAsync(IFormFile userPic, string username)
+        {
+            if (userPic is null || userPic.Length == 0)
+                throw new ArgumentException("File is empty.");
 
+            if (!IsValidPhotoExtension(userPic.FileName))
+                throw new InvalidOperationException($"File extension not allowed. Allowed: {GetAllowedPictureExtensions()}");
+
+            try {
+                var storagePath = _configuration["FileStorage:UsersPicsPath"];
+                if (string.IsNullOrEmpty(storagePath))
+                    throw new InvalidOperationException("File storage path not configured.");
+
+                var uploadDirectory = storagePath;
+                if (!Directory.Exists(uploadDirectory))
+                    Directory.CreateDirectory(uploadDirectory);
+
+                var uniquePicName = userPic.FileName;
+
+                if (userPic is not null && userPic.Length > 0)
+                {
+                    //Renaming the photo to {username_picture with the extension}
+                    var coverExtension = Path.GetExtension(uniquePicName);
+                    var coverFileName = $"{username}_picture{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
+
+                    var coverPath = Path.Combine(uploadDirectory, coverFileName);
+
+                    // Overwrite cover if it exists
+                    await using (var coverStream = new FileStream(coverPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous))
+                    {
+                        await userPic.CopyToAsync(coverStream);
+                    }
+                }
+
+                _logger.LogInformation("File uploaded successfully: {FileName} at {FilePath}", userPic!.FileName, storagePath);
+                return uniquePicName;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading file: {FileName}", userPic.FileName);
+                throw;
+            }
+        }
 
         public bool IsValidFileExtension(string fileName)
         {

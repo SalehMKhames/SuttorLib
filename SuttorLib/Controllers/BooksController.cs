@@ -275,7 +275,8 @@ namespace SuttorLibrary.Controllers
                 {
                     // Database commit failed — delete the uploaded file
                     _logger.LogError(dbEx, "Database commit failed. Deleting uploaded file: {FileName}", uploadedFile);
-                    await _fileService.DeleteFileAsync(dto.File.FileName);
+                    await _fileService.DeleteFileAsync(book.FilePath);
+                    await _fileService.DeleteFileAsync(book.PhotoPath);
                     throw; // Re-throw to be caught by outer catch
                 }
 

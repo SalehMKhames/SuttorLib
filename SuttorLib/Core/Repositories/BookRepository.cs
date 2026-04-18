@@ -24,7 +24,7 @@ namespace SuttorLibrary.Core.Repositories
                          {
                              b.Id,
                              b.Title,
-                             b.Descritpion,
+                             b.Description,
                              b.PageCount,
                              b.FileSize,
                              b.PublishedAT,

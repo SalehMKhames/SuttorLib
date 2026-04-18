@@ -1,16 +1,18 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SuttorLibrary.Core;
+using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
 
 namespace SuttorLibrary.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthController(IUnitOfWork unit, ILogger<AuthController> logger) : ControllerBase
+    public class AuthController(IUnitOfWork unit, ILogger<AuthController> logger, IFileService fileService) : ControllerBase
     {
         private readonly IUnitOfWork _unit = unit;
         private readonly ILogger<AuthController> _logger = logger;
+        private readonly IFileService _fileService = fileService;
 
         //POST /api/Auth/Register
         [HttpPost("Register", Name = "RegisterUser")]
@@ -21,11 +23,31 @@ namespace SuttorLibrary.Controllers
 
             try
             {
-                var result = await _unit.AuthRepo.RegisterUser(register);
+                
+                //Save the user's picture to the specified directory in appsettings.json
+                var uploadedPicture = await _fileService.UploadUserPicAsync(register.coverPic!, register.FullName);
+
+                if (string.Equals(uploadedPicture, "A picture with the same name already exists.", StringComparison.OrdinalIgnoreCase))
+                    return BadRequest($"The file for '{register.coverPic!.FileName}' already exists.");
+
+                var result = await _unit.AuthRepo.RegisterUser(register, uploadedPicture);
                 if (result is null)
                 {
                     _logger.LogInformation("Registration failed for email {Email}", register.Email);
                     return BadRequest("Email or username already exists.");
+                }
+
+                //Check if adding to the database succeeded. If not, delete the uploaded file and return an error.
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    // Database commit failed — delete the uploaded file
+                    _logger.LogError(dbEx, "Database commit failed. Deleting uploaded file: {FileName}", uploadedPicture);
+                    await _fileService.DeleteFileAsync(result.PhotoPath!);
+                    throw; // Re-throw to be caught by outer catch
                 }
 
                 return CreatedAtAction(nameof(CreateUser), new { userId = result.Id }, result);

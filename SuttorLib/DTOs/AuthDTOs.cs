@@ -27,6 +27,8 @@ namespace SuttorLibrary.DTOs
 
         [Compare("Password", ErrorMessage = "Password and confirmation do not match.")]
         public string ConfirmPassword { get; set; } = string.Empty;
+
+        public IFormFile? userPic { get; set; }
     }
 
     public class LoginDTO 
@@ -53,7 +55,7 @@ namespace SuttorLibrary.DTOs
         [MaxLength(50, ErrorMessage = "Full name cannot exceed 50 characters.")]
         public string? FullName { get; set; }
 
-        public string? PhotoPath { get; set; }
+        public IFormFile? newCoverPic { get; set; }
 
         [Range(0, int.MaxValue, ErrorMessage = "XP cannot be negative.")]
         public int? XP { get; set; }

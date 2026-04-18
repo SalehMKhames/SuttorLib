@@ -60,7 +60,7 @@ namespace SuttorLibrary.Core.Repositories
             return existedUser;
         }
 
-        public async Task<AppUser?> RegisterUser(RegisterDTO register)
+        public async Task<AppUser?> RegisterUser(RegisterDTO register, string picName)
         {
             if (await _userManager.FindByEmailAsync(register.Email) is not null)
                     return null;
@@ -77,7 +77,7 @@ namespace SuttorLibrary.Core.Repositories
                 EmailConfirmed = false,
                 IsAuthor = false,
                 XP = 0,
-                PhotoPath = string.Empty
+                PhotoPath = $"{_config["FileStorage:UsersPicsPath"]}\\{picName}"
             };
             
 
@@ -123,8 +123,8 @@ namespace SuttorLibrary.Core.Repositories
             if (!string.IsNullOrWhiteSpace(userDTO.FullName))
                 user.FullName = userDTO.FullName;
 
-            if (!string.IsNullOrWhiteSpace(userDTO.PhotoPath))
-                user.PhotoPath = userDTO.PhotoPath;
+            if (!string.IsNullOrWhiteSpace(userDTO.newCoverPic!.FileName))
+                user.PhotoPath = userDTO.newCoverPic.FileName;
 
             if (userDTO.XP.HasValue && userDTO.XP.Value >= 0)
                 user.XP = userDTO.XP.Value;
