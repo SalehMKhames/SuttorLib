@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
 
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
@@ -16,6 +17,25 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+
+//CORS Configurations
+var corsPolicy = "AllowSpecificOrigins";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(corsPolicy, policyBuilder =>
+    {
+        var allowedOrigins = builder.Configuration["CorsSettings:AllowedOrigins"]?.Split(",") ?? new[] { "http://localhost:3000" };
+
+        policyBuilder
+            .WithOrigins(allowedOrigins)
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()  //For JWT cookies/headers
+            .WithExposedHeaders("Content-Disposition")  //For file downloads
+            .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+    });
+});
+
 
 // Configure form limits
 builder.Services.Configure<FormOptions>(options =>
@@ -142,14 +162,28 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.UseSwaggerUI( options =>
-    {
-        options.SwaggerEndpoint("/openapi/v1.json", "Suttor Library API V1");
-        //options.RoutePrefix = string.Empty;
+    //app.UseSwaggerUI( options =>
+    //{
+    //    options.SwaggerEndpoint("/openapi/v1.json", "Suttor Library API V1");
+    //    //options.RoutePrefix = string.Empty;
+    //});
+
+    app.MapScalarApiReference(options => {
+        options.Title = "Suttor Library API Documentation";
+        options.AddPreferredSecuritySchemes("Bearer");
+        // Authentication/Security configuration
+        options.Authentication = new ScalarAuthenticationOptions
+        {
+            PreferredSecuritySchemes = ["Bearer"]
+        };
+
+
     });
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors(corsPolicy);
 
 app.UseAuthentication();
 
