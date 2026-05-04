@@ -1,16 +1,20 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SuttorLibrary.Core;
+using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
 
 namespace SuttorLibrary.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class UsersController(IUnitOfWork unit, ILogger<UsersController> logger) : ControllerBase
+    public class UsersController(
+        IUnitOfWork unit, ILogger<UsersController> logger, IFileService fileService
+        ) : ControllerBase
     {
         private readonly IUnitOfWork _unit = unit;
         private readonly ILogger<UsersController> _logger = logger;
+        private readonly IFileService _fileService = fileService;
 
         // GET /api/Users/UserByEmail?email=...
         [HttpGet("UserByEmail", Name = "UserByEmail")]
@@ -28,7 +32,24 @@ namespace SuttorLibrary.Controllers
                 if (user is null)
                     return NotFound($"User with email '{email}' not found.");
 
-                return Ok(user);
+                IFormFile? photo = null;
+                if (!string.IsNullOrEmpty(user.PhotoPath))
+                {
+                    photo = await _fileService.GetPictureAsync(user.PhotoPath);
+                }
+
+                var result = new
+                {
+                    Id = (string) user.Id,
+                    FullName = (string) user.FullName,
+                    UserName = (string) user.UserName,
+                    Email = (string) user.Email,
+                    XP = (int) user.XP,
+                    IsAuthor = (bool) user.IsAuthor,
+                    photo
+                };
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -53,7 +74,24 @@ namespace SuttorLibrary.Controllers
                 if (user is null)
                     return NotFound($"User with username '{username}' not found.");
 
-                return Ok(user);
+                IFormFile? photo = null;
+                if (!string.IsNullOrEmpty(user.PhotoPath))
+                {
+                    photo = await _fileService.GetPictureAsync(user.PhotoPath);
+                }
+
+                var result = new
+                {
+                    Id = (string)user.Id,
+                    FullName = (string)user.FullName,
+                    UserName = (string)user.UserName,
+                    Email = (string)user.Email,
+                    XP = (int)user.XP,
+                    IsAuthor = (bool)user.IsAuthor,
+                    photo
+                };
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -119,7 +157,6 @@ namespace SuttorLibrary.Controllers
         }
 
         //GET /api/Users/User?uid={userId}
-        [Authorize(Roles = "Admin")]
         [HttpGet("User")]
         public async Task<IActionResult> GetUser([FromQuery] Guid uid)
         {
@@ -134,7 +171,24 @@ namespace SuttorLibrary.Controllers
                 if (user is null)
                     return NotFound($"User with id: '{uid}' not found.");
 
-                return Ok(user);
+                IFormFile? photo = null;
+                if (!string.IsNullOrEmpty(user.PhotoPath))
+                {
+                    photo = await _fileService.GetPictureAsync(user.PhotoPath);
+                }
+
+                var result = new
+                {
+                    Id = (string)user.Id,
+                    FullName = (string)user.FullName,
+                    UserName = (string)user.UserName,
+                    Email = (string)user.Email,
+                    XP = (int)user.XP,
+                    IsAuthor = (bool)user.IsAuthor,
+                    photo
+                };
+
+                return Ok(result);
             }
             catch (Exception ex)
             {

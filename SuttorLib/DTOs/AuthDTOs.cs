@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SuttorLibrary.DTOs
 {
@@ -119,26 +118,33 @@ namespace SuttorLibrary.DTOs
         public string RefreshToken { get; set; } = string.Empty;
     }
 
-    public class GetUserDTO
+    public class GetPublicUserDTO
     {
         public string Id { get; set; }
-
-        [Column(TypeName = "varchar(50)")]
-        [MaxLength(50)]
         public string FullName { get; set; } = string.Empty;
-
-        [Column(TypeName = "varchar(50)")]
-        [MaxLength(50)]
-        [Required]
         public string UserName { get; set; } = string.Empty;
-
-        [EmailAddress]
-        [Required]
         public string Email { get; set; } = string.Empty;
         public DateTime JoinedAt { get; set; }
         public int XP { get; set; }
         public string? PhotoPath { get; set; }
+        public bool IsAuthor { get; set; }
+    }
+
+    public class UserDTO
+    {
+        public string Id { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public DateTime JoinedAt { get; set; }
+        public int XP { get; set; }
+        public IFormFile? Photo { get; set; }
 
         public bool IsAuthor { get; set; }
+        public string message { get; set; }
+        public DateTime ExpiresAt { get; set; }
+        public string Token { get; set; }
+        public bool IsAuthed { get; set; }
+        public IList<string> Roles { get; set; } = new List<string> { "User" };
     }
 }

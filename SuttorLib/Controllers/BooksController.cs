@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
@@ -10,13 +11,14 @@ namespace SuttorLibrary.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class BooksController(IUnitOfWork unit, ILogger<BooksController> logger, IFileService fileService) : ControllerBase
+    public class BooksController(IUnitOfWork unit, ILogger<BooksController> logger, IFileService fileService, IConfiguration configuration) : ControllerBase
     {
         private readonly IUnitOfWork _unit = unit;
         private readonly ILogger<BooksController> _logger = logger;
         private readonly IFileService _fileService = fileService;
+        private readonly IConfiguration _configuration = configuration;
 
-        //GET /api/Book/{id}
+        //GET /api/Books/{id}
         [HttpGet("{bookId}", Name = "GetBookById")]
         public async Task<IActionResult> GetBookById([FromRoute] string bookId)
         {
@@ -26,10 +28,36 @@ namespace SuttorLibrary.Controllers
                 return BadRequest("Book ID is required.");
 
             try {
-                var book = await _unit.BookRepo.GetByIdFromQuery(bookId);
+                var book = await _unit.BookRepo.GetBookWithDetailsAsync(bookId);
                 if (book is null)
                     return NotFound($"Book with ID '{bookId}' not found.");
-                return Ok(book);
+
+                Type type = book.GetType();
+
+                string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
+                IFormFile? bookCover = null;
+                if (!string.IsNullOrEmpty(photoPath))
+                {
+                    bookCover = await _fileService.GetPictureAsync(photoPath);
+                }
+
+                var bookDto = new GetBookDTO
+                {
+                    Id = (Guid) type.GetProperty("ClientId")!.GetValue(book, null)!,
+                    Title = (string) type.GetProperty("title")!.GetValue(book, null)!,
+                    Description = (string) type.GetProperty("description")!.GetValue(book, null)!,
+                    Photo = bookCover!,
+                    FilePath = (string) type.GetProperty("filePath")!.GetValue(book, null)!,
+                    PageCount = (int) type.GetProperty("pageCount")!.GetValue(book, null)!,
+                    PublishedAT = (int) type.GetProperty("publishedAt")!.GetValue(book, null)!,
+                    FileSize = (long) type.GetProperty("fileSize")!.GetValue(book, null)!,
+                    UploadedAt = (DateTime) type.GetProperty("uploadedAt")!.GetValue(book, null)!,
+                    language = (string) type.GetProperty("language")!.GetValue(book, null)!,
+                    Authors_Names = (List<string>) type.GetProperty("authors")!.GetValue(book, null)!,
+                    Categories_Names = (List<string>)type.GetProperty("categories")!.GetValue(book, null)!
+                };
+
+                return Ok(bookDto);
             }
             catch (Exception ex)
             {
@@ -52,7 +80,33 @@ namespace SuttorLibrary.Controllers
                 var book = await _unit.BookRepo.GetBookByName(name);
                 if (book is null)
                     return NotFound($"No books found with the name '{name}'.");
-                return Ok(book);
+
+                Type type = book.GetType();
+
+                string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
+                IFormFile? bookCover = null;
+                if (!string.IsNullOrEmpty(photoPath))
+                {
+                    bookCover = await _fileService.GetPictureAsync(photoPath);
+                }
+
+                var bookDto = new GetBookDTO
+                {
+                    Id = (Guid)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                    Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
+                    Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
+                    Photo = bookCover!,
+                    FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
+                    PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
+                    PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
+                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)!,
+                    UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
+                    language = (string)type.GetProperty("language")!.GetValue(book, null)!,
+                    Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
+                    Categories_Names = (List<string>)type.GetProperty("categories")!.GetValue(book, null)!
+                };
+
+                return Ok(bookDto);
             }
             catch (Exception ex)
             {
@@ -74,11 +128,36 @@ namespace SuttorLibrary.Controllers
                 var books = await _unit.BookRepo.GetBooksByCategory(category);
                 if (books is null || !books.Any())
                     return NotFound($"No books found in the category '{category}'.");
+
                 return Ok(books);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving books by category {Category}", category);
+                return Problem("An error occurred while retrieving the books.");
+            }
+        }
+
+        //GET /api/Books/ByAuthos?author?=...
+        [HttpGet("ByAuthor")]
+        public async Task<IActionResult> GetBooksByAuthor([FromQuery] string author)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest();
+            if (string.IsNullOrEmpty(author))
+                return BadRequest("Author name is required");
+
+            try
+            {
+                var books = await _unit.BookRepo.GetBooksByAuthor(author);
+                if (books is null || !books.Any())
+                    return NotFound($"No books found in the author '{author}'.");
+
+                return Ok(books);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving books by author {Author}", author);
                 return Problem("An error occurred while retrieving the books.");
             }
         }
@@ -215,16 +294,22 @@ namespace SuttorLibrary.Controllers
                 var coverExtension = Path.GetExtension(coverName);
                 var coverFileName = $"{Path.GetFileNameWithoutExtension(dto.File.FileName)}_cover{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
 
+                var storagePath = _configuration["FileStorage:Path"] ??
+                    throw new InvalidOperationException("FileStorage:Path not configured.");
+
+                var filePath = Path.Combine(storagePath, dto.File.FileName);
+                var photoPath = Path.Combine(storagePath, "Photos", coverFileName);
+
 
                 //Create a new book
-                var book = new Book 
+                var book = new Book
                 {
                     Id = Guid.NewGuid(),
                     Title = dto.File.FileName,
-                    FilePath = $"D:\\\\Books\\{dto.File.FileName}",
+                    FilePath = filePath,  // ✅ Uses config path
                     Description = dto.Description,
                     PageCount = dto.PageCount,
-                    PhotoPath = $"D:\\\\Books\\Photos\\{coverFileName}",
+                    PhotoPath = photoPath,  // ✅ Uses config path
                     FileSize = dto.File.Length,
                     FileType = dto.File.ContentType.ToLowerInvariant(),
                     PublishedAT = dto.PublishedAT,

@@ -15,7 +15,7 @@ namespace SuttorLibrary.Controllers
         private readonly IFileService _fileService = fileService;
 
         //POST /api/Auth/Register
-        [HttpPost("Register", Name = "RegisterUser")]
+        [HttpPost("Register", Name = "Register")]
         public async Task<IActionResult> CreateUser([FromBody] RegisterDTO register)
         {
             if (!ModelState.IsValid)
@@ -25,10 +25,10 @@ namespace SuttorLibrary.Controllers
             {
                 
                 //Save the user's picture to the specified directory in appsettings.json
-                var uploadedPicture = await _fileService.UploadUserPicAsync(register.coverPic!, register.FullName);
+                var uploadedPicture = await _fileService.UploadUserPicAsync(register.userPic!, register.FullName);
 
                 if (string.Equals(uploadedPicture, "A picture with the same name already exists.", StringComparison.OrdinalIgnoreCase))
-                    return BadRequest($"The file for '{register.coverPic!.FileName}' already exists.");
+                    return BadRequest($"The file for '{register.userPic!.FileName}' already exists.");
 
                 var result = await _unit.AuthRepo.RegisterUser(register, uploadedPicture);
                 if (result is null)
@@ -50,7 +50,24 @@ namespace SuttorLibrary.Controllers
                     throw; // Re-throw to be caught by outer catch
                 }
 
-                return CreatedAtAction(nameof(CreateUser), new { userId = result.Id }, result);
+                UserDTO userDTO = new UserDTO 
+                {
+                    Id = result.Id,
+                    FullName = result.FullName,
+                    Email = result.Email,
+                    UserName = result.UserName,
+                    Photo = register.userPic,
+                    IsAuthor = result.IsAuthor,
+                    XP = result.XP,
+                    JoinedAt = result.JoinedAt,
+                    IsAuthed = result.IsAuthed,
+                    Token = result.Token,
+                    ExpiresAt = result.ExpiresAt,
+                    Roles = result.Roles,
+                    message = result.message
+                };
+
+                return CreatedAtAction(nameof(CreateUser), new { userId = result.Id }, userDTO);
             }
             catch (Exception ex)
             {
@@ -69,6 +86,7 @@ namespace SuttorLibrary.Controllers
             try
             {
                 var result = await _unit.AuthRepo.LoginUser(login);
+
                 if (result is null)
                 {
                     _logger.LogInformation("Login failed for email {Email}", login.Email);
@@ -76,7 +94,31 @@ namespace SuttorLibrary.Controllers
                 }
                 await _unit.CompleteAsync();
 
-                return Ok(result);
+                IFormFile? userPic = null;
+                if (string.IsNullOrEmpty(result.PhotoPath))
+                {
+                    userPic = await _fileService.GetPictureAsync(result.PhotoPath!);
+                }
+
+
+                UserDTO userDTO = new UserDTO 
+                {
+                    Id = result.Id,
+                    FullName = result.FullName,
+                    UserName = result.UserName,
+                    Email = result.Email,
+                    Photo = userPic,
+                    JoinedAt = result.JoinedAt,
+                    XP = result.XP,
+                    IsAuthor = result.IsAuthor,
+                    IsAuthed = result.IsAuthed,
+                    Token = result.Token,
+                    ExpiresAt = result.ExpiresAt,
+                    message = result.message,
+                    Roles = result.Roles
+                };
+
+                return Ok(userDTO);
             }
             catch (Exception ex)
             {
@@ -85,9 +127,9 @@ namespace SuttorLibrary.Controllers
             }
         }
 
-        // PUT /api/Auth/Update-User-Info/{{userID}}
+        // PUT /api/Auth/Update/{{userID}}
         [Authorize]
-        [HttpPut("Update-User/{userId}", Name = "Update-User")]
+        [HttpPut("update/{userId}", Name = "Update-User")]
         public async Task<IActionResult> UpdateUser([FromBody] UpdateUserDTO updateDto, [FromRoute] string userId)
         {
             if (!ModelState.IsValid)
@@ -104,7 +146,10 @@ namespace SuttorLibrary.Controllers
                 if (!User.IsInRole("Admin") && !string.Equals(callerId, userId, StringComparison.OrdinalIgnoreCase))
                     return Forbid();
 
-                var result = await _unit.AuthRepo.UpdateUser(userId, updateDto);
+                var userPicPath = updateDto.newCoverPic is not null ? 
+                    await _fileService.UploadUserPicAsync(updateDto.newCoverPic!, userId) : null;
+
+                var result = await _unit.AuthRepo.UpdateUser(userId, updateDto.Email, updateDto.UserName, updateDto.FullName, userPicPath, updateDto.XP);
                 if (result is null)
                 {
                     _logger.LogInformation("Update failed: user not found {UserId}", userId);
@@ -112,7 +157,25 @@ namespace SuttorLibrary.Controllers
                 }
 
                 await _unit.CompleteAsync();
-                return Ok(result);
+
+                UserDTO userDto = new UserDTO 
+                {
+                    Id = userId,
+                    Email = result.Email,
+                    UserName = result.UserName,
+                    FullName = result.FullName,
+                    IsAuthed = result.IsAuthed,
+                    IsAuthor = result.IsAuthor,
+                    JoinedAt = result.JoinedAt,
+                    XP = result.XP,
+                    Photo = updateDto.newCoverPic,
+                    Token = result.Token,
+                    ExpiresAt = result.ExpiresAt,
+                    Roles = result.Roles,
+                    message = result.message
+                };
+
+                return Ok(userDto);
             }
             catch (InvalidOperationException io)
             {

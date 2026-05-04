@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SuttorLibrary.Core.Interfaces;
+using SuttorLibrary.Core.Services;
 using SuttorLibrary.Data;
 using SuttorLibrary.DTOs;
 using SuttorLibrary.Models;
@@ -48,14 +49,14 @@ namespace SuttorLibrary.Core.Repositories
             return base.GetById(userid);
         }
 
-        public async Task<GetUserDTO?> GetUserByEmail(string email)
+        public async Task<GetPublicUserDTO?> GetUserByEmail(string email)
         {
 
             var user = await _userManager.FindByEmailAsync(email);
             if (user is null)
                 return null;
 
-            var userDto = new GetUserDTO
+            var userDto = new GetPublicUserDTO
             {
                 Id = user.Id,
                 FullName = user.FullName,
@@ -70,13 +71,13 @@ namespace SuttorLibrary.Core.Repositories
             return userDto;
         }
 
-        public async Task<GetUserDTO?> GetUserByUsername(string username)
+        public async Task<GetPublicUserDTO?> GetUserByUsername(string username)
         {
             var user = await _userManager.FindByNameAsync(username);
             if (user is null)
                 return null;
 
-            var userDto = new GetUserDTO
+            var userDto = new GetPublicUserDTO
             {
                 Id = user.Id,
                 FullName = user.FullName,

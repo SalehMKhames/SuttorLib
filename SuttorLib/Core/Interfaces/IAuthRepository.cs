@@ -8,7 +8,7 @@ namespace SuttorLibrary.Core.Interfaces
         public Task<AppUser?> RegisterUser(RegisterDTO register, string picName);
         public Task<AppUser?> LoginUser(LoginDTO login);
         public Task<bool> ChangePassword(ChangePasswordDTO passwordDTO);
-        public Task<AppUser?> UpdateUser(string id, UpdateUserDTO userDTO);
+        public Task<AppUser?> UpdateUser(string id, string? email, string? username, string? fullName, string? picPath, int? xp);
         public Task<bool> DeleteUser(Guid id, string password);
         public Task<string?> AssignRole(AssignRoleDTO roleDto);
 

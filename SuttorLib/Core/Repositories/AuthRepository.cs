@@ -98,36 +98,36 @@ namespace SuttorLibrary.Core.Repositories
             return newUser;
         }
 
-        public async Task<AppUser?> UpdateUser(string id, UpdateUserDTO userDTO)
+        public async Task<AppUser?> UpdateUser(string id, string? email, string? username, string? fullName, string? picPath, int? xp)
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user is null)
                 return null;
 
-            if (!string.IsNullOrWhiteSpace(userDTO.Email) && userDTO.Email != user.Email)
+            if (!string.IsNullOrWhiteSpace(email) && email != user.Email)
             {
-                if (await _userManager.FindByEmailAsync(userDTO.Email) is not null)
+                if (await _userManager.FindByEmailAsync(email) is not null)
                     throw new InvalidOperationException("Email is already in use.");
-                user.Email = userDTO.Email;
-                user.NormalizedEmail = userDTO.Email.ToUpper();
+                user.Email = email;
+                user.NormalizedEmail = email.ToUpper();
             }
 
-            if (!string.IsNullOrWhiteSpace(userDTO.UserName) && userDTO.UserName != user.UserName)
+            if (!string.IsNullOrWhiteSpace(username) && username != user.UserName)
             {
-                if (await _userManager.FindByNameAsync(userDTO.UserName) is not null)
+                if (await _userManager.FindByNameAsync(username) is not null)
                     throw new InvalidOperationException("Username is already in use.");
-                user.UserName = userDTO.UserName;
-                user.NormalizedUserName = userDTO.UserName.ToUpper();
+                user.UserName = username;
+                user.NormalizedUserName = username.ToUpper();
             }
 
-            if (!string.IsNullOrWhiteSpace(userDTO.FullName))
-                user.FullName = userDTO.FullName;
+            if (!string.IsNullOrWhiteSpace(fullName))
+                user.FullName = fullName;
 
-            if (!string.IsNullOrWhiteSpace(userDTO.newCoverPic!.FileName))
-                user.PhotoPath = userDTO.newCoverPic.FileName;
+            if (!string.IsNullOrWhiteSpace(picPath))
+                user.PhotoPath = picPath;
 
-            if (userDTO.XP.HasValue && userDTO.XP.Value >= 0)
-                user.XP = userDTO.XP.Value;
+            if (xp.HasValue && xp.Value >= 0)
+                user.XP = xp.Value;
 
             var updateResult = await _userManager.UpdateAsync(user);
             if (!updateResult.Succeeded)

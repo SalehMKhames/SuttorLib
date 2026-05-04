@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 using SuttorLibrary.Data;
 using SuttorLibrary.Models;
 
@@ -143,9 +144,9 @@ namespace SuttorLibrary.Core.Services
                 if(coverPic is not null && coverPic.Length >0)
                 {
                     var coverExtension = Path.GetExtension(uniqueCoverName);
-                    var coverFileName = $"{Path.GetFileNameWithoutExtension(uniqueFileName)}_cover{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
+                    uniqueCoverName = $"{Path.GetFileNameWithoutExtension(uniqueFileName)}_cover{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
                     var storingPath = Path.Combine(uploadDirectory, "Photos");
-                    var coverPath = Path.Combine(storingPath, coverFileName);
+                    var coverPath = Path.Combine(storingPath, uniqueCoverName);
 
                     // Overwrite cover if it exists
                     await using (var coverStream = new FileStream(coverPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous))
@@ -204,6 +205,40 @@ namespace SuttorLibrary.Core.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error uploading file: {FileName}", userPic.FileName);
+                throw;
+            }
+        }
+
+        //Retrieve the file of the picture from the specified path.
+        public async Task<IFormFile?> GetPictureAsync(string pathToPicture) 
+        {
+            try {
+                var picName = Path.GetFileName(pathToPicture);
+
+                if (!File.Exists(pathToPicture))
+                    throw new FileNotFoundException($"File '{picName}' not found.");
+
+                // Resolve content type
+                var provider = new FileExtensionContentTypeProvider();
+                if (!provider.TryGetContentType(picName, out var contentType))
+                    contentType = "application/octet-stream";
+
+                var fileBytes = await File.ReadAllBytesAsync(pathToPicture);
+
+                // Use a MemoryStream so the returned IFormFile is backed by a stream that stays alive
+                var memoryStream = new MemoryStream(fileBytes);
+
+                var formFile = new FormFile(memoryStream, 0, memoryStream.Length, "file", picName)
+                {
+                    Headers = new HeaderDictionary(),
+                    ContentType = contentType
+                };
+
+                return formFile;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting file: {FileName}", pathToPicture);
                 throw;
             }
         }

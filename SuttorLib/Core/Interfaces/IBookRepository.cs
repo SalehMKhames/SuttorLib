@@ -4,11 +4,11 @@ namespace SuttorLibrary.Core.Interfaces
 {
     public interface IBookRepository : IGenericRepo<Book>
     {
-        public Task<IQueryable> GetByIdFromQuery(string id);
-        public Task<Book?> GetBookByName(string bookName);
+        public Task<object?> GetBookWithDetailsAsync(string id);
+        public Task<object?> GetBookByName(string bookName);
 
-        public Task<IEnumerable<Book?>?> GetBooksByCategory(string categoryName);
-        public Task<IEnumerable<Book?>?> GetBooksByAuthor(string authorName);
+        public Task<IEnumerable<object?>?> GetBooksByCategory(string categoryName);
+        public Task<IEnumerable<object?>?> GetBooksByAuthor(string authorName);
         public Task<IEnumerable<Category?>?> GetCategories();
         public Task<IEnumerable<Author?>?> GetAuthors();
         public Task<IEnumerable<Languages?>?> GetLanguages();
