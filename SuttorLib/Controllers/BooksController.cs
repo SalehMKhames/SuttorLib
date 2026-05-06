@@ -306,10 +306,10 @@ namespace SuttorLibrary.Controllers
                 {
                     Id = Guid.NewGuid(),
                     Title = dto.File.FileName,
-                    FilePath = filePath,  // ✅ Uses config path
+                    FilePath = filePath,
                     Description = dto.Description,
                     PageCount = dto.PageCount,
-                    PhotoPath = photoPath,  // ✅ Uses config path
+                    PhotoPath = photoPath,
                     FileSize = dto.File.Length,
                     FileType = dto.File.ContentType.ToLowerInvariant(),
                     PublishedAT = dto.PublishedAT,

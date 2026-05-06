@@ -162,22 +162,16 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    //app.UseSwaggerUI( options =>
-    //{
-    //    options.SwaggerEndpoint("/openapi/v1.json", "Suttor Library API V1");
-    //    //options.RoutePrefix = string.Empty;
-    //});
 
     app.MapScalarApiReference(options => {
         options.Title = "Suttor Library API Documentation";
+        options.Theme = ScalarTheme.DeepSpace;
         options.AddPreferredSecuritySchemes("Bearer");
         // Authentication/Security configuration
         options.Authentication = new ScalarAuthenticationOptions
         {
             PreferredSecuritySchemes = ["Bearer"]
         };
-
-
     });
 }
 

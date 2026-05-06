@@ -9,5 +9,6 @@ namespace SuttorLibrary.Core.Interfaces
         public Task<GetPublicUserDTO?> GetUserByUsername(string username);
         public Task<bool?> AddUserInterest(UserInterestDTO dto);
         public Task<List<Category?>?> UpdateUserInterest(UserInterestDTO dto);
+        public Task<bool> PromoteToAuthor(AppUser user, int xp);
     }
 }

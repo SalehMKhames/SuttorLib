@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
+using System.Security.Cryptography;
 
 namespace SuttorLibrary.Controllers
 {
@@ -273,6 +275,38 @@ namespace SuttorLibrary.Controllers
             {
                 _logger.LogError(ex, "Unexpected error adding interests user {UserId}", dto.UserID);
                 return Problem("An error occurred while adding the user's interests.");
+            }
+        }
+
+        //Patch /api/Users/AddXP?points=...
+        [Authorize]
+        [HttpPatch("AddXP")]
+        public async Task<IActionResult> Promote([FromBody] string uid, [FromQuery] int xp)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest();
+
+            if (string.IsNullOrEmpty(uid))
+                return BadRequest("User ID is required");
+
+            try
+            {
+                var user = await _unit.UserRepo.GetById(uid.ToString());
+                if (user is null)
+                    return NotFound($"User with id: '{uid}' not found.");
+
+                var res = await _unit.UserRepo.PromoteToAuthor(user, xp);
+
+                if (!res)
+                    return StatusCode(StatusCodes.Status304NotModified);
+
+                return Ok(new { success = true, message = $"Your XP points have been added {xp} points" });
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving user by id {id}", uid);
+                return Problem("An error occurred while retrieving the user.");
             }
         }
     }

@@ -92,6 +92,21 @@ namespace SuttorLibrary.Core.Repositories
             return userDto;
         }
 
+        public async Task<bool> PromoteToAuthor(AppUser user, int xp)
+        {
+            // Add XP
+            user.XP += xp;
+
+            // Check if user qualifies for author role
+            if (user.XP > 1500 && !user.IsAuthor)
+            {
+                user.IsAuthor = true;
+            }
+
+            var result = await _userManager.UpdateAsync(user);
+            return result.Succeeded;
+        }
+
         public async Task<List<Category?>?> UpdateUserInterest(UserInterestDTO dto)
         {
             //Find the user
