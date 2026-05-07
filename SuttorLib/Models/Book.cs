@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SuttorLibrary.Models
 {
-    [Table("Books", Schema = "SuttorDB")]
+    [Table("Books", Schema = "db51138")]
     public class Book
     {
         [Key]

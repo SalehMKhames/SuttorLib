@@ -175,6 +175,19 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.MapOpenApi();
+
+app.MapScalarApiReference(options => {
+    options.Title = "Suttor Library API Documentation";
+    options.Theme = ScalarTheme.DeepSpace;
+    options.AddPreferredSecuritySchemes("Bearer");
+    // Authentication/Security configuration
+    options.Authentication = new ScalarAuthenticationOptions
+    {
+        PreferredSecuritySchemes = ["Bearer"]
+    };
+});
+
 app.UseHttpsRedirection();
 
 app.UseCors(corsPolicy);

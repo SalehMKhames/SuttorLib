@@ -2,7 +2,7 @@
 
 namespace SuttorLibrary.Models
 {
-    [Table("Languages", Schema = "SuttorDB")]
+    [Table("Languages", Schema = "db51138")]
     public class Languages
     {
         public Guid Id { get; set; }

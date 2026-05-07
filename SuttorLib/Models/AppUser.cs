@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SuttorLibrary.Models
 {
-    [Table("Users", Schema = "SuttorDB")]
+    [Table("Users", Schema = "db51138")]
     public class AppUser : IdentityUser
     {
         [Key]

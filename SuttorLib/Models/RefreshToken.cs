@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SuttorLibrary.Models
 {
-    [Table("RefreshTokens", Schema = "SuttorDB")]
+    [Table("RefreshTokens", Schema = "db51138")]
     public class RefreshToken
     {
         [Key]
