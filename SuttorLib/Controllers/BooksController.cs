@@ -408,6 +408,17 @@ namespace SuttorLibrary.Controllers
 
                 _logger.LogInformation("Book download initiated: {BookId} ({Title}) by user {UserId}", id, book.Title, userId ?? "anonymous");
 
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                // Database commit failed — delete the uploaded file
+                _logger.LogError(dbEx, "Unable to add to Download table");
+                    throw; // Re-throw to be caught by outer catch
+                }
+
                 return fileStream;
             }
             catch (FileNotFoundException ex)

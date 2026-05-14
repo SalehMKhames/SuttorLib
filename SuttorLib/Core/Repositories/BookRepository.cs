@@ -54,7 +54,15 @@ namespace SuttorLibrary.Core.Repositories
                             l => l.Id,
                             (bl, l) => new { l.Id, l.Language }
                         )
-                        .FirstOrDefault()
+                        .FirstOrDefault(),
+                    downloads = _context.Downloads
+                        .Where(d => d.BookID == b.Id)
+                        .Join(
+                            _context.AppUsers,
+                            d => d.BookID,
+                            u => u.Id,
+                            (d, u) => new { d.Id }
+                        ).Count()
                 })
                 .FirstOrDefaultAsync();
 

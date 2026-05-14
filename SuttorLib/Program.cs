@@ -51,7 +51,7 @@ builder.Services.Configure<FormOptions>(options =>
 builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySQL(builder.Configuration.GetConnectionString("Default")!)
+    options.UseMySQL(builder.Configuration.GetConnectionString("Debugging")!)
 );
 
 builder.Services.AddIdentity<AppUser, IdentityRole>(
@@ -157,106 +157,6 @@ builder.Services.AddLogging();
 builder.Services.AddExceptionHandler<AppExceptionHandler>();
 
 var app = builder.Build();
-
-//using var scope = app.Services.CreateScope();
-//var um = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-//var fixedJoinedAt = new DateTime(2024, 01, 01, 0, 0, 0, DateTimeKind.Utc);
-
-//if (await um.FindByNameAsync("AdminSaleh") == null)
-//{
-//    string adminId = "29d93d5b-efbc-4ac7-999b-7b211629d8b0";
-
-
-//    //Users
-//    AppUser admin = new AppUser
-//    {
-//        Id = adminId,
-//        UserName = "AdminSaleh",
-//        NormalizedUserName = "ADMINSALEH",
-//        FullName = "Saleh",
-//        Email = "salehalk512@gmail.com",
-//        NormalizedEmail = "SALEHALK512@GMAIL.COM",
-//        EmailConfirmed = true,
-//        JoinedAt = fixedJoinedAt,
-//        IsAuthor = false,
-//        XP = 100000,
-//        PhotoPath = "",
-//        IsAuthed = true,
-//        Token = "",
-//        ExpiresAt = DateTime.MinValue,
-//    };
-
-
-//    PasswordHasher<AppUser> ph = new PasswordHasher<AppUser>();
-//    admin.PasswordHash = ph.HashPassword(admin, "Tbmfilj@72534");
-//}
-//if (um.FindByNameAsync("User") == null)
-//{
-//    string userId = "f422f142-09b2-40b9-a886-a14b213973d5";
-//    AppUser user = new AppUser
-//    {
-//        Id = userId,
-//        UserName = "User",
-//        NormalizedUserName = "USER",
-//        FullName = "Demo User",
-//        Email = "userDemo@example.com",
-//        NormalizedEmail = "USERDEMO@EXAMPLE.COM",
-//        EmailConfirmed = true,
-//        JoinedAt = fixedJoinedAt,
-//        IsAuthor = false,
-//        XP = 0,
-//        PhotoPath = "",
-//        IsAuthed = true,
-//        Token = "",
-//        ExpiresAt = DateTime.MinValue,
-//    };
-
-//    PasswordHasher<AppUser> ph = new PasswordHasher<AppUser>();
-//    user.PasswordHash = ph.HashPassword(user, "UserDemo12345!");   
-//}
-//if (um.FindByNameAsync("AuthorUser") == null)
-//{
-//    string authorId = "b7359b68-b61a-4991-8c9f-b6394494b11a";
-
-//    AppUser author = new AppUser
-//    {
-//        Id = authorId,
-//        UserName = "AuthorUser",
-//        NormalizedUserName = "Author",
-//        FullName = "Author User",
-//        Email = "authorDemo@example.com",
-//        NormalizedEmail = "AuthorDEMO@EXAMPLE.COM",
-//        EmailConfirmed = true,
-//        JoinedAt = fixedJoinedAt,
-//        IsAuthor = true,
-//        XP = 1000,
-//        PhotoPath = "",
-//        IsAuthed = true,
-//        Token = "",
-//        ExpiresAt = DateTime.MinValue,
-//    };
-
-
-//    PasswordHasher<AppUser> ph = new PasswordHasher<AppUser>();
-//    author.PasswordHash = ph.HashPassword(author, "AuthorDemo12345!");
-//}
-
-// Configure the HTTP request pipeline.
-//if (app.Environment.IsDevelopment())
-//{
-//    app.MapOpenApi();
-
-//    app.MapScalarApiReference(options => {
-//        options.Title = "Suttor Library API Documentation";
-//        options.Theme = ScalarTheme.DeepSpace;
-//        options.AddPreferredSecuritySchemes("Bearer");
-//        // Authentication/Security configuration
-//        options.Authentication = new ScalarAuthenticationOptions
-//        {
-//            PreferredSecuritySchemes = ["Bearer"]
-//        };
-//    });
-//}
 
 app.MapOpenApi();
 
