@@ -4,11 +4,11 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SuttorLibrary.Models
 {
-    [Table("RefreshTokens", Schema = "db51138")]
+    [Table("RefreshTokens")]
     public class RefreshToken
     {
         [Key]
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Id { get; set; } = Guid.NewGuid().ToString();
 
         [Required]
         public string Token { get; set; } = string.Empty;

@@ -57,8 +57,8 @@ namespace SuttorLibrary.Core.Services
                         {
                             var download = new Download
                             {
-                                Id = Guid.NewGuid(),
-                                BookID = bookId,
+                                Id = Guid.NewGuid().ToString(),
+                                BookID = bookId.ToString(),
                                 UserID = userId,
                                 DownloadedAt = DateTime.UtcNow,
                                 IsFinishReading = false
@@ -216,7 +216,7 @@ namespace SuttorLibrary.Core.Services
                 var picName = Path.GetFileName(pathToPicture);
 
                 if (!File.Exists(pathToPicture))
-                    throw new FileNotFoundException($"File '{picName}' not found.");
+                    return null;
 
                 // Resolve content type
                 var provider = new FileExtensionContentTypeProvider();

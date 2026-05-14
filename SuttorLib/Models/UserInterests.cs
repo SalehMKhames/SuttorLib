@@ -3,14 +3,14 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SuttorLibrary.Models
 {
-    [Table("User_Interests", Schema = "db51138")]
+    [Table("User_Interests")]
     public class UserInterests
     {
         [Key]
-        public Guid Id { get; set; }
+        public string Id { get; set; }
 
         public string UserId { get; set; }
 
-        public Guid Category_Id{ get; set; }
+        public string Category_Id{ get; set; }
     }
 }

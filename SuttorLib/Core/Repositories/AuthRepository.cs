@@ -60,7 +60,7 @@ namespace SuttorLibrary.Core.Repositories
             return existedUser;
         }
 
-        public async Task<AppUser?> RegisterUser(RegisterDTO register, string picName)
+        public async Task<AppUser?> RegisterUser(RegisterDTO register, string? picName)
         {
             if (await _userManager.FindByEmailAsync(register.Email) is not null)
                     return null;
@@ -77,7 +77,7 @@ namespace SuttorLibrary.Core.Repositories
                 EmailConfirmed = false,
                 IsAuthor = false,
                 XP = 0,
-                PhotoPath = $"{_config["FileStorage:UsersPicsPath"]}\\{picName}"
+                PhotoPath = picName is null ? null : $"{_config["FileStorage:UsersPicsPath"]}\\{picName}"
             };
             
 
@@ -89,9 +89,8 @@ namespace SuttorLibrary.Core.Repositories
             var creatingResult = await _userManager.CreateAsync(newUser, register.Password);
             if (!creatingResult.Succeeded)
             {
-                newUser.IsAuthed = false;
+                newUser.IsAuthed = true;
                 newUser.message = string.Join("; ", creatingResult.Errors.Select(e => e.Description));
-                return newUser;
             }
 
             await _userManager.AddToRoleAsync(newUser, "User");

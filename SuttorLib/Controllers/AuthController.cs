@@ -23,9 +23,10 @@ namespace SuttorLibrary.Controllers
 
             try
             {
-                
+
                 //Save the user's picture to the specified directory in appsettings.json
-                var uploadedPicture = await _fileService.UploadUserPicAsync(register.userPic!, register.FullName);
+                string? uploadedPicture = register.userPic is not null ?
+                    await _fileService.UploadUserPicAsync(register.userPic!, register.FullName) : null;
 
                 if (string.Equals(uploadedPicture, "A picture with the same name already exists.", StringComparison.OrdinalIgnoreCase))
                     return BadRequest($"The file for '{register.userPic!.FileName}' already exists.");
@@ -92,15 +93,20 @@ namespace SuttorLibrary.Controllers
                     _logger.LogInformation("Login failed for email {Email}", login.Email);
                     return Unauthorized("Invalid email or password.");
                 }
-                await _unit.CompleteAsync();
-
-                IFormFile? userPic = null;
-                if (string.IsNullOrEmpty(result.PhotoPath))
+                try
                 {
-                    userPic = await _fileService.GetPictureAsync(result.PhotoPath!);
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    // Database commit failed — delete the uploaded file
+                    _logger.LogError(dbEx, "Database commit failed. Logging In Function");
+                    throw; // Re-throw to be caught by outer catch
                 }
 
-
+                IFormFile? userPic = result.PhotoPath is null ? null :
+                    await _fileService.GetPictureAsync(result.PhotoPath);
+                
                 UserDTO userDTO = new UserDTO 
                 {
                     Id = result.Id,

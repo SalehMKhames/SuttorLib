@@ -21,17 +21,19 @@ namespace SuttorLibrary.Core.Repositories
             if (isUserExist == null) 
                 return null;
 
-            List<Guid> categories = new List<Guid>();
-            foreach (var category in dto.CategoriesNames) {
+            List<string> categories = new List<string>();
+            foreach (var category in dto.CategoriesNames) 
+            {
                 var c = await _context.Categories.FindAsync(category);
                 if (c == null) continue;
-                categories.Add(c.Id);
+
+                categories.Add(c.Id.ToString());
             }
 
             foreach (var id in categories)
             {
                 await _context.UserInterests
-                    .AddAsync(new UserInterests {Id = Guid.NewGuid(), UserId = dto.UserID, Category_Id = id});
+                    .AddAsync(new UserInterests {Id = Guid.NewGuid().ToString(), UserId = dto.UserID, Category_Id = id});
 
                 await _context.SaveChangesAsync();
             }
@@ -114,7 +116,7 @@ namespace SuttorLibrary.Core.Repositories
             if (isUserExist == null)
                 return null;
 
-            var newCategoryIds = new List<Guid>();
+            var newCategoryIds = new List<string>();
             foreach (var category in dto.CategoriesNames)
             {
                 if (Guid.TryParse(category, out var parsedGuid))
@@ -126,6 +128,7 @@ namespace SuttorLibrary.Core.Repositories
                 {
                     var cateByName = await _context.Categories
                         .FirstOrDefaultAsync(c => c.Name.Equals(category, StringComparison.OrdinalIgnoreCase));
+
                     if (cateByName != null) newCategoryIds.Add(cateByName.Id);
                 }
             }
@@ -151,7 +154,7 @@ namespace SuttorLibrary.Core.Repositories
             {
                 await _context.UserInterests.AddAsync(new UserInterests
                 {
-                    Id = Guid.NewGuid(),
+                    Id = Guid.NewGuid().ToString(),
                     UserId = dto.UserID,
                     Category_Id = id
                 });

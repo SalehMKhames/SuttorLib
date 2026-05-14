@@ -3,13 +3,13 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SuttorLibrary.Models
 {
-    [Table("Book_Rating", Schema = "db51138")]
+    [Table("Book_Rating")]
     public class BookRating
     {
         [Key]
-        public Guid Id { get; set; }
+        public string Id { get; set; }
 
-        public Guid BookId { get; set; }
+        public string BookId { get; set; }
 
         public string UserId { get; set; }
 

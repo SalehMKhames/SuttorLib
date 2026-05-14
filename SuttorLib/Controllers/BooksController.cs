@@ -304,7 +304,7 @@ namespace SuttorLibrary.Controllers
                 //Create a new book
                 var book = new Book
                 {
-                    Id = Guid.NewGuid(),
+                    Id = Guid.NewGuid().ToString(),
                     Title = dto.File.FileName,
                     FilePath = filePath,
                     Description = dto.Description,

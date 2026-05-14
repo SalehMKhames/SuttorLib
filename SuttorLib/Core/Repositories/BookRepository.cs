@@ -15,7 +15,7 @@ namespace SuttorLibrary.Core.Repositories
                 return null;
 
             var result = await _context.Books
-                .Where(b => b.Id == guidId)
+                .Where(b => b.Id == guidId.ToString())
                 .Select(b => new
                 {
                     id = b.Id,
@@ -254,7 +254,7 @@ namespace SuttorLibrary.Core.Repositories
             if (result)
                 return false;
 
-            var cat = new Category { Id = Guid.NewGuid(), Name = category };
+            var cat = new Category { Id = Guid.NewGuid().ToString(), Name = category };
 
             await _context.Categories.AddAsync(cat);
             await _context.SaveChangesAsync();
@@ -270,7 +270,7 @@ namespace SuttorLibrary.Core.Repositories
 
             var auth = new Author
             {
-                Id = Guid.NewGuid(),
+                Id = Guid.NewGuid().ToString(),
                 Name = author,
                 Description = desc ?? ""
             };
@@ -289,7 +289,7 @@ namespace SuttorLibrary.Core.Repositories
 
             var lang = new Languages 
             { 
-                Id = Guid.NewGuid(),
+                Id = Guid.NewGuid().ToString(),
                 Language = langName
             };
 
@@ -298,11 +298,11 @@ namespace SuttorLibrary.Core.Repositories
             return true;
         }
 
-        public async Task LinkBookToAuthor(Guid bookId, Guid authorId)
+        public async Task LinkBookToAuthor(string bookId, string authorId)
         {
             var bookAuthor = new BookAuthors
             {
-                Id = Guid.NewGuid(),
+                Id = Guid.NewGuid().ToString(),
                 Book_Id = bookId,
                 Author_Id = authorId
             };
@@ -311,11 +311,11 @@ namespace SuttorLibrary.Core.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task LinkBookToCategory(Guid bookId, Guid categoryId)
+        public async Task LinkBookToCategory(string bookId, string categoryId)
         {
             var bookCategory = new BookCategories
             {
-                Id = Guid.NewGuid(),
+                Id = Guid.NewGuid().ToString(),
                 bookId = bookId,
                 categoryId = categoryId
             };
@@ -324,7 +324,7 @@ namespace SuttorLibrary.Core.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task LinkBookToLanguage(Guid bookId, Guid langId)
+        public async Task LinkBookToLanguage(string bookId, string langId)
         {
             var bookLanguage = new BookLanguages
             {

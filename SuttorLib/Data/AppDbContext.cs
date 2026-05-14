@@ -21,17 +21,19 @@ namespace SuttorLibrary.Data
         public DbSet<Languages> Languages { get; set; }
         public DbSet<BookLanguages> BookLanguages { get; set; }
 
+    //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    //{
+    //    optionsBuilder.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+    //}
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<AppUser>()
                 .HasIndex(x => x.UserName)
                 .IsUnique();
-            modelBuilder.Entity<AppUser>()
-                .HasIndex(x => x.FullName)
-                .IsUnique();
+                
             modelBuilder.Entity<AppUser>()
                 .Property(u => u.IsAuthor)
                 .HasDefaultValue(false);
@@ -42,10 +44,6 @@ namespace SuttorLibrary.Data
                 .IsUnique();
 
             modelBuilder.Entity<Book>().HasKey(b => b.Id);
-            modelBuilder.Entity<Book>()
-                .HasIndex(b => b.Title)
-                .IsUnique();
-
 
             modelBuilder.Entity<Author>()
                 .HasKey(a => a.Id);
@@ -60,6 +58,15 @@ namespace SuttorLibrary.Data
             modelBuilder.Entity<BookRating>()
                 .Property(br => br.Rating)
                 .HasDefaultValue(0);
+
+            modelBuilder.Entity<BookRating>()
+                .HasOne<Book>()
+                .WithMany()
+                .HasForeignKey(br => br.BookId);
+            modelBuilder.Entity<BookRating>()
+                .HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(br => br.UserId);
 
             modelBuilder.Entity<Download>()
                 .HasKey(d => d.Id);
@@ -113,6 +120,9 @@ namespace SuttorLibrary.Data
             modelBuilder.Entity<Languages>()
                 .HasIndex(t => t.LanguageCode)
                 .IsUnique();
+            modelBuilder.Entity<Languages>()
+                .HasIndex(t => t.Language)
+                .IsUnique();
 
             modelBuilder.Entity<BookLanguages>()
                 .HasKey(bt => new { bt.LanguageId, bt.BookId});
@@ -144,13 +154,16 @@ namespace SuttorLibrary.Data
             // Stable GUIDs fro seeded data
             string adminRoleId = "d72cc571-c363-4d19-8818-9bebb24fba93";
             string userRoleId = "b28dafd1-5b59-47f2-8af2-d510cd1ecb0b";
-            string authorRoleId = "d72cc571-c363-4d19-8818-9bebb24fba93";
+            string authorRoleId = "60909110-f307-44d3-8d74-e9e85c5b7896";
 
             string adminId = "29d93d5b-efbc-4ac7-999b-7b211629d8b0";
             string userId = "f422f142-09b2-40b9-a886-a14b213973d5";
             string authorId = "b7359b68-b61a-4991-8c9f-b6394494b11a";
 
-            //Roles first (Because the user entity has it as a foreign key)
+            var fixedJoinedAt = new DateTime(2024, 01, 01, 0, 0, 0, DateTimeKind.Utc);
+
+
+            ////Roles first(Because the user entity has it as foreign key)
             modelBuilder.Entity<IdentityRole>()
                 .HasData(
                     new IdentityRole
@@ -173,7 +186,6 @@ namespace SuttorLibrary.Data
                     }
                 );
 
-            //Users
             AppUser admin = new AppUser
             {
                 Id = adminId,
@@ -183,7 +195,7 @@ namespace SuttorLibrary.Data
                 Email = "salehalk512@gmail.com",
                 NormalizedEmail = "SALEHALK512@GMAIL.COM",
                 EmailConfirmed = true,
-                JoinedAt = DateTime.UtcNow,
+                JoinedAt = fixedJoinedAt,
                 IsAuthor = false,
                 XP = 100000,
                 PhotoPath = "",
@@ -201,7 +213,7 @@ namespace SuttorLibrary.Data
                 Email = "userDemo@example.com",
                 NormalizedEmail = "USERDEMO@EXAMPLE.COM",
                 EmailConfirmed = true,
-                JoinedAt = DateTime.UtcNow,
+                JoinedAt = fixedJoinedAt,
                 IsAuthor = false,
                 XP = 0,
                 PhotoPath = "",
@@ -219,7 +231,7 @@ namespace SuttorLibrary.Data
                 Email = "authorDemo@example.com",
                 NormalizedEmail = "AuthorDEMO@EXAMPLE.COM",
                 EmailConfirmed = true,
-                JoinedAt = DateTime.UtcNow,
+                JoinedAt = fixedJoinedAt,
                 IsAuthor = true,
                 XP = 1000,
                 PhotoPath = "",
@@ -228,16 +240,17 @@ namespace SuttorLibrary.Data
                 ExpiresAt = DateTime.MinValue,
             };
 
+
             PasswordHasher<AppUser> ph = new PasswordHasher<AppUser>();
             admin.PasswordHash = ph.HashPassword(admin, "Tbmfilj@72534");
             user.PasswordHash = ph.HashPassword(user, "UserDemo12345!");
             author.PasswordHash = ph.HashPassword(author, "AuthorDemo12345!");
 
-            //Seeding in the AppUser entity
             modelBuilder.Entity<AppUser>()
                 .HasData(admin, user, author);
 
-            //Assigning roles to users
+
+            ////Linking users to their roles
             modelBuilder.Entity<IdentityUserRole<string>>()
                 .HasData(
                     new IdentityUserRole<string>
@@ -248,530 +261,534 @@ namespace SuttorLibrary.Data
                     new IdentityUserRole<string>
                     {
                         RoleId = userRoleId,
+                        UserId = adminId
+                    },
+                    new IdentityUserRole<string>
+                    {
+                        RoleId = userRoleId,
                         UserId = userId
                     },
-                    new IdentityUserRole<string> 
+                    new IdentityUserRole<string>
                     {
                         RoleId = authorRoleId,
                         UserId = authorId
                     }
                 );
 
-
-            //---------------Seeding Data in The Category Table----------------
+            ////---------------Seeding Data in The Category Table----------------
             modelBuilder.Entity<Category>()
                 .HasData(
                     new Category
                     {
-                        Id = Guid.Parse("948bccda-a227-4c74-8dc3-08c42ff714bb"),
+                        Id = "948bccda-a227-4c74-8dc3-08c42ff714bb",
                         Name = "Science Fiction"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("a27b68c5-c414-4f41-b31d-bf35eb668301"),
+                        Id = "a27b68c5-c414-4f41-b31d-bf35eb668301",
                         Name = "Astronomy & Cosmology"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("437dce48-242f-4d6c-af0c-b0c17ab5fff6"),
+                        Id = "437dce48-242f-4d6c-af0c-b0c17ab5fff6",
                         Name = "Physics"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("f0c835e7-3bc9-4c4b-84a9-62a4c38d7daa"),
+                        Id = "f0c835e7-3bc9-4c4b-84a9-62a4c38d7daa",
                         Name = "Biology"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("5a881e12-9098-4e42-899a-1baf4e835419"),
+                        Id = "5a881e12-9098-4e42-899a-1baf4e835419",
                         Name = "Neuroscience & Psychology"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("5937f420-f649-4754-8c56-68328e0cac5d"),
+                        Id = "5937f420-f649-4754-8c56-68328e0cac5d",
                         Name = "Chemistry"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("23020a19-99a6-4930-9c3c-a2694e8d96d5"),
+                        Id = "23020a19-99a6-4930-9c3c-a2694e8d96d5",
                         Name = "Materials Science"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("20e18efd-683c-4ff3-8dc7-841678f86b2d"),
+                        Id = "20e18efd-683c-4ff3-8dc7-841678f86b2d",
                         Name = "Mathematics"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("bb916111-3739-47ca-9408-e314ced2a4bc"),
+                        Id = "bb916111-3739-47ca-9408-e314ced2a4bc",
                         Name = "Computer Science & A.I."
                     },
                     new Category
                     {
-                        Id = Guid.Parse("dc572a5c-5157-490a-8f74-100dfe6b13a9"),
+                        Id = "dc572a5c-5157-490a-8f74-100dfe6b13a9",
                         Name = "Ecology"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("61982553-2d6a-4b67-95f2-97619dcc25ab"),
+                        Id = "61982553-2d6a-4b67-95f2-97619dcc25ab",
                         Name = "Medicine & Public Health"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("a317f95b-46d4-4f19-9279-dafa13958d87"),
+                        Id = "a317f95b-46d4-4f19-9279-dafa13958d87",
                         Name = "Geology"
                     },
 
                     new Category
                     {
-                        Id = Guid.Parse("1acf2f12-aef5-4fa9-8d73-383905631736"),
+                        Id = "1acf2f12-aef5-4fa9-8d73-383905631736",
                         Name = "Historical Fiction"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("58a7a1eb-39b4-41fe-81f1-062550f5ded8"),
+                        Id = "58a7a1eb-39b4-41fe-81f1-062550f5ded8",
                         Name = "Fantasy"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("1b2aaa3f-2fdd-40e5-ac0a-c523962b4c21"),
+                        Id = "1b2aaa3f-2fdd-40e5-ac0a-c523962b4c21",
                         Name = "Mystery"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("02c4f025-1871-46cf-80e0-ad120bd8f0aa"),
+                        Id = "02c4f025-1871-46cf-80e0-ad120bd8f0aa",
                         Name = "Horror"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("cdb07b90-6c8e-4233-9f68-169ce9a0c04b"),
+                        Id = "cdb07b90-6c8e-4233-9f68-169ce9a0c04b",
                         Name = "Romance"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("bae8c4a4-a2ef-417e-b67c-603920a92038"),
+                        Id = "bae8c4a4-a2ef-417e-b67c-603920a92038",
                         Name = "History"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("834385e1-f0e8-4c4b-860d-e755ef5bc556"),
+                        Id = "834385e1-f0e8-4c4b-860d-e755ef5bc556",
                         Name = "Poetry"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("2b59a98b-a317-44d8-8fe8-5451e24363ab"),
+                        Id = "2b59a98b-a317-44d8-8fe8-5451e24363ab",
                         Name = "Kids Stories"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("a057aedb-7349-442b-a7d6-9a42e3b9fed6"),
+                        Id = "a057aedb-7349-442b-a7d6-9a42e3b9fed6",
                         Name = "Magical Realism"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("881f0e80-56ca-4793-8b56-6f0a415413a6"),
+                        Id = "881f0e80-56ca-4793-8b56-6f0a415413a6",
                         Name = "Philosophy"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("4471bb34-41a5-47b6-9391-d6cfa747b587"),
+                        Id = "4471bb34-41a5-47b6-9391-d6cfa747b587",
                         Name = "Anthropology & Archaeology"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("251991f8-e149-4235-81e1-951ede4de48b"),
+                        Id = "251991f8-e149-4235-81e1-951ede4de48b",
                         Name = "Sociology"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("c61678ae-eaaa-452b-a538-28547502866b"),
+                        Id = "c61678ae-eaaa-452b-a538-28547502866b",
                         Name = "Political Science & Theory"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("a759ecc3-aba2-48c5-990f-2fd411edf555"),
+                        Id = "a759ecc3-aba2-48c5-990f-2fd411edf555",
                         Name = "Economics"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("e9974cde-ece1-4da9-a1df-65df50a93a76"),
+                        Id = "e9974cde-ece1-4da9-a1df-65df50a93a76",
                         Name = "Linguistics"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("6ffc64fb-e474-4d8b-b995-ccdaeb94d99c"),
+                        Id = "6ffc64fb-e474-4d8b-b995-ccdaeb94d99c",
                         Name = "Religious Studies & Theology"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("bab76b06-5b80-4dd2-b38e-d393e8939fa4"),
+                        Id = "bab76b06-5b80-4dd2-b38e-d393e8939fa4",
                         Name = "Art History & Criticism"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("415fa2a8-64cb-4cb4-bb27-6aadfc51c760"),
+                        Id = "415fa2a8-64cb-4cb4-bb27-6aadfc51c760",
                         Name = "Music Theory & History"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("3aca1245-631c-4736-95c0-54ac283db0ea"),
+                        Id = "3aca1245-631c-4736-95c0-54ac283db0ea",
                         Name = "Business & Entrepreneurship"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("ff20e5cc-9c17-4f24-b003-33f68fd42175"),
+                        Id = "ff20e5cc-9c17-4f24-b003-33f68fd42175",
                         Name = "Personal Finance & Investing"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("fbcba319-f818-48da-966b-1e4049a197b6"),
+                        Id = "fbcba319-f818-48da-966b-1e4049a197b6",
                         Name = "Self-Improvement & Productivity"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("b8e4cf35-867a-467c-817d-9500c0a14d8f"),
+                        Id = "b8e4cf35-867a-467c-817d-9500c0a14d8f",
                         Name = "Cooking & Culinary Arts"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("04e9b182-8388-4faa-a00e-8d86b6f38427"),
+                        Id = "04e9b182-8388-4faa-a00e-8d86b6f38427",
                         Name = "Travel & Adventure"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("2dc6ab6e-c8b6-41e5-b9f6-45701946e466"),
+                        Id = "2dc6ab6e-c8b6-41e5-b9f6-45701946e466",
                         Name = "Sports & Athletics"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("d4cd152a-2a92-4795-9ebb-95c9abc13fa7"),
+                        Id = "d4cd152a-2a92-4795-9ebb-95c9abc13fa7",
                         Name = "Gardening & Nature"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("7e05aa6e-c409-429a-95ff-62dab8b76174"),
+                        Id = "7e05aa6e-c409-429a-95ff-62dab8b76174",
                         Name = "Memoir & Autobiography"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("6a75a2d4-3800-4498-b3e6-76fc6534d520"),
+                        Id = "6a75a2d4-3800-4498-b3e6-76fc6534d520",
                         Name = "Essays & Scientific Papers"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("328b2074-3472-41ea-903e-a3558334a88a"),
+                        Id = "328b2074-3472-41ea-903e-a3558334a88a",
                         Name = "Comics & Graphic Novels"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("92248135-1021-45cb-938f-76a976b8848e"),
+                        Id = "92248135-1021-45cb-938f-76a976b8848e",
                         Name = "Photography"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("d4bfc33e-5618-4dc6-900c-9fa16aed2534"),
+                        Id = "d4bfc33e-5618-4dc6-900c-9fa16aed2534",
                         Name = "True Crime"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("37e8584a-feb2-4061-be1d-fe1a94563c17"),
+                        Id = "37e8584a-feb2-4061-be1d-fe1a94563c17",
                         Name = "Folklore & Mythology"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("dd2880c3-7eee-4953-8e71-4e9016d95674"),
+                        Id = "dd2880c3-7eee-4953-8e71-4e9016d95674",
                         Name = "Architecture & Design"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("eeb2b037-8456-484a-ada9-1ce0c31d14f2"),
+                        Id = "eeb2b037-8456-484a-ada9-1ce0c31d14f2",
                         Name = "Fashion & Style"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("a97a7ee0-4133-4ca3-adc0-66fb582f2a8b"),
+                        Id = "a97a7ee0-4133-4ca3-adc0-66fb582f2a8b",
                         Name = "Films & Television Studies"
                     },
                     new Category
                     {
-                        Id = Guid.Parse("32910cea-1cd4-4ebf-90cb-cb8621ee6161"),
+                        Id = "32910cea-1cd4-4ebf-90cb-cb8621ee6161",
                         Name = "Technology Guides & Tutorials"
                     }
                 );
 
 
 
-            //--------------Seeding Data in Language Table------------------
+            ////--------------Seeding Data in Language Table------------------
 
             modelBuilder.Entity<Languages>()
                 .HasData(
                     new Languages
                     {
-                        Id = Guid.Parse("5b56f76e-a943-4a33-ae52-405f992c0ee1"),
+                        Id = "5b56f76e-a943-4a33-ae52-405f992c0ee1",
                         Language = "English",
                         LanguageCode = "en"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("1a88de30-80b1-4491-a6ec-333fa0174933"),
+                        Id = "1a88de30-80b1-4491-a6ec-333fa0174933",
                         Language = "Mandarin Chinese",
                         LanguageCode = "zh"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("a5bcf190-d4a5-4285-bfca-8e7888fede68"),
+                        Id = "a5bcf190-d4a5-4285-bfca-8e7888fede68",
                         Language = "Spanish",
                         LanguageCode = "es"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("163bd8eb-4d53-4a7b-a0bc-44d5b410c185"),
+                        Id = "163bd8eb-4d53-4a7b-a0bc-44d5b410c185",
                         Language = "Hindi",
                         LanguageCode = "hi"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("c7b70aeb-c5b3-437d-9f51-52a84634ad23"),
+                        Id = "c7b70aeb-c5b3-437d-9f51-52a84634ad23",
                         Language = "Arabic",
                         LanguageCode = "ar"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("74ff7ceb-5df6-434c-a079-0650658df292"),
+                        Id = "74ff7ceb-5df6-434c-a079-0650658df292",
                         Language = "Portuguese",
                         LanguageCode = "pt"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("c8a88ae4-18dc-44ed-b46e-9cb92f97a969"),
+                        Id = "c8a88ae4-18dc-44ed-b46e-9cb92f97a969",
                         Language = "Russian",
                         LanguageCode = "ru"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("593e8d92-6b37-4fff-a00c-41197b4b6386"),
+                        Id = "593e8d92-6b37-4fff-a00c-41197b4b6386",
                         Language = "Japanese",
                         LanguageCode = "ja"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("7580183c-ea56-490c-9880-e665b73b634e"),
+                        Id = "7580183c-ea56-490c-9880-e665b73b634e",
                         Language = "French",
                         LanguageCode = "fr"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("c367d2d7-1850-4e99-af79-26f433383b8c"),
+                        Id = "c367d2d7-1850-4e99-af79-26f433383b8c",
                         Language = "German",
                         LanguageCode = "de"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("0eb15275-2db6-4cd4-b6f0-915d2fe49503"),
+                        Id = "0eb15275-2db6-4cd4-b6f0-915d2fe49503",
                         Language = "Korean",
                         LanguageCode = "ko"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("4f4d5e66-ca69-4364-a6c6-7ac7e6748248"),
+                        Id = "4f4d5e66-ca69-4364-a6c6-7ac7e6748248",
                         Language = "Italian",
                         LanguageCode = "it"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("db567ea5-c771-43da-a1d8-e0d67e411177"),
+                        Id = "db567ea5-c771-43da-a1d8-e0d67e411177",
                         Language = "Turkish",
                         LanguageCode = "tr"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("a7381524-0b42-4105-b41e-d7576bb7faf4"),
+                        Id = "a7381524-0b42-4105-b41e-d7576bb7faf4",
                         Language = "Polish",
                         LanguageCode = "pl"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("87f53ee0-6654-49dd-93ec-49f553819714"),
+                        Id = "87f53ee0-6654-49dd-93ec-49f553819714",
                         Language = "Dutch",
                         LanguageCode = "nl"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("41fe6770-e040-416e-adf4-85075230e3ba"),
+                        Id = "41fe6770-e040-416e-adf4-85075230e3ba",
                         Language = "Swedish",
                         LanguageCode = "sv"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("9fbe1970-694f-4613-b7a4-a3ce4e50a3f4"),
+                        Id = "9fbe1970-694f-4613-b7a4-a3ce4e50a3f4",
                         Language = "Greek",
                         LanguageCode = "el"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("a291c167-e5bb-42dc-a4f5-617e4f1ec055"),
+                        Id = "a291c167-e5bb-42dc-a4f5-617e4f1ec055",
                         Language = "Czech",
                         LanguageCode = "cs"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("20c60f9d-d8ad-498c-a960-02ccdec83a63"),
+                        Id = "20c60f9d-d8ad-498c-a960-02ccdec83a63",
                         Language = "Romanian",
                         LanguageCode = "ro"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("8f3b108f-1b75-4b5a-8b2e-be5c91ef8f80"),
+                        Id = "8f3b108f-1b75-4b5a-8b2e-be5c91ef8f80",
                         Language = "Hungarian",
                         LanguageCode = "hu"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("e3661f50-9ba2-45d6-b2c7-f367637e00dc"),
+                        Id = "e3661f50-9ba2-45d6-b2c7-f367637e00dc",
                         Language = "Thai",
                         LanguageCode = "th"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("4dda4135-d8e2-4bd1-aaea-c66bb06f0489"),
+                        Id = "4dda4135-d8e2-4bd1-aaea-c66bb06f0489",
                         Language = "Vietnamese",
                         LanguageCode = "vi"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("35923bc4-c519-4748-a17a-8fc6f030dde2"),
+                        Id = "35923bc4-c519-4748-a17a-8fc6f030dde2",
                         Language = "Filipino",
                         LanguageCode = "fil"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("63769d61-fd77-4b02-9ab5-bb3d8de5dd09"),
+                        Id = "63769d61-fd77-4b02-9ab5-bb3d8de5dd09",
                         Language = "Indonesian",
                         LanguageCode = "id"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("ca83826e-5a1d-444b-a95e-7e03853933f0"),
+                        Id = "ca83826e-5a1d-444b-a95e-7e03853933f0",
                         Language = "Malay",
                         LanguageCode = "ms"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("4b452292-7c43-4b83-9b99-8821f84a3e40"),
+                        Id = "4b452292-7c43-4b83-9b99-8821f84a3e40",
                         Language = "Bengali",
                         LanguageCode = "bn"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("b41fd658-2252-423f-a891-4176875dd4c5"),
+                        Id = "b41fd658-2252-423f-a891-4176875dd4c5",
                         Language = "Urdu",
                         LanguageCode = "ur"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("490e8980-67c0-4cc5-bad0-9cd022bbef49"),
+                        Id = "490e8980-67c0-4cc5-bad0-9cd022bbef49",
                         Language = "Hebrew",
                         LanguageCode = "he"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("c54fc06d-e0e7-4686-91f9-1b4885fb85d7"),
+                        Id = "c54fc06d-e0e7-4686-91f9-1b4885fb85d7",
                         Language = "Persian",
                         LanguageCode = "fa"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("33165761-6725-4d75-af4b-6794a72e9270"),
+                        Id = "33165761-6725-4d75-af4b-6794a72e9270",
                         Language = "Danish",
                         LanguageCode = "da"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("3691f261-a07b-40dd-bcf6-c48a91d31347"),
+                        Id = "3691f261-a07b-40dd-bcf6-c48a91d31347",
                         Language = "Norwegian",
                         LanguageCode = "no"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("471ec16b-4a25-49e6-a1a4-9e9fb24d06d0"),
+                        Id = "471ec16b-4a25-49e6-a1a4-9e9fb24d06d0",
                         Language = "Finnish",
                         LanguageCode = "fi"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("f982b583-a50c-491e-9ddc-e434542fc643"),
+                        Id = "f982b583-a50c-491e-9ddc-e434542fc643",
                         Language = "Ukrainian",
                         LanguageCode = "uk"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("f83d2700-7f50-4a49-8885-e53dce76c117"),
+                        Id = "f83d2700-7f50-4a49-8885-e53dce76c117",
                         Language = "Serbian",
                         LanguageCode = "sr"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("4ef36e82-cc2b-4e52-8fa1-8b1c46e86c0b"),
+                        Id = "4ef36e82-cc2b-4e52-8fa1-8b1c46e86c0b",
                         Language = "Bulgarian",
                         LanguageCode = "bg"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("6a3e435d-0fb4-4698-b83d-6e9dc0e9c3e0"),
+                        Id = "6a3e435d-0fb4-4698-b83d-6e9dc0e9c3e0",
                         Language = "Croatian",
                         LanguageCode = "hr"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("ed35ec1c-5556-4553-b8f1-d2f0794a4066"),
+                        Id = "ed35ec1c-5556-4553-b8f1-d2f0794a4066",
                         Language = "Slovenian",
                         LanguageCode = "sl"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("2f811e46-26d8-4606-9e22-7abbce66f697"),
+                        Id = "2f811e46-26d8-4606-9e22-7abbce66f697",
                         Language = "Slovak",
                         LanguageCode = "sk"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("da42ed01-8bd6-4d4b-a501-c406b8b64df8"),
+                        Id = "da42ed01-8bd6-4d4b-a501-c406b8b64df8",
                         Language = "Lithuanian",
                         LanguageCode = "lt"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("d0e3574e-3a64-420b-85bf-88c5ff1562fd"),
+                        Id = "d0e3574e-3a64-420b-85bf-88c5ff1562fd",
                         Language = "Estonian",
                         LanguageCode = "et"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("7c44e07d-f447-48c6-9b99-7dff1596f5cc"),
+                        Id = "7c44e07d-f447-48c6-9b99-7dff1596f5cc",
                         Language = "Latvian",
                         LanguageCode = "lv"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("5cd5b25e-7685-4181-9c6a-c22761acc729"),
+                        Id = "5cd5b25e-7685-4181-9c6a-c22761acc729",
                         Language = "Irish",
                         LanguageCode = "ga"
                     },
                     new Languages
                     {
-                        Id = Guid.Parse("2df2ecaf-fe98-46f5-8663-a724b63a1ab8"),
+                        Id = "2df2ecaf-fe98-46f5-8663-a724b63a1ab8",
                         Language = "Punjabi",
                         LanguageCode = "pa"
                     }
                 );
 
 
-            //---------------Seeding Data in Authors Table------------------
+            ////---------------Seeding Data in Authors Table------------------
             modelBuilder.Entity<Author>()
                 .HasData(
                     new Author
                     {
-                        Id = Guid.Parse("e9761dbd-fe17-4902-a55d-5719d6895146"),
+                        Id = "e9761dbd-fe17-4902-a55d-5719d6895146",
                         Name = "Fyodor Dostoevsky",
                         Description = "Fyodor Mikhailovich Dostoevsky (11 November [O.S. 30 October] 1821 – 9 February [O.S. 28 January] 1881) " +
                         "was a Russian philosopher, novelist, short story writer, essayist and journalist." +
@@ -783,7 +800,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("8e8dcbf0-2e52-42f6-8ee8-ffa962a6b8e9"),
+                        Id = "8e8dcbf0-2e52-42f6-8ee8-ffa962a6b8e9",
                         Name = "Anton Chekhov",
                         Description = "Anton Pavlovich Chekhov[a] ( Russian: Антон Павлович Чехов,29 January 1860 – 15 July 1904)" +
                         " was a Russian playwright and short-story writer, widely considered to be one of the greatest writers of all time. " +
@@ -800,7 +817,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("efbc8877-e432-4ede-8b0b-6cdb92e97476"),
+                        Id = "efbc8877-e432-4ede-8b0b-6cdb92e97476",
                         Name = "Leo Tolstoy",
                         Description = "Count Lev Nikolayevich Tolstoy (Russian: Лев Николаевич Толстой,; 9 September [O.S. 28 August] 1828 – 20 November [O.S. 7 November] 1910), " +
                         "usually referred to in English as Leo Tolstoy, was a Russian writer. He is regarded as one of the greatest and most influential authors of all time." +
@@ -821,7 +838,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("ed99c064-7b5f-4135-b0a2-27788f18bbd5"),
+                        Id = "ed99c064-7b5f-4135-b0a2-27788f18bbd5",
                         Name = "Franz Kafka",
                         Description = "Franz Kafka (3 July 1883 – 3 June 1924) was a German-language Czech writer and novelist born in Prague, in the Austro-Hungarian Empire. " +
                         "Widely regarded as a major figure of 20th-century literature, his works fuse elements of realism and the fantastique, and typically feature isolated protagonists" +
@@ -840,7 +857,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("8baa507b-fe2b-42f5-9296-b7aedfbfc596"),
+                        Id = "8baa507b-fe2b-42f5-9296-b7aedfbfc596",
                         Name = "Virginia Woolf",
                         Description = "Adeline Virginia Woolf (25 January 1882 – 28 March 1941) was an English writer and one of the most influential 20th-century modernist authors. " +
                         "She helped to pioneer the use of stream of consciousness narration as a literary device.\r\n\r\nVirginia Woolf was born in South Kensington, London, into an affluent " +
@@ -856,7 +873,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("7be65b0d-3c1d-49d3-a529-e1bb1055331a"),
+                        Id = "7be65b0d-3c1d-49d3-a529-e1bb1055331a",
                         Name = "Gabriel García Márquez",
                         Description = "Gabriel José García Márquez (Latin American Spanish: 6 March 1927 – 17 April 2014) was a Colombian writer and journalist, known affectionately as Gabo " +
                         "or Gabito throughout Latin America. Considered one of the most significant authors of the 20th century, particularly in the Spanish language, " +
@@ -875,7 +892,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("d7a1117e-5f37-4859-81a1-9bf677d5a876"),
+                        Id = "d7a1117e-5f37-4859-81a1-9bf677d5a876",
                         Name = "Stephen Hawking",
                         Description = "Stephen William Hawking (8 January 1942 – 14 March 2018) was an English theoretical astrophysicist, cosmologist, and author who was director of " +
                         "research at the Centre for Theoretical Cosmology at the University of Cambridge. Between 1979 and 2009, he was the Lucasian Professor of Mathematics at Cambridge, " +
@@ -896,7 +913,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("2049063d-9270-43a6-9288-a80627e0be80"),
+                        Id = "2049063d-9270-43a6-9288-a80627e0be80",
                         Name = "George R. R. Martin",
                         Description = "George Raymond Richard Martin (born George Raymond Martin; September 20, 1948), also known by the initials G.R.R.M., is an American author, " +
                         "television writer, and television producer. Martin is best known as the author of the epic fantasy novel series A Song of Ice and Fire, which have been adapted " +
@@ -909,7 +926,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("edfe02ee-24ae-4b94-a99d-c7bf42df3292"),
+                        Id = "edfe02ee-24ae-4b94-a99d-c7bf42df3292",
                         Name = "Neil deGrasse Tyson",
                         Description = "Neil deGrasse Tyson (born October 5, 1958) is an American astrophysicist, author, and science communicator. Tyson studied at Harvard University, " +
                         "the University of Texas at Austin, and Columbia University. From 1991 to 1994, he was a postdoctoral research associate at Princeton University. In 1994, " +
@@ -927,7 +944,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("4d8243ec-f8f6-47df-b5f7-fa99b2627784"),
+                        Id = "4d8243ec-f8f6-47df-b5f7-fa99b2627784",
                         Name = "Carl Sagan",
                         Description = "Carl Edward Sagan (November 9, 1934 – December 20, 1996) was an American astronomer, planetary scientist and science communicator. Initially an " +
                         "assistant professor at Harvard, Sagan later moved to Cornell, where he was the David Duncan Professor of Astronomy and Space Sciences and directed the Laboratory " +
@@ -945,7 +962,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("e74ce8f5-c6aa-4827-96dd-0193cd373e62"),
+                        Id = "e74ce8f5-c6aa-4827-96dd-0193cd373e62",
                         Name = "Sean Carroll",
                         Description = "Sean Michael Carroll (born October 5, 1966) is an American theoretical physicist who specializes in quantum mechanics, cosmology, " +
                         "and the philosophy of science. He is the Homewood Professor of Natural Philosophy at Johns Hopkins University. He was formerly a research professor at " +
@@ -966,7 +983,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("ee012952-686e-4dd0-a58c-26f45540a2ca"),
+                        Id = "ee012952-686e-4dd0-a58c-26f45540a2ca",
                         Name = "Charles Darwin",
                         Description = "Charles Robert Darwin (12 February 1809 – 19 April 1882) was an English naturalist, geologist, and biologist, widely known for his contributions to evolutionary biology." +
                         " His proposition that all species of life have descended from a common ancestor is now generally accepted and considered a fundamental scientific concept. " +
@@ -990,7 +1007,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("3e8d1068-6a4f-4786-b48b-e110ee1061a4"),
+                        Id = "3e8d1068-6a4f-4786-b48b-e110ee1061a4",
                         Name = "Richard Dawkins",
                         Description = "Richard Dawkins (born 26 March 1941) is a British evolutionary biologist, zoologist, science communicator and author. He is an emeritus fellow of New College, Oxford. " +
                         "In 1995 he was named the first Simonyi Professor for the Public Understanding of Science, a position he held until 2008, and is on the advisory board of the University of Austin." +
@@ -1007,7 +1024,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("3ee308c6-3016-4cc8-ab89-a48a60e518a4"),
+                        Id = "3ee308c6-3016-4cc8-ab89-a48a60e518a4",
                         Name = "E.O. Wilson",
                         Description = "Edward Osborne Wilson ForMemRS (June 10, 1929 – December 26, 2021) was an American biologist, naturalist, ecologist, and entomologist known for " +
                         "developing the field of sociobiology.\r\n\r\nBorn in Alabama, Wilson found an early interest in nature and frequented the outdoors. At age seven, he was partially " +
@@ -1025,7 +1042,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("0c238a31-fa21-469f-903a-b0b075244eac"),
+                        Id = "0c238a31-fa21-469f-903a-b0b075244eac",
                         Name = "Albert Einstein",
                         Description = "Albert Einstein (14 March 1879 – 18 April 1955) was a German-born theoretical physicist best known for developing the theory of relativity. " +
                         "Einstein also made important contributions to quantum theory. His mass–energy equivalence formula E = mc2, which arises from special relativity, " +
@@ -1054,7 +1071,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("d3f2725b-2fd7-481b-948a-bf24b3362eab"),
+                        Id = "d3f2725b-2fd7-481b-948a-bf24b3362eab",
                         Name = "Oliver Sacks",
                         Description = "Oliver Wolf Sacks (9 July 1933 – 30 August 2015) was a British neurologist, naturalist, historian of science, and writer.\r\n\r\nBorn in London, " +
                         "Sacks received his medical degree in 1958 from The Queen's College, Oxford, before moving to the United States, where he spent most of his career. He interned at" +
@@ -1072,7 +1089,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("e166ab33-e284-4324-95ea-fb3b9348fbde"),
+                        Id = "e166ab33-e284-4324-95ea-fb3b9348fbde",
                         Name = "Neils Bohr",
                         Description = "Niels Henrik David Bohr (7 October 1885 – 18 November 1962) was a Danish theoretical physicist who made foundational contributions to understanding" +
                         " atomic structure and quantum theory, for which he received the Nobel Prize in Physics in 1922. He was also a philosopher and a promoter of scientific research." +
@@ -1092,7 +1109,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("d2d4665f-2cc0-4181-84e1-8ae896c33496"),
+                        Id = "d2d4665f-2cc0-4181-84e1-8ae896c33496",
                         Name = "Antonio Damasio",
                         Description = "Antonio Damasio (born 25 February 1944) is a Portuguese neuroscientist. He is currently the David Dornsife Chair in Neuroscience, as well as " +
                         "Professor of Psychology, Philosophy, and Neurology, at the University of Southern California, and, additionally, an adjunct professor at the Salk Institute." +
@@ -1101,7 +1118,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("7c154694-cfa4-43ea-868e-cd7ecdb43641"),
+                        Id = "7c154694-cfa4-43ea-868e-cd7ecdb43641",
                         Name = "Lisa Feldman Barrett",
                         Description = "Lisa Feldman Barrett is a Canadian-American psychologist. She is a Distinguished Professor of psychology at Northeastern University, where she " +
                         "focuses on affective science and co-directs the Interdisciplinary Affective Science Laboratory. She has received the William James Fellow Award from the " +
@@ -1111,7 +1128,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("a0882ae2-3942-4ef6-958b-896b367eba96"),
+                        Id = "a0882ae2-3942-4ef6-958b-896b367eba96",
                         Name = "V.S. Ramachandran",
                         Description = "Vilayanur Subramanian Ramachandran (born 10 August 1951) is an Indian-American neuroscientist. He is known for his experiments and theories in " +
                         "behavioral neurology, including the invention of the mirror box. Ramachandran is a distinguished professor in UCSD's Department of Psychology, where he is the " +
@@ -1125,7 +1142,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("eb886e63-b3ce-4fa9-8199-cb3b482ca035"),
+                        Id = "eb886e63-b3ce-4fa9-8199-cb3b482ca035",
                         Name = "Marie Curie",
                         Description = "Maria Salomea Skłodowska Curie(7 November 1867 – 4 July 1934), better known as Marie Curie , was a Polish and naturalised-French physicist and " +
                         "chemist. She shared the 1903 Nobel Prize in Physics with her husband Pierre Curie \"for their joint researches on the radioactivity phenomena discovered by " +
@@ -1148,7 +1165,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("3ec6a6f3-8048-4642-903e-6c2bf8333ca0"),
+                        Id = "3ec6a6f3-8048-4642-903e-6c2bf8333ca0",
                         Name = "Ibn Khaldun",
                         Description = "Ibn Khaldun (27 May 1332 – 17 March 1406, 732–808 AH) was an Arab scholar, historian, philosopher, and sociologist. He is widely acknowledged to be" +
                         " one of the greatest social scientists of the Middle Ages, and considered by a number of scholars to be a major forerunner of historiography, sociology, economics" +
@@ -1162,7 +1179,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("e69a8300-c804-4f12-b3e7-6465e31cbcd9"),
+                        Id = "e69a8300-c804-4f12-b3e7-6465e31cbcd9",
                         Name = "Ibn Sina",
                         Description = "Ibn Sina (c. 980 – 22 June 1037), commonly known in the West as Avicenna (/ˌævɪˈsɛnə, ˌɑːv-/ A(H)V-ih-SEN-ə), was a preeminent philosopher " +
                         "and physician of the Muslim world. He was a seminal figure of the Islamic Golden Age, serving in the courts of various Iranian rulers, and was influential to" +
@@ -1176,7 +1193,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("fb082272-063a-4389-8dca-4e83e19cafb6"),
+                        Id = "fb082272-063a-4389-8dca-4e83e19cafb6",
                         Name = "Ibn Rushd",
                         Description = "Ibn Rushd (14 April 1126 – 11 December 1198), Latinized as Averroes, was an Andalusian polymath and jurist who was proficient in a variety of " +
                         "intellectual fields, including philosophy, theology, medicine, astronomy, physics, psychology, mathematics, neurology, Islamic jurisprudence and law, and " +
@@ -1198,7 +1215,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("9039f00a-f4e3-4282-a374-cb38edf9b09d"),
+                        Id = "9039f00a-f4e3-4282-a374-cb38edf9b09d",
                         Name = "Al-Khwarizmi",
                         Description = "Muhammad ibn Musa al-Khwarizmi, or simply al-Khwarizmi (c. 780 – c. 850) was a mathematician active during the Islamic Golden Age, who produced " +
                         "Arabic-language works in mathematics, astronomy, and geography. Around 820, he worked at the House of Wisdom in Baghdad, the contemporary capital city of the" +
@@ -1219,7 +1236,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("e63670dc-f437-4891-becf-c031424e4378"),
+                        Id = "e63670dc-f437-4891-becf-c031424e4378",
                         Name = "Ibn Battuta",
                         Description = "Ibn Battuta (/24 February 1304 – 1368/1369) was a Maghrebi Muslim traveller, explorer and scholar. Over a period of 30 years from 1325 to 1354, " +
                         "he visited much of Africa, Asia, and the Iberian Peninsula. Near the end of his life, Ibn Battuta dictated an account of his journeys, titled A Gift to Those" +
@@ -1228,7 +1245,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("25ecc614-5e01-4228-9025-02a4b65125c8"),
+                        Id = "25ecc614-5e01-4228-9025-02a4b65125c8",
                         Name = "Ibn Al-Haytham",
                         Description = "Ibn al-Haytham, Latinized as Alhazen (c. 965 – c. 1040) was a mathematician, astronomer, and physicist of the Islamic Golden Age from present-day Iraq." +
                         "Referred to as \"the father of modern optics\", he made significant contributions to the principles of optics and visual perception in particular. His most " +
@@ -1246,7 +1263,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("aaf67e2b-61de-455f-94d9-cfd0bb0f2e88"),
+                        Id = "aaf67e2b-61de-455f-94d9-cfd0bb0f2e88",
                         Name = "Ibn Taymiyya",
                         Description = "Ibn Taymiyya (Arabic: ٱبْن تَيْمِيَّة; 22 January 1263 – 26 September 1328) was a Sunni Muslim scholar, jurist, Mujtahid, traditionist, Qadiri Sufi," +
                         " proto-Salafi theologian and iconoclast. Born in Harran in 1263 CE and fleeing from the Mongol invasion, he was taught by his grandfather and father in the" +
@@ -1272,7 +1289,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("671fcbf5-46e5-421b-8fbc-ef3d86502e23"),
+                        Id = "671fcbf5-46e5-421b-8fbc-ef3d86502e23",
                         Name = "Ibn Qayyim al-Jawziyya",
                         Description = "Shams ad-Dīn ʾabū ʿAbd Allāh Muḥammad ibn ʾAbī Bakr ibn ʾAyyūb az-Zurʿī ad-Dimashqī al-Ḥanbalī (29 Jan. 1292–15 Sep. 1350 CE / 691–751 AH), " +
                         "commonly known as Ibn Qayyim al-Jawziyyah (\"The son of the principal of [the school of] Jawziyyah\") or Ibn al-Qayyim (\"Son of the principal\"; ابن القيّم) " +
@@ -1289,7 +1306,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("185ed5ca-0ac3-4dee-8054-14e20608b9d9"),
+                        Id = "185ed5ca-0ac3-4dee-8054-14e20608b9d9",
                         Name = "Ibn Al-Kathir",
                         Description = "Abu al-Fida Isma'il ibn Umar ibn Kathir al-Dimashqi (Arabic: أبو الفداء إسماعيل بن عمر بن كثير الدمشقي, romanized: Abū al-Fidā' Ismā'īl ibn 'Umar " +
                         "ibn Kathīr al-Dimashqī; c. 1300–1373), known simply as Ibn Kathir, was an Arab Islamic exegete, historian and scholar. An expert on tafsir (Quranic exegesis), " +
@@ -1301,7 +1318,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("21850d05-c2a8-453b-9e6c-40d29b53571b"),
+                        Id = "21850d05-c2a8-453b-9e6c-40d29b53571b",
                         Name = "Al-Ghazali",
                         Description = "Al-Ghazali, in Persian: ابو حامد محمد ابن محمد غزالی توسی, romanized: Abū Ḥāmid Muḥammad ibn Muḥammad Ghazālī Ṭūsi (c. 1058 – 19 December 1111), " +
                         "Latinized as Algazelus, was a Shafi'i Sunni Muslim Iranian scholar and polymath. He is known as one of the most prominent and influential jurisconsults," +
@@ -1318,7 +1335,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("d58daee2-1ccb-4c81-bdcd-5620a0ff1ac1"),
+                        Id = "d58daee2-1ccb-4c81-bdcd-5620a0ff1ac1",
                         Name = "Shams Tabrizi",
                         Description = "Shams Tabrīzī (1185–1248) was a Persian dervish and poet, best known for his companionship with Rumi.\r\n\r\nHe is referenced with great" +
                         " reverence and grief in Rumi's poetic collection, in particular Divan-i Shams-i Tabrīzī. Tradition holds that Shams taught Rumi in seclusion in Konya" +
@@ -1326,7 +1343,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("95b35c34-593f-4701-8f15-4a08c4108db7"),
+                        Id = "95b35c34-593f-4701-8f15-4a08c4108db7",
                         Name = "Primo Levi",
                         Description = "Primo Michele Levi (31 July 1919 – 11 April 1987) was a Italian chemist, partisan, Holocaust survivor and writer. He was the author of " +
                         "several books, collections of short stories, essays, poems and one novel. His best-known works include: If This Is a Man (Se questo è un uomo, 1947," +
@@ -1338,7 +1355,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("fcd3bf3a-5aaa-4f9d-a75a-f6da3809541b"),
+                        Id = "fcd3bf3a-5aaa-4f9d-a75a-f6da3809541b",
                         Name = "Ian Stewart",
                         Description = "Ian Nicholas Stewart (born 24 September 1945) is a British mathematician and a popular-science and science-fiction writer. " +
                         "He is Emeritus Professor of Mathematics at the University of Warwick, England.\r\nStewart was born in 1945 in Folkestone, England. While in the sixth form " +
@@ -1349,7 +1366,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("7d265cb9-77bf-47db-b2b9-468a3441d2d9"),
+                        Id = "7d265cb9-77bf-47db-b2b9-468a3441d2d9",
                         Name = "Jabir Ibn Hayyan",
                         Description = "Abū Mūsā Jābir ibn Ḥayyān (Arabic: أَبو موسى جابِر بِن حَيّان, variously called al-Ṣūfī, al-Azdī, al-Kūfī, or al-Ṭūsī), died c. 806−816, is the purported" +
                         " author of a large number of works in Arabic, often called the Jabirian corpus. The c. 215 treatises that survive today mainly deal with alchemy and chemistry, " +
@@ -1369,7 +1386,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("2820b458-531b-4db4-abb2-99cd3e50c3b4"),
+                        Id = "2820b458-531b-4db4-abb2-99cd3e50c3b4",
                         Name = "Isaac Newton",
                         Description = "Sir Isaac Newton (4 January [O.S. 25 December] 1643 – 31 March [O.S. 20 March] 1727) was an English polymath who was a mathematician, physicist, " +
                         "astronomer, alchemist, theologian, author and inventor. He was a key figure in the Scientific Revolution and the Enlightenment that followed. His book Philosophiæ" +
@@ -1405,7 +1422,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("e339256a-dfc3-45bb-b5c3-4bf9f3526058"),
+                        Id = "e339256a-dfc3-45bb-b5c3-4bf9f3526058",
                         Name = "Socrates",
                         Description = "Socrates ( 470 – 399 BC) was an ancient Greek philosopher from Classical Athens, perhaps the first Western moral philosopher, and a major inspiration" +
                         " on his student Plato, who largely founded the tradition of Western philosophy. An enigmatic figure, Socrates authored no texts and is known mainly through the" +
@@ -1425,7 +1442,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("6d12378e-21fa-451d-a6d8-c39e4a42c8fa"),
+                        Id = "6d12378e-21fa-451d-a6d8-c39e4a42c8fa",
                         Name = "Plato",
                         Description = "Plato (born c. 428–423 BC, died 348/347 BC) was an ancient Greek philosopher of Classical Athens who is most commonly considered the foundational " +
                         "thinker of the Western philosophical tradition. An innovator of the literary dialogue and dialectic forms, Plato influenced all the major areas of theoretical" +
@@ -1440,7 +1457,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse(""),
+                        Id = "5d32e53f-134b-4c07-a870-61368bcf0dfc",
                         Name = "Aristotle",
                         Description = "Aristotle (384–322 BC) was an ancient Greek philosopher and polymath. His writings cover a broad range of subjects spanning the natural sciences," +
                         " philosophy, linguistics, economics, politics, psychology, and the arts. As the founder of the Peripatetic school of philosophy in the Lyceum in Athens, he began" +
@@ -1461,7 +1478,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("793f21bf-7f1c-48bb-ae64-0d56bbeacd12"),
+                        Id = "793f21bf-7f1c-48bb-ae64-0d56bbeacd12",
                         Name = "Bertrand Russell",
                         Description = "Bertrand Arthur William Russell, 3rd Earl Russell (18 May 1872 – 2 February 1970), was an English philosopher, logician, mathematician, " +
                         "and public intellectual. He influenced mathematics, logic, set theory, and various areas of analytic philosophy.\r\n\r\nHe was one of the early 20th " +
@@ -1479,7 +1496,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("6168d9bf-9ce6-421f-84cd-3fff95ba65b8"),
+                        Id = "6168d9bf-9ce6-421f-84cd-3fff95ba65b8",
                         Name = "Friedrich Nietzsche",
                         Description = "Friedrich Wilhelm Nietzsche (15 October 1844 – 25 August 1900) was a German philosopher who started his career as a classical" +
                         " philologist and turned to philosophy early in his academic career. In 1869, aged 24, he was appointed Professor of Classical Philology at the" +
@@ -1501,7 +1518,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("36cfd3ba-0b17-4a48-afb9-d7bdec093f43"),
+                        Id = "36cfd3ba-0b17-4a48-afb9-d7bdec093f43",
                         Name = "John McCarthy",
                         Description = "John McCarthy (September 4, 1927 – October 24, 2011) was an American computer scientist and cognitive scientist. " +
                         "He was one of the founders of the discipline of artificial intelligence, and part of just a small group of artificial intelligence " +
@@ -1512,7 +1529,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("a03ef8b6-33f6-4fd4-93d9-8bea3d2e4f3b"),
+                        Id = "a03ef8b6-33f6-4fd4-93d9-8bea3d2e4f3b",
                         Name = "J. K. Rowling",
                         Description = "Joanne Rowling (born 31 July 1965), better known by her pen name J. K. Rowling, is the British novelist who wrote Harry Potter, " +
                         "a seven-volume series about a young wizard. Published from 1997 to 2007, the fantasy novels are the best-selling book series in history, " +
@@ -1536,7 +1553,7 @@ namespace SuttorLibrary.Data
                     },
                     new Author
                     {
-                        Id = Guid.Parse("2c4cf33a-c18d-46f3-ac91-e25204cadf64"),
+                        Id = "2c4cf33a-c18d-46f3-ac91-e25204cadf64",
                         Name = "Geoffrey Hinton",
                         Description = "Geoffrey Everest Hinton (born 6 December 1947) is a British-Canadian computer scientist, cognitive scientist, and cognitive psychologist " +
                         "known for his work on artificial neural networks, which earned him the title \"the Godfather of AI\".\r\n\r\nHinton is University Professor Emeritus at " +
