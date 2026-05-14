@@ -32,4 +32,20 @@ namespace SuttorLibrary.DTOs
         public List<string> Authors_Names { get; set; }
         public List<string> Categories_Names { get; set; }
     }
+
+    public class RatingDTO
+    {
+        [Required]
+        public string UserId { get; set; }
+        [Required]
+        public float Rating { get; set; }
+        public string Comment { get; set; } = string.Empty;
+    }
+
+    public class GetRatingDTO
+    {
+        public string UserId { get; set; }
+        public float Rating { get; set; }
+        public string Comment { get; set; } = string.Empty;
+    }
 }

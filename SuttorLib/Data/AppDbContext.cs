@@ -21,10 +21,6 @@ namespace SuttorLibrary.Data
         public DbSet<Languages> Languages { get; set; }
         public DbSet<BookLanguages> BookLanguages { get; set; }
 
-    //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    //{
-    //    optionsBuilder.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
-    //}
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

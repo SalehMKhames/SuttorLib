@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SuttorLibrary.Core.Interfaces;
 using SuttorLibrary.Data;
+using SuttorLibrary.DTOs;
 using SuttorLibrary.Models;
 
 namespace SuttorLibrary.Core.Repositories
@@ -231,6 +232,44 @@ namespace SuttorLibrary.Core.Repositories
             .ToListAsync();
 
             return books.Count > 0 ? books : null;
+        }
+
+        public async Task<bool> AddRating(string BookId, RatingDTO dto)
+        { 
+            var existingRating = await _context.BookRatings.AddAsync(new BookRating
+            {
+                Id = Guid.NewGuid().ToString(),
+                BookId = BookId,
+                UserId = dto.UserId,
+                Rating = dto.Rating,
+                Comment = dto.Comment
+            });
+            await _context.SaveChangesAsync();
+
+            return existingRating != null;
+        }
+
+        public async Task<bool> DeleteRating(string rateId)
+        {
+            var rate = await _context.BookRatings.FirstOrDefaultAsync(r => r.Id == rateId);
+            if (rate == null) 
+                return false;
+
+            _context.Remove(rate);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<List<BookRating>?> GetBookRatings(string BookId) 
+        {
+            if (!Guid.TryParse(BookId, out Guid guidId))
+                return null;
+
+            var bookRatings = await _context.BookRatings
+                .Where(br => br.BookId == BookId)
+                .ToListAsync();
+
+            return bookRatings.Count > 0 ? bookRatings : null;
         }
 
         public async Task<IEnumerable<Category?>?> GetCategories()

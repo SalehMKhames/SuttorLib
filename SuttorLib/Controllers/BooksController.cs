@@ -27,7 +27,8 @@ namespace SuttorLibrary.Controllers
             if (string.IsNullOrEmpty(bookId))
                 return BadRequest("Book ID is required.");
 
-            try {
+            try
+            {
                 var book = await _unit.BookRepo.GetBookWithDetailsAsync(bookId);
                 if (book is null)
                     return NotFound($"Book with ID '{bookId}' not found.");
@@ -43,17 +44,17 @@ namespace SuttorLibrary.Controllers
 
                 var bookDto = new GetBookDTO
                 {
-                    Id = (Guid) type.GetProperty("ClientId")!.GetValue(book, null)!,
-                    Title = (string) type.GetProperty("title")!.GetValue(book, null)!,
-                    Description = (string) type.GetProperty("description")!.GetValue(book, null)!,
+                    Id = (Guid)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                    Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
+                    Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
                     Photo = bookCover!,
-                    FilePath = (string) type.GetProperty("filePath")!.GetValue(book, null)!,
-                    PageCount = (int) type.GetProperty("pageCount")!.GetValue(book, null)!,
-                    PublishedAT = (int) type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                    FileSize = (long) type.GetProperty("fileSize")!.GetValue(book, null)!,
-                    UploadedAt = (DateTime) type.GetProperty("uploadedAt")!.GetValue(book, null)!,
-                    language = (string) type.GetProperty("language")!.GetValue(book, null)!,
-                    Authors_Names = (List<string>) type.GetProperty("authors")!.GetValue(book, null)!,
+                    FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
+                    PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
+                    PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
+                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)!,
+                    UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
+                    language = (string)type.GetProperty("language")!.GetValue(book, null)!,
+                    Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
                     Categories_Names = (List<string>)type.GetProperty("categories")!.GetValue(book, null)!
                 };
 
@@ -275,10 +276,10 @@ namespace SuttorLibrary.Controllers
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> Upload([FromForm] UploadBookDTO dto)
         {
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            if(dto.File.Length == 0 || dto.File is null)
+            if (dto.File.Length == 0 || dto.File is null)
                 return BadRequest("No file is added.");
 
             try
@@ -388,7 +389,7 @@ namespace SuttorLibrary.Controllers
 
         //GET /api/Books/{id}/download
         [HttpGet("{id}/download")]
-        public async Task<IActionResult> Download([FromRoute] Guid id) 
+        public async Task<IActionResult> Download([FromRoute] Guid id)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -430,7 +431,8 @@ namespace SuttorLibrary.Controllers
             if (string.IsNullOrEmpty(cat))
                 return BadRequest("The category name is required");
 
-            try { 
+            try
+            {
                 var res = await _unit.BookRepo.AddCategory(cat);
                 if (!res)
                     return BadRequest($"This category: {cat} already exists");
@@ -464,6 +466,8 @@ namespace SuttorLibrary.Controllers
                 if (!res)
                     return BadRequest($"This author: {author} already exists");
 
+                await _unit.CompleteAsync();
+
                 return CreatedAtAction(nameof(AddBooksAuthor), new { AuthorName = author }, author);
             }
             catch (InvalidOperationException ex)
@@ -478,5 +482,86 @@ namespace SuttorLibrary.Controllers
             }
         }
 
+        //GET /api/Books/id/ratings
+        [HttpGet("{id}/ratings")]
+        public async Task<IActionResult> GetRatings([FromRoute] string id)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (id is null)
+                return BadRequest("Book id is required");
+
+            try { 
+                var rates = await _unit.BookRepo.GetBookRatings(id);
+
+                if (rates is null)
+                    return NotFound("No rates were found");
+
+                List<GetRatingDTO>? ratesDto = null;
+
+                foreach (var rate in rates) 
+                {
+                    ratesDto!.Add(new GetRatingDTO{UserId = rate.UserId, Rating = rate.Rating, Comment = rate.Comment });
+                }
+
+                return Ok(ratesDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot add the rating for book ID {BookId}", id);
+                return Problem("An error occurred while adding the rating.");
+            }
+        }
+
+        //Post /api/Books/id/AddRating
+        [HttpPost("{id}/AddRating")]
+        public async Task<IActionResult> AddBookRating([FromRoute] string id, [FromBody] RatingDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (id is null || dto.UserId is null)
+                return BadRequest();
+
+            try
+            {
+                var res = await _unit.BookRepo.AddRating(id, dto);
+                if (!res)
+                    return BadRequest("Failed to add the rating.");
+                await _unit.CompleteAsync();
+
+                return CreatedAtAction(nameof(AddBookRating), new { dto.Rating, dto.Comment }, id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot add the rating for book ID {BookId}", id);
+                return Problem("An error occurred while adding the rating.");
+            }
+        }
+
+        //Delete /api/Books/id/deleteRate?rateId=...
+        [HttpDelete("{BookId}/deleteRate")]
+        public async Task<IActionResult> DeleteBookRating([FromRoute] string BookId, [FromQuery] string rateId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (BookId is null || rateId is null)
+                return BadRequest();
+            try
+            {
+                var res = await _unit.BookRepo.DeleteRating(rateId);
+                if (!res)
+                    return BadRequest("Failed to delete the rating.");
+                await _unit.CompleteAsync();
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot delete the rating with ID {RateId} for book ID {BookId}", rateId, BookId);
+                return Problem("An error occurred while deleting the rating.");
+            }
+        }
     }
 }

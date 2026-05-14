@@ -1,4 +1,5 @@
-﻿using SuttorLibrary.Models;
+﻿using SuttorLibrary.DTOs;
+using SuttorLibrary.Models;
 
 namespace SuttorLibrary.Core.Interfaces
 {
@@ -12,6 +13,9 @@ namespace SuttorLibrary.Core.Interfaces
         public Task<IEnumerable<Category?>?> GetCategories();
         public Task<IEnumerable<Author?>?> GetAuthors();
         public Task<IEnumerable<Languages?>?> GetLanguages();
+        public Task<bool> AddRating(string BookId, RatingDTO dto);
+        public Task<List<BookRating>?> GetBookRatings(string BookId);
+        public Task<bool> DeleteRating(string rateId);
 
         // Add new category/author (does not save changes; caller should call UnitOfWork.CompleteAsync)
         public Task<bool> AddCategory(string category);
