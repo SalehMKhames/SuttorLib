@@ -20,5 +20,8 @@ namespace SuttorLibrary.Models
         public long FileSize { get; set; }
         public string PhotoPath { get; set; }
         public DateTime UploadedAt { get; set; }
+
+        [ForeignKey("LanguageId")]
+        public string LanguageId { get; set; }
     }
 }

@@ -19,7 +19,6 @@ namespace SuttorLibrary.Data
         public DbSet<UserInterests> UserInterests { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Languages> Languages { get; set; }
-        public DbSet<BookLanguages> BookLanguages { get; set; }
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -114,22 +113,13 @@ namespace SuttorLibrary.Data
             modelBuilder.Entity<Languages>()
                 .HasKey(t => t.Id);
             modelBuilder.Entity<Languages>()
-                .HasIndex(t => t.LanguageCode)
-                .IsUnique();
-            modelBuilder.Entity<Languages>()
                 .HasIndex(t => t.Language)
                 .IsUnique();
 
-            modelBuilder.Entity<BookLanguages>()
-                .HasKey(bt => new { bt.LanguageId, bt.BookId});
-            modelBuilder.Entity<BookLanguages>()
-                .HasOne<Book>()
-                .WithMany()
-                .HasForeignKey(bt => bt.BookId);
-            modelBuilder.Entity<BookLanguages>()
+            modelBuilder.Entity<Book>()
                 .HasOne<Languages>()
                 .WithMany()
-                .HasForeignKey(bt => bt.LanguageId);
+                .HasForeignKey(b => b.LanguageId);
 
             // RefreshToken mapping
             modelBuilder.Entity<RefreshToken>()
@@ -521,260 +511,229 @@ namespace SuttorLibrary.Data
                     new Languages
                     {
                         Id = "5b56f76e-a943-4a33-ae52-405f992c0ee1",
-                        Language = "English",
-                        LanguageCode = "en"
+                        Language = "English"
                     },
                     new Languages
                     {
                         Id = "1a88de30-80b1-4491-a6ec-333fa0174933",
                         Language = "Mandarin Chinese",
-                        LanguageCode = "zh"
                     },
                     new Languages
                     {
                         Id = "a5bcf190-d4a5-4285-bfca-8e7888fede68",
                         Language = "Spanish",
-                        LanguageCode = "es"
                     },
                     new Languages
                     {
                         Id = "163bd8eb-4d53-4a7b-a0bc-44d5b410c185",
-                        Language = "Hindi",
-                        LanguageCode = "hi"
+                        Language = "Hindi"
                     },
                     new Languages
                     {
                         Id = "c7b70aeb-c5b3-437d-9f51-52a84634ad23",
-                        Language = "Arabic",
-                        LanguageCode = "ar"
+                        Language = "Arabic"
                     },
                     new Languages
                     {
                         Id = "74ff7ceb-5df6-434c-a079-0650658df292",
-                        Language = "Portuguese",
-                        LanguageCode = "pt"
+                        Language = "Portuguese"
                     },
                     new Languages
                     {
                         Id = "c8a88ae4-18dc-44ed-b46e-9cb92f97a969",
-                        Language = "Russian",
-                        LanguageCode = "ru"
+                        Language = "Russian"
                     },
                     new Languages
                     {
                         Id = "593e8d92-6b37-4fff-a00c-41197b4b6386",
-                        Language = "Japanese",
-                        LanguageCode = "ja"
+                        Language = "Japanese"
                     },
                     new Languages
                     {
                         Id = "7580183c-ea56-490c-9880-e665b73b634e",
-                        Language = "French",
-                        LanguageCode = "fr"
+                        Language = "French"
                     },
                     new Languages
                     {
                         Id = "c367d2d7-1850-4e99-af79-26f433383b8c",
-                        Language = "German",
-                        LanguageCode = "de"
+                        Language = "German"
                     },
                     new Languages
                     {
                         Id = "0eb15275-2db6-4cd4-b6f0-915d2fe49503",
-                        Language = "Korean",
-                        LanguageCode = "ko"
+                        Language = "Korean"
                     },
                     new Languages
                     {
                         Id = "4f4d5e66-ca69-4364-a6c6-7ac7e6748248",
-                        Language = "Italian",
-                        LanguageCode = "it"
+                        Language = "Italian"
                     },
                     new Languages
                     {
                         Id = "db567ea5-c771-43da-a1d8-e0d67e411177",
-                        Language = "Turkish",
-                        LanguageCode = "tr"
+                        Language = "Turkish"
                     },
                     new Languages
                     {
                         Id = "a7381524-0b42-4105-b41e-d7576bb7faf4",
-                        Language = "Polish",
-                        LanguageCode = "pl"
+                        Language = "Polish"
                     },
                     new Languages
                     {
                         Id = "87f53ee0-6654-49dd-93ec-49f553819714",
-                        Language = "Dutch",
-                        LanguageCode = "nl"
+                        Language = "Dutch"
                     },
                     new Languages
                     {
                         Id = "41fe6770-e040-416e-adf4-85075230e3ba",
-                        Language = "Swedish",
-                        LanguageCode = "sv"
+                        Language = "Swedish"
                     },
                     new Languages
                     {
                         Id = "9fbe1970-694f-4613-b7a4-a3ce4e50a3f4",
                         Language = "Greek",
-                        LanguageCode = "el"
+                          
                     },
                     new Languages
                     {
                         Id = "a291c167-e5bb-42dc-a4f5-617e4f1ec055",
                         Language = "Czech",
-                        LanguageCode = "cs"
+                          
                     },
                     new Languages
                     {
                         Id = "20c60f9d-d8ad-498c-a960-02ccdec83a63",
                         Language = "Romanian",
-                        LanguageCode = "ro"
+                          
                     },
                     new Languages
                     {
                         Id = "8f3b108f-1b75-4b5a-8b2e-be5c91ef8f80",
                         Language = "Hungarian",
-                        LanguageCode = "hu"
+                          
                     },
                     new Languages
                     {
                         Id = "e3661f50-9ba2-45d6-b2c7-f367637e00dc",
                         Language = "Thai",
-                        LanguageCode = "th"
+                        
                     },
                     new Languages
                     {
                         Id = "4dda4135-d8e2-4bd1-aaea-c66bb06f0489",
                         Language = "Vietnamese",
-                        LanguageCode = "vi"
+                        
                     },
                     new Languages
                     {
                         Id = "35923bc4-c519-4748-a17a-8fc6f030dde2",
                         Language = "Filipino",
-                        LanguageCode = "fil"
+                        
                     },
                     new Languages
                     {
                         Id = "63769d61-fd77-4b02-9ab5-bb3d8de5dd09",
                         Language = "Indonesian",
-                        LanguageCode = "id"
+                        
                     },
                     new Languages
                     {
                         Id = "ca83826e-5a1d-444b-a95e-7e03853933f0",
                         Language = "Malay",
-                        LanguageCode = "ms"
+                        
                     },
                     new Languages
                     {
                         Id = "4b452292-7c43-4b83-9b99-8821f84a3e40",
                         Language = "Bengali",
-                        LanguageCode = "bn"
+                        
                     },
                     new Languages
                     {
                         Id = "b41fd658-2252-423f-a891-4176875dd4c5",
                         Language = "Urdu",
-                        LanguageCode = "ur"
+                        
                     },
                     new Languages
                     {
                         Id = "490e8980-67c0-4cc5-bad0-9cd022bbef49",
                         Language = "Hebrew",
-                        LanguageCode = "he"
+                        
                     },
                     new Languages
                     {
                         Id = "c54fc06d-e0e7-4686-91f9-1b4885fb85d7",
-                        Language = "Persian",
-                        LanguageCode = "fa"
+                        Language = "Persian"
                     },
                     new Languages
                     {
                         Id = "33165761-6725-4d75-af4b-6794a72e9270",
-                        Language = "Danish",
-                        LanguageCode = "da"
+                        Language = "Danish"
                     },
                     new Languages
                     {
                         Id = "3691f261-a07b-40dd-bcf6-c48a91d31347",
-                        Language = "Norwegian",
-                        LanguageCode = "no"
+                        Language = "Norwegian"
                     },
                     new Languages
                     {
                         Id = "471ec16b-4a25-49e6-a1a4-9e9fb24d06d0",
-                        Language = "Finnish",
-                        LanguageCode = "fi"
+                        Language = "Finnish"
                     },
                     new Languages
                     {
                         Id = "f982b583-a50c-491e-9ddc-e434542fc643",
-                        Language = "Ukrainian",
-                        LanguageCode = "uk"
+                        Language = "Ukrainian"
                     },
                     new Languages
                     {
                         Id = "f83d2700-7f50-4a49-8885-e53dce76c117",
-                        Language = "Serbian",
-                        LanguageCode = "sr"
+                        Language = "Serbian"
                     },
                     new Languages
                     {
                         Id = "4ef36e82-cc2b-4e52-8fa1-8b1c46e86c0b",
-                        Language = "Bulgarian",
-                        LanguageCode = "bg"
+                        Language = "Bulgarian"
                     },
                     new Languages
                     {
                         Id = "6a3e435d-0fb4-4698-b83d-6e9dc0e9c3e0",
-                        Language = "Croatian",
-                        LanguageCode = "hr"
+                        Language = "Croatian"
                     },
                     new Languages
                     {
                         Id = "ed35ec1c-5556-4553-b8f1-d2f0794a4066",
-                        Language = "Slovenian",
-                        LanguageCode = "sl"
+                        Language = "Slovenian"
                     },
                     new Languages
                     {
                         Id = "2f811e46-26d8-4606-9e22-7abbce66f697",
-                        Language = "Slovak",
-                        LanguageCode = "sk"
+                        Language = "Slovak"
                     },
                     new Languages
                     {
                         Id = "da42ed01-8bd6-4d4b-a501-c406b8b64df8",
-                        Language = "Lithuanian",
-                        LanguageCode = "lt"
+                        Language = "Lithuanian"
                     },
                     new Languages
                     {
                         Id = "d0e3574e-3a64-420b-85bf-88c5ff1562fd",
-                        Language = "Estonian",
-                        LanguageCode = "et"
+                        Language = "Estonian"
                     },
                     new Languages
                     {
                         Id = "7c44e07d-f447-48c6-9b99-7dff1596f5cc",
-                        Language = "Latvian",
-                        LanguageCode = "lv"
+                        Language = "Latvian"
                     },
                     new Languages
                     {
                         Id = "5cd5b25e-7685-4181-9c6a-c22761acc729",
-                        Language = "Irish",
-                        LanguageCode = "ga"
+                        Language = "Irish"
                     },
                     new Languages
                     {
                         Id = "2df2ecaf-fe98-46f5-8663-a724b63a1ab8",
                         Language = "Punjabi",
-                        LanguageCode = "pa"
                     }
                 );
 

@@ -284,12 +284,6 @@ namespace SuttorLibrary.Controllers
 
             try
             {
-                // Get or create language
-                var lang = (await _unit.BookRepo.GetLanguages())?
-                    .FirstOrDefault(a => a!.Language == dto.language);
-                if (lang is null)
-                    await _unit.BookRepo.AddLanguage(dto.language);
-
                 //Renaming the cover picture to the name of the file
                 var coverName = dto.CoverPic.FileName;
                 var coverExtension = Path.GetExtension(coverName);
@@ -301,6 +295,11 @@ namespace SuttorLibrary.Controllers
                 var filePath = Path.Combine(storagePath, dto.File.FileName);
                 var photoPath = Path.Combine(storagePath, "Photos", coverFileName);
 
+                // Get or create language
+                var lang = (await _unit.BookRepo.GetLanguages())?
+                    .FirstOrDefault(a => a!.Language == dto.language);
+                if (lang is null)
+                    await _unit.BookRepo.AddLanguage(dto.language);
 
                 //Create a new book
                 var book = new Book
@@ -315,6 +314,7 @@ namespace SuttorLibrary.Controllers
                     FileType = dto.File.ContentType.ToLowerInvariant(),
                     PublishedAT = dto.PublishedAT,
                     UploadedAt = DateTime.UtcNow,
+                    LanguageId = lang!.Id
                 };
                 //Add the book to the database
                 await _unit.BookRepo.Add(book);
@@ -344,8 +344,6 @@ namespace SuttorLibrary.Controllers
 
                     await _unit.BookRepo.LinkBookToAuthor(book.Id, auth!.Id);
                 }
-
-                await _unit.BookRepo.LinkBookToLanguage(book.Id, lang!.Id);
 
                 //Save the file to the specified directory in appsettings.json
                 var uploadedFile = await _fileService.UploadFileAsync(dto.File, dto.CoverPic);

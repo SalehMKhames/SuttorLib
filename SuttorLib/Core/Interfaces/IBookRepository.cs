@@ -24,6 +24,5 @@ namespace SuttorLibrary.Core.Interfaces
         // Link book to category/author/language (does not save changes; caller should call UnitOfWork.CompleteAsync)
         public Task LinkBookToAuthor(string bookId, string authorId);
         public Task LinkBookToCategory(string bookId, string categoryId);
-        public Task LinkBookToLanguage(string bookId, string langId);
     }
 }

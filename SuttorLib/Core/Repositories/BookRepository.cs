@@ -34,7 +34,7 @@ namespace SuttorLibrary.Core.Repositories
                             _context.Authors,
                             ba => ba.Author_Id,
                             a => a.Id,
-                            (ba, a) => new { a.Id, a.Name, a.Description }
+                            (ba, a) => new { a.Name, a.Description }
                         )
                         .ToList(),
                     categories = _context.BookCategories
@@ -43,17 +43,12 @@ namespace SuttorLibrary.Core.Repositories
                             _context.Categories,
                             bc => bc.categoryId,
                             c => c.Id,
-                            (bc, c) => new { c.Id, c.Name }
+                            (bc, c) => new { c.Name }
                         )
                         .ToList(),
-                    language = _context.BookLanguages
-                        .Where(bl => bl.BookId == b.Id)
-                        .Join(
-                            _context.Languages,
-                            bl => bl.LanguageId,
-                            l => l.Id,
-                            (bl, l) => new { l.Id, l.Language }
-                        )
+                    language = _context.Languages
+                        .Where(l => l.Id == b.LanguageId)
+                        .Select(l => l.Language )
                         .FirstOrDefault(),
                     downloads = _context.Downloads
                         .Where(d => d.BookID == b.Id)
@@ -102,7 +97,7 @@ namespace SuttorLibrary.Core.Repositories
                             _context.Authors,
                             ba => ba.Author_Id,
                             a => a.Id,
-                            (ba, a) => new { a.Id, a.Name, a.Description }
+                            (ba, a) => new { a.Name, a.Description }
                         )
                         .ToList(),
                     categories = _context.BookCategories
@@ -111,17 +106,12 @@ namespace SuttorLibrary.Core.Repositories
                             _context.Categories,
                             bc => bc.categoryId,
                             c => c.Id,
-                            (bc, c) => new { c.Id, c.Name }
+                            (bc, c) => new { c.Name }
                         )
                         .ToList(),
-                    language = _context.BookLanguages
-                        .Where(bl => bl.BookId == b.Id)
-                        .Join(
-                            _context.Languages,
-                            bl => bl.LanguageId,
-                            l => l.Id,
-                            (bl, l) => new { l.Id, l.Language }
-                        )
+                    language = _context.Languages
+                        .Where(l => l.Id == b.LanguageId)
+                        .Select(l => l.Language )
                         .FirstOrDefault()
                 })
                 .FirstOrDefaultAsync();
@@ -159,7 +149,7 @@ namespace SuttorLibrary.Core.Repositories
                                 _context.Authors,
                                 ba2 => ba2.Author_Id,
                                 a2 => a2.Id,
-                                (ba2, a2) => new { a2.Id, a2.Name, a2.Description }
+                                (ba2, a2) => new {  a2.Name, a2.Description }
                             )
                         .ToList(),
                         categories = _context.BookCategories
@@ -168,17 +158,12 @@ namespace SuttorLibrary.Core.Repositories
                                 _context.Categories,
                                 bc => bc.categoryId,
                                 c => c.Id,
-                                (bc, c) => new { c.Id, c.Name }
+                                (bc, c) => new {  c.Name }
                             )
                             .ToList(),
-                        language = _context.BookLanguages
-                            .Where(bl => bl.BookId == b.Id)
-                            .Join(
-                                _context.Languages,
-                                bl => bl.LanguageId,
-                                l => l.Id,
-                                (bl, l) => new { l.Id, l.Language }
-                            )
+                        language = _context.Languages
+                            .Where(l => l.Id == b.Id)
+                            .Select(l => l.Language)
                             .FirstOrDefault()
                     }
                 ))
@@ -214,7 +199,7 @@ namespace SuttorLibrary.Core.Repositories
                                 _context.Authors,
                                 ba => ba.Author_Id,
                                 a => a.Id,
-                                (ba, a) => new { a.Id, a.Name, a.Description }
+                                (ba, a) => new { a.Name, a.Description }
                             )
                             .ToList(),
                         categories = _context.BookCategories
@@ -223,17 +208,12 @@ namespace SuttorLibrary.Core.Repositories
                                 _context.Categories,
                                 bc2 => bc2.categoryId,
                                 c2 => c2.Id,
-                                (bc2, c2) => new { c2.Id, c2.Name }
+                                (bc2, c2) => new { c2.Name }
                             )
                             .ToList(),
-                        language = _context.BookLanguages
-                            .Where(bl => bl.BookId == b.Id)
-                            .Join(
-                                _context.Languages,
-                                bl => bl.LanguageId,
-                                l => l.Id,
-                                (bl, l) => new { l.Id, l.Language }
-                            )
+                        language = _context.Languages
+                            .Where(l => l.Id == b.Id)
+                            .Select(l => l.Language)
                             .FirstOrDefault()
                     }
                 ))
@@ -368,18 +348,6 @@ namespace SuttorLibrary.Core.Repositories
             };
 
             await _context.BookCategories.AddAsync(bookCategory);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task LinkBookToLanguage(string bookId, string langId)
-        {
-            var bookLanguage = new BookLanguages
-            {
-                
-                BookId = bookId,
-                LanguageId = langId
-            };
-            await _context.BookLanguages.AddAsync(bookLanguage);
             await _context.SaveChangesAsync();
         }
     }
