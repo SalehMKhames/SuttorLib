@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SuttorLibrary.DTOs
 {
@@ -27,6 +29,9 @@ namespace SuttorLibrary.DTOs
         [Compare("Password", ErrorMessage = "Password and confirmation do not match.")]
         public string ConfirmPassword { get; set; } = string.Empty;
 
+        [DefaultValue(false)]
+        [JsonPropertyName("isAuthor")]
+        public bool IsAuthor { get; set; } = false;
         public IFormFile? userPic { get; set; }
     }
 

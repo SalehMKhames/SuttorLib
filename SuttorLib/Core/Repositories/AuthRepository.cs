@@ -75,7 +75,7 @@ namespace SuttorLibrary.Core.Repositories
                 FullName = register.FullName,
                 JoinedAt = DateTime.UtcNow,
                 EmailConfirmed = false,
-                IsAuthor = false,
+                IsAuthor = register.IsAuthor,
                 XP = 0,
                 PhotoPath = picName is null ? null : $"{_config["FileStorage:UsersPicsPath"]}\\{picName}"
             };
@@ -94,6 +94,9 @@ namespace SuttorLibrary.Core.Repositories
             }
 
             await _userManager.AddToRoleAsync(newUser, "User");
+            if (register.IsAuthor)
+                await _userManager.AddToRoleAsync(newUser, "Author");
+
             return newUser;
         }
 
@@ -148,6 +151,12 @@ namespace SuttorLibrary.Core.Repositories
             var normalizedRole = roleDto.Role.Trim();
 
             var result = await _userManager.AddToRoleAsync(user, normalizedRole);
+            if (roleDto.Role == "Author")
+            {
+                user.IsAuthor = true;
+                await _userManager.UpdateAsync(user);
+            }
+
             if (result.Succeeded)
             {
                 return $"User '{user.Email}' assigned to role '{normalizedRole}'.";
