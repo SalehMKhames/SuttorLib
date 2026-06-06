@@ -185,7 +185,6 @@ namespace SuttorLibrary.Data
                 IsAuthor = false,
                 XP = 100000,
                 PhotoPath = "",
-                IsAuthed = true,
                 Token = "",
                 ExpiresAt = DateTime.MinValue,
             };
@@ -203,7 +202,6 @@ namespace SuttorLibrary.Data
                 IsAuthor = false,
                 XP = 0,
                 PhotoPath = "",
-                IsAuthed = true,
                 Token = "",
                 ExpiresAt = DateTime.MinValue,
             };
@@ -221,7 +219,6 @@ namespace SuttorLibrary.Data
                 IsAuthor = true,
                 XP = 1000,
                 PhotoPath = "",
-                IsAuthed = true,
                 Token = "",
                 ExpiresAt = DateTime.MinValue,
             };

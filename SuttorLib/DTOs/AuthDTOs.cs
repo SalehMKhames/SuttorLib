@@ -31,7 +31,7 @@ namespace SuttorLibrary.DTOs
 
         [DefaultValue(false)]
         [JsonPropertyName("isAuthor")]
-        public bool IsAuthor { get; set; } = false;
+        public bool IsAuthor { get; set; }
         public IFormFile? userPic { get; set; }
     }
 
@@ -149,7 +149,6 @@ namespace SuttorLibrary.DTOs
         public string message { get; set; }
         public DateTime ExpiresAt { get; set; }
         public string Token { get; set; }
-        public bool IsAuthed { get; set; }
         public IList<string> Roles { get; set; } = new List<string> { "User" };
     }
 }

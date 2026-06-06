@@ -54,8 +54,7 @@ namespace SuttorLibrary.Core.Repositories
            
             existedUser.Token = jwtToken;
             existedUser.ExpiresAt = token.ValidTo;
-            existedUser.Roles = rolesList;
-            existedUser.IsAuthed = true;
+            existedUser.Roles = rolesList.ToList();
 
             return existedUser;
         }
@@ -77,27 +76,50 @@ namespace SuttorLibrary.Core.Repositories
                 EmailConfirmed = false,
                 IsAuthor = register.IsAuthor,
                 XP = 0,
-                PhotoPath = picName is null ? null : $"{_config["FileStorage:UsersPicsPath"]}\\{picName}"
+                Roles = { "User" },
+                PhotoPath = picName is null ? null : $"{_config["FileStorage:UsersPicsPath"]}/{picName}"
             };
-            
-
-            var t = await CreateJwtToken(newUser);
-            var jwtToken = new JwtSecurityTokenHandler().WriteToken(t);
-            newUser.Token = jwtToken;
-            newUser.ExpiresAt = t.ValidTo;
 
             var creatingResult = await _userManager.CreateAsync(newUser, register.Password);
             if (!creatingResult.Succeeded)
             {
-                newUser.IsAuthed = true;
                 newUser.message = string.Join("; ", creatingResult.Errors.Select(e => e.Description));
+                return newUser;
             }
 
-            await _userManager.AddToRoleAsync(newUser, "User");
-            if (register.IsAuthor)
-                await _userManager.AddToRoleAsync(newUser, "Author");
+            // Always assign the "User" role
+            var addUserRoleResult = await _userManager.AddToRoleAsync(newUser, "User");
+            if (!addUserRoleResult.Succeeded)
+            {
+                newUser.message = string.Join("; ", addUserRoleResult.Errors.Select(e => e.Description));
+                return newUser;
+            }
 
-            return newUser;
+            // Assign "Author" role when requested
+            if (register.IsAuthor)
+            {
+                var addAuthorRoleResult = await _userManager.AddToRoleAsync(newUser, "Author");
+                if (!addAuthorRoleResult.Succeeded)
+                {
+                    newUser.message = string.Join("; ", addAuthorRoleResult.Errors.Select(e => e.Description));
+                    return newUser;
+                }
+            }
+
+            // Reload persisted user to ensure identity data is up-to-date
+            var createdUser = await _userManager.FindByIdAsync(newUser.Id);
+            if (createdUser is null)
+                return null;
+
+            // Generate tokens and set token-related fields
+            var tokenResponse = await GenerateTokensAsync(createdUser);
+            createdUser.Token = tokenResponse.AccessToken;
+            createdUser.ExpiresAt = tokenResponse.AccessTokenExpiresAt;
+
+            var rolesList = await _userManager.GetRolesAsync(createdUser);
+            createdUser.Roles = rolesList.ToList();
+
+            return createdUser;
         }
 
         public async Task<AppUser?> UpdateUser(string id, string? email, string? username, string? fullName, string? picPath, int? xp)

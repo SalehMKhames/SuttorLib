@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SuttorLibrary.Data;
 
@@ -10,9 +11,11 @@ using SuttorLibrary.Data;
 namespace SuttorLib.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260606113723_RemoveIsAuthedPropFromUser")]
+    partial class RemoveIsAuthedPropFromUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -48,21 +51,21 @@ namespace SuttorLib.Migrations
                         new
                         {
                             Id = "d72cc571-c363-4d19-8818-9bebb24fba93",
-                            ConcurrencyStamp = "170ff160-7b53-4e41-8f0b-c469e992f9aa",
+                            ConcurrencyStamp = "e63bb724-a9e4-4372-a49e-41c27794d6dd",
                             Name = "Admin",
                             NormalizedName = "ADMIN"
                         },
                         new
                         {
                             Id = "b28dafd1-5b59-47f2-8af2-d510cd1ecb0b",
-                            ConcurrencyStamp = "e01fef95-59ce-44dd-8d13-ee09871b914a",
+                            ConcurrencyStamp = "0b12624a-043c-46a2-a287-1e1124f2e814",
                             Name = "User",
                             NormalizedName = "USER"
                         },
                         new
                         {
                             Id = "60909110-f307-44d3-8d74-e9e85c5b7896",
-                            ConcurrencyStamp = "8a87ff80-2144-4727-b070-d458bb2384bf",
+                            ConcurrencyStamp = "5294f3db-47d5-469d-ad45-3966a924ef4c",
                             Name = "Author",
                             NormalizedName = "AUTHOR"
                         });
@@ -259,6 +262,7 @@ namespace SuttorLib.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("Token")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<bool>("TwoFactorEnabled")
@@ -291,7 +295,7 @@ namespace SuttorLib.Migrations
                         {
                             Id = "29d93d5b-efbc-4ac7-999b-7b211629d8b0",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "504dd6c8-a9dc-4aca-9458-329945120723",
+                            ConcurrencyStamp = "db461cce-9b9c-46f5-bc25-61bd2aaaa427",
                             Email = "salehalk512@gmail.com",
                             EmailConfirmed = true,
                             ExpiresAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
@@ -301,10 +305,10 @@ namespace SuttorLib.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "SALEHALK512@GMAIL.COM",
                             NormalizedUserName = "ADMINSALEH",
-                            PasswordHash = "AQAAAAIAAYagAAAAENEyJz7M8b4Rf8ervBZ56y1p6qvgROuF/+Gb1saZjyH0n3rwwU46kreo5+pYc0/2Tg==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEE2IpIuAL977hKE5s1x2ZO5gKlWd+1OPc+uZmf7z0FrzcvChhvwr0+JcAg/5K3Hx5A==",
                             PhoneNumberConfirmed = false,
                             PhotoPath = "",
-                            SecurityStamp = "4e28e08b-3eba-4e3c-9290-2eca29efd81f",
+                            SecurityStamp = "b994fce4-673e-4bae-9710-086cf3189096",
                             Token = "",
                             TwoFactorEnabled = false,
                             UserName = "AdminSaleh",
@@ -314,7 +318,7 @@ namespace SuttorLib.Migrations
                         {
                             Id = "f422f142-09b2-40b9-a886-a14b213973d5",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "edd48a86-8a97-4b94-a813-841a50dcc916",
+                            ConcurrencyStamp = "a0b41ac8-fac4-447e-988c-561674dccd04",
                             Email = "userDemo@example.com",
                             EmailConfirmed = true,
                             ExpiresAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
@@ -324,10 +328,10 @@ namespace SuttorLib.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "USERDEMO@EXAMPLE.COM",
                             NormalizedUserName = "USER",
-                            PasswordHash = "AQAAAAIAAYagAAAAEAXCTN3Sd0wsLtealX3ioYl0GPwT8y1cuN2O8sDB+aykHeBq8Ajr2sxm/sFloVO+ww==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEL3x4vZDFBQ/VE8/WEkZBXelM2VTouZQ0qQnRenhR64X6lbTjexEXeJ29PqYRmzjwg==",
                             PhoneNumberConfirmed = false,
                             PhotoPath = "",
-                            SecurityStamp = "1c21c7de-eb8c-4bce-b25a-0023c19cb732",
+                            SecurityStamp = "fdef5909-f815-4903-901d-8e37b2061548",
                             Token = "",
                             TwoFactorEnabled = false,
                             UserName = "User",
@@ -337,7 +341,7 @@ namespace SuttorLib.Migrations
                         {
                             Id = "b7359b68-b61a-4991-8c9f-b6394494b11a",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "2292d16a-5d1e-4d3e-b5f2-42d7d0a8fa9f",
+                            ConcurrencyStamp = "02e475fd-b101-4b39-996c-61b56a30e24a",
                             Email = "authorDemo@example.com",
                             EmailConfirmed = true,
                             ExpiresAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
@@ -347,10 +351,10 @@ namespace SuttorLib.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "AuthorDEMO@EXAMPLE.COM",
                             NormalizedUserName = "Author",
-                            PasswordHash = "AQAAAAIAAYagAAAAEAQ/jtwhmQjrZqhgzddipkNCXEQj5rq3++LnXZrSQh/ETitO0+NaV7owYq7hyJ7Ltw==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEITrcQlqvJmPIvwm0i4AB0KrqrgAWBz0ESjlyHLDUxkBlCM7RTHeRWVVKTGCTze5Ew==",
                             PhoneNumberConfirmed = false,
                             PhotoPath = "",
-                            SecurityStamp = "0003369c-13c8-45d9-b2eb-7bca16c3e065",
+                            SecurityStamp = "8ece8c60-9350-4fd2-9478-bbfd2cb3127a",
                             Token = "",
                             TwoFactorEnabled = false,
                             UserName = "AuthorUser",

@@ -269,8 +269,8 @@ namespace SuttorLib.Controllers
         }
 
         //POST /api/Books/upload
-        [Authorize(Roles = "Admin")]
-        [Authorize(Roles = "Author")]
+        [Authorize(Roles = "Admin,Author")]
+        //[Authorize(Roles = "Author")]
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> Upload([FromForm] UploadBookDTO dto)

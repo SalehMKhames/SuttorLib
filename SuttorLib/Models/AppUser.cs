@@ -32,9 +32,8 @@ namespace SuttorLibrary.Models
         [NotMapped]
         public string message { get; set; }
         public DateTime ExpiresAt { get; set; }
-        public string Token { get; set; }
-        public bool IsAuthed { get; set; }
+        public string? Token { get; set; }
         [NotMapped]
-        public IList<string> Roles { get; set; } = new List<string> { "User"};
+        public List<string> Roles { get; set; } = new();
     }
 }
