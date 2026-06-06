@@ -4,7 +4,7 @@ using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
 
-namespace SuttorLibrary.Controllers
+namespace SuttorLib.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

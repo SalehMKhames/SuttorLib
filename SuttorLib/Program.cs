@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
-
+using SuttorLib.Data;
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
 using SuttorLibrary.Data;
@@ -52,6 +52,11 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySQL(builder.Configuration.GetConnectionString("Default")!)
+);
+
+//Configuring MongoDB connection
+builder.Services.Configure<BlogDbSettings>(
+    builder.Configuration.GetSection("SuttorBlog")
 );
 
 builder.Services.AddIdentity<AppUser, IdentityRole>(

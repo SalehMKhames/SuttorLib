@@ -17,7 +17,7 @@ namespace SuttorLibrary.Core.Repositories
         {
             var entity = await _set.FindAsync(id.ToString());
             if(entity is not null)
-                _set.Remove(entity!);
+                _set.Remove(entity);
         }
 
         public virtual async Task<T?> GetById(string id)
