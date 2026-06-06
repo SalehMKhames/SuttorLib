@@ -48,6 +48,9 @@ namespace SuttorLibrary.Data
             modelBuilder.Entity<Author>()
                 .Property(a => a.IsRegistered)
                 .HasDefaultValue(false);
+            modelBuilder.Entity<Author>()
+                .Property(a => a.Rating)
+                .HasDefaultValue(0f);
 
             modelBuilder.Entity<BookRating>()
                 .HasKey(br => br.Id);

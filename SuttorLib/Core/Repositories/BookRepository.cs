@@ -3,6 +3,7 @@ using SuttorLibrary.Core.Interfaces;
 using SuttorLibrary.Data;
 using SuttorLibrary.DTOs;
 using SuttorLibrary.Models;
+using System.Net;
 
 namespace SuttorLibrary.Core.Repositories
 {
@@ -232,6 +233,10 @@ namespace SuttorLibrary.Core.Repositories
                 Rating = dto.Rating,
                 Comment = dto.Comment
             });
+
+            //update authors' rating
+            await UpdateAuthorRating(BookId);
+
             await _context.SaveChangesAsync();
 
             return existingRating != null;
@@ -244,6 +249,10 @@ namespace SuttorLibrary.Core.Repositories
                 return false;
 
             _context.Remove(rate);
+
+            //update authors' rating
+            await UpdateAuthorRating(rate.BookId);
+
             await _context.SaveChangesAsync();
             return true;
         }
@@ -350,6 +359,55 @@ namespace SuttorLibrary.Core.Repositories
             };
 
             await _context.BookCategories.AddAsync(bookCategory);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task UpdateAuthorRating(string bookID)
+        {
+            var authorsIDs = await _context.BookAuthors
+                .Where(ba => ba.Book_Id == bookID)
+                .Select(ba => ba.Author_Id)
+                .Distinct()
+                .ToListAsync();
+
+            if(authorsIDs is null || authorsIDs.Count == 0)
+                return;
+
+            foreach (var authorId in authorsIDs)
+            {
+                // all book ids for this author
+                var authorBookIds = await _context.BookAuthors
+                    .Where(ba => ba.Author_Id == authorId)
+                    .Select(ba => ba.Book_Id)
+                    .Distinct()
+                    .ToListAsync();
+
+                if (authorBookIds == null || authorBookIds.Count == 0)
+                {
+                    // set rating to 0 if author has no books
+                    var authorEmpty = await _context.Authors.FirstOrDefaultAsync(a => a.Id == authorId);
+                    if (authorEmpty != null)
+                        authorEmpty.Rating = 0f;
+                    continue;
+                }
+
+                // compute average rating across the author's books
+                var ratingsQuery = _context.BookRatings
+                    .Where(br => authorBookIds.Contains(br.BookId))
+                    .Select(br => br.Rating);
+
+                float avgRating = 0f;
+
+                // If there are no ratings, default to 0
+                var anyRatings = await ratingsQuery.AnyAsync();
+                if (anyRatings)
+                    avgRating = await ratingsQuery.AverageAsync();
+
+                var author = await _context.Authors.FirstOrDefaultAsync(a => a.Id == authorId);
+                if (author != null)
+                    author.Rating = avgRating;
+            }
+
             await _context.SaveChangesAsync();
         }
     }
