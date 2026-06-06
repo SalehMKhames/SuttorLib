@@ -19,8 +19,9 @@ namespace SuttorLibrary.Core.Interfaces
 
         // Add new category/author (does not save changes; caller should call UnitOfWork.CompleteAsync)
         public Task<bool> AddCategory(string category);
-        public Task<bool> AddAuthor(string author, string desc = "");
+        public Task<bool> AddAuthor(string Id, string author, string desc = "", bool IsReg = false, string? Photo =  "");
         public Task<bool> AddLanguage(string langName);
+
         // Link book to category/author/language (does not save changes; caller should call UnitOfWork.CompleteAsync)
         public Task LinkBookToAuthor(string bookId, string authorId);
         public Task LinkBookToCategory(string bookId, string categoryId);

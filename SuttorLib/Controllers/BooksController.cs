@@ -179,17 +179,33 @@ namespace SuttorLib.Controllers
             {
                 var allAuthors = await _unit.BookRepo.GetAuthors();
 
+                List<AuthorDTO?>? allAuthorsDto = [];
+
+                foreach (var author in allAuthors!)
+                {
+                    var pic = author!.Picture is null ? null 
+                        : await _fileService.GetPictureAsync(author!.Picture!);
+
+                    allAuthorsDto.Add(new AuthorDTO { 
+                        Id = author.Id,
+                        Name = author.Name,
+                        Picture = pic,
+                        Description = author.Description,
+                        IsRegistered = author.IsRegistered
+                    });
+                }
+
                 if (!string.IsNullOrWhiteSpace(search))
                 {
                     var searchLower = search.ToLowerInvariant();
-                    allAuthors = allAuthors?.Where(u =>
+                    allAuthorsDto = allAuthorsDto?.Where(u =>
                         (u!.Name?.ToLowerInvariant().Contains(searchLower) ?? false)
                     ).ToList();
                 }
 
-                int total = allAuthors!.Count();
+                int total = allAuthorsDto!.Count();
                 var totalPages = (int)Math.Ceiling(total / (double)pageSize);
-                var items = allAuthors!
+                var items = allAuthorsDto!
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToList();
@@ -270,7 +286,6 @@ namespace SuttorLib.Controllers
 
         //POST /api/Books/upload
         [Authorize(Roles = "Admin,Author")]
-        //[Authorize(Roles = "Author")]
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> Upload([FromForm] UploadBookDTO dto)
@@ -339,7 +354,7 @@ namespace SuttorLib.Controllers
                     auth = (await _unit.BookRepo.GetAuthors())?
                         .FirstOrDefault(a => a!.Name == authName);
                     if (auth is null)
-                        await _unit.BookRepo.AddAuthor(authName);
+                        await _unit.BookRepo.AddAuthor(Guid.NewGuid().ToString(), authName, "", auth!.IsRegistered, "");
 
                     await _unit.BookRepo.LinkBookToAuthor(book.Id, auth!.Id);
                 }
@@ -432,7 +447,7 @@ namespace SuttorLib.Controllers
 
         //Post /api/Books/addCategory
         [HttpPost("addCategory")]
-        public async Task<IActionResult> AddBooksCategory([FromBody] string cat)
+        public async Task<IActionResult> AddCategory([FromBody] string cat)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -445,7 +460,7 @@ namespace SuttorLib.Controllers
                 if (!res)
                     return BadRequest($"This category: {cat} already exists");
 
-                return CreatedAtAction(nameof(AddBooksCategory), new { CategoryName = cat }, cat);
+                return CreatedAtAction(nameof(AddCategory), new { CategoryName = cat }, cat);
             }
             catch (InvalidOperationException ex)
             {
@@ -461,31 +476,43 @@ namespace SuttorLib.Controllers
 
         //Post /api/Books/addAuthor
         [HttpPost("addAuthor")]
-        public async Task<IActionResult> AddBooksAuthor([FromBody] string author)
+        public async Task<IActionResult> AddAuthor([FromBody] AddAuthorDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            if (string.IsNullOrEmpty(author))
+            if (string.IsNullOrEmpty(dto.Author))
                 return BadRequest("The author's name is required");
 
             try
             {
-                var res = await _unit.BookRepo.AddAuthor(author, "");
+                //Add The photo of the author
+                string? PicPath = dto.Picture is null ? null : await _fileService.UploadUserPicAsync(dto.Picture, dto.Author);
+
+                var res = await _unit.BookRepo.AddAuthor(Guid.NewGuid().ToString(), dto.Author, dto.Desc, false, PicPath);
                 if (!res)
-                    return BadRequest($"This author: {author} already exists");
+                    return BadRequest($"This author: {dto.Author} already exists");
 
-                await _unit.CompleteAsync();
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    // Database commit failed — delete the uploaded file
+                    _logger.LogError(dbEx, "Failed to insert new author: {Author}", dto.Author);
+                    throw; // Re-throw to be caught by outer catch
+                }
 
-                return CreatedAtAction(nameof(AddBooksAuthor), new { AuthorName = author }, author);
+                return CreatedAtAction(nameof(AddAuthor), new { AuthorName = dto.Author }, dto.Author);
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Cannot add the author: {Name}", author);
+                _logger.LogWarning(ex, "Cannot add the author: {Name}", dto.Author);
                 return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Cannot add the author: {Name}", author);
+                _logger.LogError(ex, "Cannot add the author: {Name}", dto.Author);
                 return Problem("An error occurred while adding the author.");
             }
         }

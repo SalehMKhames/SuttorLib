@@ -48,4 +48,20 @@ namespace SuttorLibrary.DTOs
         public float Rating { get; set; }
         public string Comment { get; set; } = string.Empty;
     }
+
+    public class AuthorDTO
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public IFormFile? Picture { get; set; }
+        public string? Description { get; set; }
+        public bool IsRegistered { get; set; }
+    }
+
+    public class AddAuthorDto
+    {
+        public string Author { get; set; }
+        public IFormFile Picture { get; set; }
+        public string Desc { get; set; }
+    }
 }

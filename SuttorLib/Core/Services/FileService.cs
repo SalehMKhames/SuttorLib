@@ -120,7 +120,7 @@ namespace SuttorLibrary.Core.Services
                 var uploadDirectory = storagePath;
                 if (!Directory.Exists(uploadDirectory))
                     Directory.CreateDirectory(uploadDirectory);
-                Directory.CreateDirectory($"{uploadDirectory}\\Photos");
+                Directory.CreateDirectory($"{uploadDirectory}/Photos");
 
                 var uniqueFileName = file.FileName;
                 var uniqueCoverName = coverPic.FileName;

@@ -38,6 +38,10 @@ namespace SuttorLib.Controllers
                     return BadRequest("Email or username already exists.");
                 }
 
+                //If the user registers as Author add him to authors table
+                if (register.IsAuthor)
+                    await _unit.BookRepo.AddAuthor(result.Id, result.FullName, "", true, result.PhotoPath!);
+
                 //Check if adding to the database succeeded. If not, delete the uploaded file and return an error.
                 try
                 {
@@ -61,7 +65,7 @@ namespace SuttorLib.Controllers
                     IsAuthor = result.IsAuthor,
                     XP = result.XP,
                     JoinedAt = result.JoinedAt,
-                    Token = result.Token,
+                    Token = result.Token!,
                     ExpiresAt = result.ExpiresAt,
                     Roles = result.Roles,
                     message = result.message
@@ -116,7 +120,7 @@ namespace SuttorLib.Controllers
                     JoinedAt = result.JoinedAt,
                     XP = result.XP,
                     IsAuthor = result.IsAuthor,
-                    Token = result.Token,
+                    Token = result.Token!,
                     ExpiresAt = result.ExpiresAt,
                     message = result.message,
                     Roles = result.Roles
@@ -172,7 +176,7 @@ namespace SuttorLib.Controllers
                     JoinedAt = result.JoinedAt,
                     XP = result.XP,
                     Photo = updateDto.newCoverPic,
-                    Token = result.Token,
+                    Token = result.Token!,
                     ExpiresAt = result.ExpiresAt,
                     Roles = result.Roles,
                     message = result.message

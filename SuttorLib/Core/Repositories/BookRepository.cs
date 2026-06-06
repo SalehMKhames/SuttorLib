@@ -158,7 +158,7 @@ namespace SuttorLibrary.Core.Repositories
                                 _context.Categories,
                                 bc => bc.categoryId,
                                 c => c.Id,
-                                (bc, c) => new {  c.Name }
+                                (bc, c) => new { c.Name }
                             )
                             .ToList(),
                         language = _context.Languages
@@ -289,7 +289,7 @@ namespace SuttorLibrary.Core.Repositories
             return true;
         }
 
-        public async Task<bool> AddAuthor(string author, string desc = "")
+        public async Task<bool> AddAuthor(string Id, string author, string desc = "", bool IsReg = false, string? Photo = "")
         {
             var result = await _context.Authors.AnyAsync(a => a.Name == author);
             if (result)
@@ -297,9 +297,11 @@ namespace SuttorLibrary.Core.Repositories
 
             var auth = new Author
             {
-                Id = Guid.NewGuid().ToString(),
+                Id = Id,
                 Name = author,
-                Description = desc ?? ""
+                Description = desc ?? "",
+                IsRegistered = IsReg,
+                Picture = Photo
             };
 
             await _context.Authors.AddAsync(auth);
