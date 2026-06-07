@@ -8,12 +8,14 @@ namespace SuttorLibrary.Core.Services
     public class FileService(
         IConfiguration configuration, 
         ILogger<FileService> logger,
-        AppDbContext context
+        AppDbContext context,
+        IWebHostEnvironment env
         ) : IFileService
     {
         private readonly IConfiguration _configuration = configuration;
         private readonly ILogger<FileService> _logger = logger;
         private readonly AppDbContext _context = context;
+        private readonly IWebHostEnvironment _env = env;
 
         public async Task<bool> DeleteFileAsync(string filePath)
         {
@@ -114,17 +116,18 @@ namespace SuttorLibrary.Core.Services
             try
             {
                 var storagePath = _configuration["FileStorage:Path"];
-                if (string.IsNullOrEmpty(storagePath))
-                    throw new InvalidOperationException("File storage path not configured.");
+                storagePath = ResolveStoragePath(storagePath!);
+                
+                if (!Directory.Exists(storagePath))
+                    Directory.CreateDirectory(storagePath);
 
-                var uploadDirectory = storagePath;
-                if (!Directory.Exists(uploadDirectory))
-                    Directory.CreateDirectory(uploadDirectory);
-                Directory.CreateDirectory($"{uploadDirectory}/Photos");
+                var PhotoPath = Path.Combine(storagePath, "Photos");
+                if (!Directory.Exists(PhotoPath))
+                    Directory.CreateDirectory(PhotoPath);
 
                 var uniqueFileName = file.FileName;
                 var uniqueCoverName = coverPic.FileName;
-                var filePath = Path.Combine(uploadDirectory, uniqueFileName);
+                var filePath = Path.Combine(storagePath, uniqueFileName);
 
                 // Use CreateNew to automatically fail if file already exists
                 try
@@ -145,8 +148,7 @@ namespace SuttorLibrary.Core.Services
                 {
                     var coverExtension = Path.GetExtension(uniqueCoverName);
                     uniqueCoverName = $"{Path.GetFileNameWithoutExtension(uniqueFileName)}_cover{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
-                    var storingPath = Path.Combine(uploadDirectory, "Photos");
-                    var coverPath = Path.Combine(storingPath, uniqueCoverName);
+                    var coverPath = Path.Combine(PhotoPath, uniqueCoverName);
 
                     // Overwrite cover if it exists
                     await using (var coverStream = new FileStream(coverPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous))
@@ -175,12 +177,10 @@ namespace SuttorLibrary.Core.Services
 
             try {
                 var storagePath = _configuration["FileStorage:UsersPicsPath"];
-                if (string.IsNullOrEmpty(storagePath))
-                    throw new InvalidOperationException("File storage path not configured.");
+                storagePath = ResolveStoragePath(storagePath!);
 
-                var uploadDirectory = storagePath;
-                if (!Directory.Exists(uploadDirectory))
-                    Directory.CreateDirectory(uploadDirectory);
+                if (!Directory.Exists(storagePath))
+                    Directory.CreateDirectory(storagePath);
 
                 var uniquePicName = userPic.FileName;
 
@@ -190,7 +190,7 @@ namespace SuttorLibrary.Core.Services
                     var coverExtension = Path.GetExtension(uniquePicName);
                     var coverFileName = $"{username}_picture{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
 
-                    var coverPath = Path.Combine(uploadDirectory, coverFileName);
+                    var coverPath = Path.Combine(storagePath, coverFileName);
 
                     // Overwrite cover if it exists
                     await using (var coverStream = new FileStream(coverPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous))
@@ -285,6 +285,24 @@ namespace SuttorLibrary.Core.Services
         private int GetMaxFileSize()
         {
             return _configuration.GetValue<int>("FileStorage:MaxFileSizeMB", 100);
+        }
+
+        private string ResolveStoragePath(string configuredPath)
+        {
+            if (string.IsNullOrWhiteSpace(configuredPath))
+                throw new InvalidOperationException("File storage path not configured.");
+
+            // Trim and normalize
+            var trimmed = configuredPath.Trim();
+
+            // If configured path is rooted (absolute), return full absolute path
+            if (Path.IsPathRooted(trimmed))
+                return Path.GetFullPath(trimmed);
+
+            // If leading ~ or leading slashes, trim them and combine with content root
+            trimmed = trimmed.TrimStart('~', '/', '\\');
+            var combined = Path.Combine(_env.ContentRootPath, trimmed);
+            return Path.GetFullPath(combined);
         }
     }
 }

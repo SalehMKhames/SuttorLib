@@ -51,7 +51,7 @@ builder.Services.Configure<FormOptions>(options =>
 builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySQL(builder.Configuration.GetConnectionString("Debugging")!)
+    options.UseMySQL(builder.Configuration.GetConnectionString("Default")!)
 );
 
 //Configuring MongoDB connection
