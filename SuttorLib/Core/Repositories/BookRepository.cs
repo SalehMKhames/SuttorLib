@@ -284,56 +284,62 @@ namespace SuttorLibrary.Core.Repositories
             return await _context.Languages.ToListAsync();
         }
 
-        public async Task<bool> AddCategory(string category)
+        public async Task<Category?> AddCategory(string category)
         {
             var result = await _context.Categories.AnyAsync(c => c.Name.ToLower() == category.ToLower());
-            if (result)
-                return false;
+            if (!result)
+            {
+                var cat = new Category { Id = Guid.NewGuid().ToString(), Name = category };
 
-            var cat = new Category { Id = Guid.NewGuid().ToString(), Name = category };
+                await _context.Categories.AddAsync(cat);
+                await _context.SaveChangesAsync();
 
-            await _context.Categories.AddAsync(cat);
-            await _context.SaveChangesAsync();
+                return cat;
+            }
 
-            return true;
+            return null;
         }
 
-        public async Task<bool> AddAuthor(string Id, string author, string desc = "", bool IsReg = false, string? Photo = "")
+        public async Task<Author?> AddAuthor(string Id, string author, string desc = "", bool IsReg = false, string? Photo = "")
         {
             var result = await _context.Authors.AnyAsync(a => a.Name == author);
-            if (result)
-                return false;
-
-            var auth = new Author
+            if (!result)
             {
-                Id = Id,
-                Name = author,
-                Description = desc ?? "",
-                IsRegistered = IsReg,
-                Picture = Photo
-            };
+                var auth = new Author
+                {
+                    Id = Id,
+                    Name = author,
+                    Description = desc ?? "",
+                    IsRegistered = IsReg,
+                    Picture = Photo
+                };
 
-            await _context.Authors.AddAsync(auth);
-            await _context.SaveChangesAsync();
+                await _context.Authors.AddAsync(auth);
+                await _context.SaveChangesAsync();
 
-            return true;
+                return auth;
+            }
+
+            return null;
         }
 
-        public async Task<bool> AddLanguage(string langName)
+        public async Task<Languages?> AddLanguage(string langName)
         {
             var res = await _context.Languages.AnyAsync(l => l.Language == langName);
-            if(res)
-                return false;
+            if (!res)
+            {
+                var lang = new Languages
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Language = langName
+                };
 
-            var lang = new Languages 
-            { 
-                Id = Guid.NewGuid().ToString(),
-                Language = langName
-            };
+                await _context.Languages.AddAsync(lang);
+                await _context.SaveChangesAsync();
+                return lang;
+            }
 
-            await _context.Languages.AddAsync(lang);
-            await _context.SaveChangesAsync();
-            return true;
+            return null;
         }
 
         public async Task LinkBookToAuthor(string bookId, string authorId)

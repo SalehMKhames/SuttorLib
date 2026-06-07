@@ -288,6 +288,7 @@ namespace SuttorLib.Controllers
         [Authorize(Roles = "Admin,Author")]
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]
+        [RequestSizeLimit(104857600)]
         public async Task<IActionResult> Upload([FromForm] UploadBookDTO dto)
         {
             if (!ModelState.IsValid)
@@ -310,10 +311,8 @@ namespace SuttorLib.Controllers
                 var photoPath = Path.Combine(storagePath, "Photos", coverFileName);
 
                 // Get or create language
-                var lang = (await _unit.BookRepo.GetLanguages())?
-                    .FirstOrDefault(a => a!.Language == dto.language);
-                if (lang is null)
-                    await _unit.BookRepo.AddLanguage(dto.language);
+                var langList = await _unit.BookRepo.GetLanguages();
+                var lang = langList!.FirstOrDefault(l => l!.Language == dto.language);
 
                 //Create a new book
                 var book = new Book
@@ -343,8 +342,11 @@ namespace SuttorLib.Controllers
                     cate = (await _unit.BookRepo.GetCategories())?
                         .FirstOrDefault(c => c!.Name == catName);
                     if (cate is null)
-                        await _unit.BookRepo.AddCategory(catName);
-
+                    {
+                        cate = await _unit.BookRepo.AddCategory(catName);
+                        if (cate is null)
+                            return BadRequest($"Category {cate!.Name} already exist or failed to create");
+                    }
                     await _unit.BookRepo.LinkBookToCategory(book.Id, cate!.Id);
                 }
 
@@ -354,7 +356,11 @@ namespace SuttorLib.Controllers
                     auth = (await _unit.BookRepo.GetAuthors())?
                         .FirstOrDefault(a => a!.Name == authName);
                     if (auth is null)
-                        await _unit.BookRepo.AddAuthor(Guid.NewGuid().ToString(), authName, "", auth!.IsRegistered, "");
+                    {
+                        auth = await _unit.BookRepo.AddAuthor(Guid.NewGuid().ToString(), authName, "", false, "");
+                        if(auth is null)
+                            return BadRequest($"Author {auth!.Name} already exist or failed to create");
+                    }
 
                     await _unit.BookRepo.LinkBookToAuthor(book.Id, auth!.Id);
                 }
@@ -457,7 +463,7 @@ namespace SuttorLib.Controllers
             try
             {
                 var res = await _unit.BookRepo.AddCategory(cat);
-                if (!res)
+                if (res is null)
                     return BadRequest($"This category: {cat} already exists");
 
                 return CreatedAtAction(nameof(AddCategory), new { CategoryName = cat }, cat);
@@ -489,7 +495,7 @@ namespace SuttorLib.Controllers
                 string? PicPath = dto.Picture is null ? null : await _fileService.UploadUserPicAsync(dto.Picture, dto.Author);
 
                 var res = await _unit.BookRepo.AddAuthor(Guid.NewGuid().ToString(), dto.Author, dto.Desc, false, PicPath);
-                if (!res)
+                if (res is null)
                     return BadRequest($"This author: {dto.Author} already exists");
 
                 try
