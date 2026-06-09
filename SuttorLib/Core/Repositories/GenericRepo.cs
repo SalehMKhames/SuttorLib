@@ -21,7 +21,7 @@ namespace SuttorLibrary.Core.Repositories
         }
 
         public virtual async Task<T?> GetById(string id)
-            => await _set.FindAsync(Guid.Parse(id));
+            => await _set.FindAsync(id);
 
         public virtual async Task<IEnumerable<T>> GetAll()
         { return await _set.AsNoTracking().ToListAsync(); }

@@ -304,11 +304,9 @@ namespace SuttorLib.Controllers
                 var coverExtension = Path.GetExtension(coverName);
                 var coverFileName = $"{Path.GetFileNameWithoutExtension(dto.File.FileName)}_cover{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
 
-                var storagePath = _configuration["FileStorage:Path"] ??
-                    throw new InvalidOperationException("FileStorage:Path not configured.");
-
-                var filePath = Path.Combine(storagePath, dto.File.FileName);
-                var photoPath = Path.Combine(storagePath, "Photos", coverFileName);
+                var storagePath = _configuration["FileStorage:Path"];
+                var filePath = Path.Combine(storagePath!, dto.File.FileName);
+                var photoPath = Path.Combine(storagePath!, "Photos", coverFileName);
 
                 // Get or create language
                 var langList = await _unit.BookRepo.GetLanguages();
@@ -370,6 +368,9 @@ namespace SuttorLib.Controllers
                 if (string.Equals(uploadedFile, "A file with the same name already exists.", StringComparison.OrdinalIgnoreCase))
                     return BadRequest($"The file for '{dto.File.FileName}' already exists.");
 
+                if (uploadedFile is null)
+                    _unit.BookRepo.Delete(book.Id);
+
                 //Check if adding to the database succeeded. If not, delete the uploaded file and return an error.
                 try
                 {
@@ -407,11 +408,11 @@ namespace SuttorLib.Controllers
 
         //GET /api/Books/{id}/download
         [HttpGet("{id}/download")]
-        public async Task<IActionResult> Download([FromRoute] Guid id)
+        public async Task<IActionResult> Download([FromRoute] string id)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            if (string.IsNullOrEmpty(id.ToString()))
+            if (string.IsNullOrEmpty(id))
                 return BadRequest("No file to download");
             try
             {

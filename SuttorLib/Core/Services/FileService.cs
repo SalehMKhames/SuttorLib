@@ -40,7 +40,7 @@ namespace SuttorLibrary.Core.Services
         public async Task<FileContentResult> DownloadFileAsync(
             string fileName, 
             string pathToFile, 
-            Guid bookId, 
+            string bookId, 
             string? userId
             )
         {
@@ -60,7 +60,7 @@ namespace SuttorLibrary.Core.Services
                             var download = new Download
                             {
                                 Id = Guid.NewGuid().ToString(),
-                                BookID = bookId.ToString(),
+                                BookID = bookId,
                                 UserID = userId,
                                 DownloadedAt = DateTime.UtcNow,
                                 IsFinishReading = false
@@ -115,7 +115,7 @@ namespace SuttorLibrary.Core.Services
 
             try
             {
-                var storagePath = _configuration["FileStorage:Path"];
+                var storagePath = _configuration["FileStorage:Path"] ?? "private/Books";
                 storagePath = ResolveStoragePath(storagePath!);
                 
                 if (!Directory.Exists(storagePath))
@@ -127,6 +127,7 @@ namespace SuttorLibrary.Core.Services
 
                 var uniqueFileName = file.FileName;
                 var uniqueCoverName = coverPic.FileName;
+
                 var filePath = Path.Combine(storagePath, uniqueFileName);
 
                 // Use CreateNew to automatically fail if file already exists
@@ -176,9 +177,8 @@ namespace SuttorLibrary.Core.Services
                 throw new InvalidOperationException($"File extension not allowed. Allowed: {GetAllowedPictureExtensions()}");
 
             try {
-                var storagePath = _configuration["FileStorage:UsersPicsPath"];
+                var storagePath = _configuration["FileStorage:UsersPicsPath"] ?? "private/Users";
                 storagePath = ResolveStoragePath(storagePath!);
-
                 if (!Directory.Exists(storagePath))
                     Directory.CreateDirectory(storagePath);
 

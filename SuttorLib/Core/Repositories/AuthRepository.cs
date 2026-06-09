@@ -87,14 +87,6 @@ namespace SuttorLibrary.Core.Repositories
                 return newUser;
             }
 
-            // Always assign the "User" role
-            var addUserRoleResult = await _userManager.AddToRoleAsync(newUser, "User");
-            if (!addUserRoleResult.Succeeded)
-            {
-                newUser.message = string.Join("; ", addUserRoleResult.Errors.Select(e => e.Description));
-                return newUser;
-            }
-
             // Assign "Author" role when requested
             if (register.IsAuthor)
             {
@@ -102,6 +94,16 @@ namespace SuttorLibrary.Core.Repositories
                 if (!addAuthorRoleResult.Succeeded)
                 {
                     newUser.message = string.Join("; ", addAuthorRoleResult.Errors.Select(e => e.Description));
+                    return newUser;
+                }
+            }
+            // IF the user is not an author, ensure they get the "User" role (in case default role assignment is not configured)
+            else
+            {
+                var addUserRoleResult = await _userManager.AddToRoleAsync(newUser, "User");
+                if (!addUserRoleResult.Succeeded)
+                {
+                    newUser.message = string.Join("; ", addUserRoleResult.Errors.Select(e => e.Description));
                     return newUser;
                 }
             }
@@ -122,7 +124,7 @@ namespace SuttorLibrary.Core.Repositories
             return createdUser;
         }
 
-        public async Task<AppUser?> UpdateUser(string id, string? email, string? username, string? fullName, string? picPath, int? xp)
+        public async Task<AppUser?> UpdateUser(string id, string? email, string? username, string? fullName, string? picPath)
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user is null)
@@ -149,9 +151,6 @@ namespace SuttorLibrary.Core.Repositories
 
             if (!string.IsNullOrWhiteSpace(picPath))
                 user.PhotoPath = picPath;
-
-            if (xp.HasValue && xp.Value >= 0)
-                user.XP = xp.Value;
 
             var updateResult = await _userManager.UpdateAsync(user);
             if (!updateResult.Succeeded)

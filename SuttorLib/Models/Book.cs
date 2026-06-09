@@ -10,7 +10,6 @@ namespace SuttorLibrary.Models
         public string Id { get; set; }
         [Required]
         public required string Title { get; set; } = string.Empty;
-        [MaxLength(300)]
         public string Description { get; set; } = string.Empty;
         public int PageCount { get; set; }
         public int PublishedAT { get; set; }

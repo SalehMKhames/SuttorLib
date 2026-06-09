@@ -60,9 +60,6 @@ namespace SuttorLibrary.DTOs
         public string? FullName { get; set; }
 
         public IFormFile? newCoverPic { get; set; }
-
-        [Range(0, int.MaxValue, ErrorMessage = "XP cannot be negative.")]
-        public int? XP { get; set; }
     }
 
     public class ChangePasswordDTO
@@ -133,22 +130,5 @@ namespace SuttorLibrary.DTOs
         public int XP { get; set; }
         public string? PhotoPath { get; set; }
         public bool IsAuthor { get; set; }
-    }
-
-    public class UserDTO
-    {
-        public string Id { get; set; }
-        public string FullName { get; set; } = string.Empty;
-        public string UserName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public DateTime JoinedAt { get; set; }
-        public int XP { get; set; }
-        public IFormFile? Photo { get; set; }
-
-        public bool IsAuthor { get; set; }
-        public string message { get; set; }
-        public DateTime ExpiresAt { get; set; }
-        public string Token { get; set; }
-        public IList<string> Roles { get; set; } = new List<string> { "User" };
     }
 }

@@ -23,8 +23,6 @@ namespace SuttorLib.Controllers
 
             try
             {
-
-                //Save the user's picture to the specified directory in appsettings.json
                 string? uploadedPicture = register.userPic is not null ?
                     await _fileService.UploadUserPicAsync(register.userPic!, register.FullName) : null;
 
@@ -55,23 +53,7 @@ namespace SuttorLib.Controllers
                     throw; // Re-throw to be caught by outer catch
                 }
 
-                UserDTO userDTO = new UserDTO 
-                {
-                    Id = result.Id,
-                    FullName = result.FullName,
-                    Email = result.Email,
-                    UserName = result.UserName,
-                    Photo = register.userPic,
-                    IsAuthor = result.IsAuthor,
-                    XP = result.XP,
-                    JoinedAt = result.JoinedAt,
-                    Token = result.Token!,
-                    ExpiresAt = result.ExpiresAt,
-                    Roles = result.Roles,
-                    message = result.message
-                };
-
-                return CreatedAtAction(nameof(CreateUser), new { userId = result.Id }, userDTO);
+                return CreatedAtAction(nameof(CreateUser), new { userId = result.Id }, result);
             }
             catch (Exception ex)
             {
@@ -109,24 +91,8 @@ namespace SuttorLib.Controllers
 
                 IFormFile? userPic = result.PhotoPath is null ? null :
                     await _fileService.GetPictureAsync(result.PhotoPath);
-                
-                UserDTO userDTO = new UserDTO 
-                {
-                    Id = result.Id,
-                    FullName = result.FullName,
-                    UserName = result.UserName,
-                    Email = result.Email,
-                    Photo = userPic,
-                    JoinedAt = result.JoinedAt,
-                    XP = result.XP,
-                    IsAuthor = result.IsAuthor,
-                    Token = result.Token!,
-                    ExpiresAt = result.ExpiresAt,
-                    message = result.message,
-                    Roles = result.Roles
-                };
 
-                return Ok(userDTO);
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -157,7 +123,7 @@ namespace SuttorLib.Controllers
                 var userPicPath = updateDto.newCoverPic is not null ? 
                     await _fileService.UploadUserPicAsync(updateDto.newCoverPic!, userId) : null;
 
-                var result = await _unit.AuthRepo.UpdateUser(userId, updateDto.Email, updateDto.UserName, updateDto.FullName, userPicPath, updateDto.XP);
+                var result = await _unit.AuthRepo.UpdateUser(userId, updateDto.Email, updateDto.UserName, updateDto.FullName, userPicPath);
                 if (result is null)
                 {
                     _logger.LogInformation("Update failed: user not found {UserId}", userId);
@@ -166,23 +132,7 @@ namespace SuttorLib.Controllers
 
                 await _unit.CompleteAsync();
 
-                UserDTO userDto = new UserDTO 
-                {
-                    Id = userId,
-                    Email = result.Email,
-                    UserName = result.UserName,
-                    FullName = result.FullName,
-                    IsAuthor = result.IsAuthor,
-                    JoinedAt = result.JoinedAt,
-                    XP = result.XP,
-                    Photo = updateDto.newCoverPic,
-                    Token = result.Token!,
-                    ExpiresAt = result.ExpiresAt,
-                    Roles = result.Roles,
-                    message = result.message
-                };
-
-                return Ok(userDto);
+                return Ok(result);
             }
             catch (InvalidOperationException io)
             {
