@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 namespace SuttorLibrary.DTOs
@@ -130,5 +131,23 @@ namespace SuttorLibrary.DTOs
         public int XP { get; set; }
         public string? PhotoPath { get; set; }
         public bool IsAuthor { get; set; }
+    }
+
+    public class UserDTO
+    {
+        public string Id { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public DateTime JoinedAt { get; set; }
+        public int XP { get; set; }
+        public IFormFile? Photo { get; set; }
+        public bool IsAuthor { get; set; }
+        public DateTime ExpiresAt { get; set; }
+        public string? Token { get; set; }
+        public List<string> Roles { get; set; } = new();
+        public string? RefreshToken { get; set; }
+        public DateTime RefreshExpiresAt { get; set; }
+        public string? message { get; set; }
     }
 }

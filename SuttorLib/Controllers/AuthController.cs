@@ -72,19 +72,18 @@ namespace SuttorLib.Controllers
             try
             {
                 var result = await _unit.AuthRepo.LoginUser(login);
-
                 if (result is null)
                 {
                     _logger.LogInformation("Login failed for email {Email}", login.Email);
                     return Unauthorized("Invalid email or password.");
                 }
+
                 try
                 {
                     await _unit.CompleteAsync();
                 }
                 catch (Exception dbEx)
                 {
-                    // Database commit failed — delete the uploaded file
                     _logger.LogError(dbEx, "Database commit failed. Logging In Function");
                     throw; // Re-throw to be caught by outer catch
                 }
@@ -92,7 +91,25 @@ namespace SuttorLib.Controllers
                 IFormFile? userPic = result.PhotoPath is null ? null :
                     await _fileService.GetPictureAsync(result.PhotoPath);
 
-                return Ok(result);
+                UserDTO user = new UserDTO 
+                {
+                    Id = result.Id,
+                    FullName = result.FullName,
+                    UserName = result.UserName,
+                    Email = result.Email,
+                    Photo = userPic,
+                    IsAuthor = result.IsAuthor,
+                    XP = result.XP,
+                    JoinedAt = result.JoinedAt,
+                    Roles = result.Roles,
+                    Token = result.Token,
+                    ExpiresAt = result.ExpiresAt,
+                    RefreshToken = result.RefreshToken,
+                    RefreshExpiresAt = result.RefreshExpireAt,
+                    message = result.message
+                };
+
+                return Ok(user);
             }
             catch (Exception ex)
             {
@@ -130,7 +147,15 @@ namespace SuttorLib.Controllers
                     return NotFound($"User with ID '{userId}' not found.");
                 }
 
-                await _unit.CompleteAsync();
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    _logger.LogError(dbEx, "Database commit failed. Update User Function");
+                    throw; // Re-throw to be caught by outer catch
+                }
 
                 return Ok(result);
             }
@@ -162,7 +187,16 @@ namespace SuttorLib.Controllers
                     return Forbid();
 
                 var result = await _unit.AuthRepo.ChangePassword(dto);
-                await _unit.CompleteAsync();
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    _logger.LogError(dbEx, "Database commit failed. Change Password Function");
+                    throw; // Re-throw to be caught by outer catch
+                }
+
                 return Ok(new { success = true, message = "Password changed successfully." });
             }
             catch (KeyNotFoundException knf)
@@ -210,6 +244,15 @@ namespace SuttorLib.Controllers
                     return BadRequest(result);
                 }
 
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    _logger.LogError(dbEx, "Database commit failed. Assign Role Function");
+                    throw; // Re-throw to be caught by outer catch
+                }
                 await _unit.CompleteAsync();
                 return Ok(new { message = result });
             }
@@ -248,7 +291,15 @@ namespace SuttorLib.Controllers
                     return NotFound($"User with ID '{userId}' not found.");
                 }
 
-                await _unit.CompleteAsync();
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    _logger.LogError(dbEx, "Database commit failed. Delete User Function");
+                    throw; // Re-throw to be caught by outer catch
+                }
                 _logger.LogInformation("DeleteUser: user {UserId} deleted by {Caller}", userId, callerId);
                 return Ok(new { success = true, message = "User deleted successfully." });
             }
@@ -283,7 +334,15 @@ namespace SuttorLib.Controllers
                 if (tokens is null)
                     return Unauthorized("Invalid or expired refresh token.");
 
-                await _unit.CompleteAsync();
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    _logger.LogError(dbEx, "Database commit failed. Refresh Token Function");
+                    throw; // Re-throw to be caught by outer catch
+                }
                 return Ok(tokens);
             }
             catch (Exception ex)
@@ -307,7 +366,16 @@ namespace SuttorLib.Controllers
                 if (!result)
                     return NotFound("Refresh token not found or already revoked.");
 
-                await _unit.CompleteAsync();
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    _logger.LogError(dbEx, "Database commit failed. Revoke Function");
+                    throw; // Re-throw to be caught by outer catch
+                }
+
                 return Ok(new { success = true });
             }
             catch (Exception ex)

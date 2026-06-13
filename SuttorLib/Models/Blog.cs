@@ -48,6 +48,7 @@ namespace SuttorLib.Models
         public List<Comment> Comments { get; set; } = new();
 
         [BsonElement("category")]
+        [BsonRepresentation(BsonType.ObjectId)]
         public string Category { get; set; } = string.Empty;
     }
 }

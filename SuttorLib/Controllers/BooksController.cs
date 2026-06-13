@@ -17,6 +17,27 @@ namespace SuttorLib.Controllers
         private readonly IFileService _fileService = fileService;
         private readonly IConfiguration _configuration = configuration;
 
+        //Get /api/Books
+        [HttpGet(Name = "GetAllBooks")]
+        public async Task<IActionResult> GetAllBooks()
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            try
+            {
+                var books = await _unit.BookRepo.GetBooksAsync();
+                if (books is null || !books.Any())
+                    return NotFound("No books found.");
+
+                return Ok(books);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving all books");
+                return Problem("An error occurred while retrieving books.");
+            }
+        }
+
         //GET /api/Books/{id}
         [HttpGet("{bookId}", Name = "GetBookById")]
         public async Task<IActionResult> GetBookById([FromRoute] string bookId)
@@ -407,6 +428,7 @@ namespace SuttorLib.Controllers
         }
 
         //GET /api/Books/{id}/download
+        [Authorize] // For preventing anonymous downloads
         [HttpGet("{id}/download")]
         public async Task<IActionResult> Download([FromRoute] string id)
         {
@@ -505,7 +527,6 @@ namespace SuttorLib.Controllers
                 }
                 catch (Exception dbEx)
                 {
-                    // Database commit failed — delete the uploaded file
                     _logger.LogError(dbEx, "Failed to insert new author: {Author}", dto.Author);
                     throw; // Re-throw to be caught by outer catch
                 }
@@ -603,6 +624,40 @@ namespace SuttorLib.Controllers
             {
                 _logger.LogError(ex, "Cannot delete the rating with ID {RateId} for book ID {BookId}", rateId, BookId);
                 return Problem("An error occurred while deleting the rating.");
+            }
+        }
+
+        //Patch /api/Books/{id}/FinishRead
+        [HttpPatch("{BookId}/FinishReading")]
+        public async Task<IActionResult> FinishBooReading([FromRoute] string BookId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (BookId is null || string.IsNullOrEmpty(BookId) || string.IsNullOrWhiteSpace(BookId))
+                return BadRequest("The Book's ID is required");
+
+            try {
+                var res = await _unit.BookRepo.IsFinishReading(BookId);
+                if (!res)
+                    return BadRequest("Something went wrong. Please try again later.");
+
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    _logger.LogError(dbEx, "Failed to make IsFinished prop for the BOOK with the ID: {BookID}", BookId);
+                    throw; // Re-throw to be caught by outer catch
+                }
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot modify finishing the reading for book ID {BookId}", BookId);
+                return Problem("An error occurred while modify the finishing of the reading.");
             }
         }
     }

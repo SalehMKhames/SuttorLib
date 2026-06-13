@@ -48,13 +48,13 @@ namespace SuttorLibrary.Core.Repositories
             if (existedUser is null || !await _userManager.CheckPasswordAsync(existedUser, login.Password))
                 return null;
 
-            var token = await CreateJwtToken(existedUser);
-            var jwtToken = new JwtSecurityTokenHandler().WriteToken(token);
+            var token = await GenerateTokensAsync(existedUser);
             var rolesList = await _userManager.GetRolesAsync(existedUser);
-           
-            existedUser.Token = jwtToken;
-            existedUser.ExpiresAt = token.ValidTo;
             existedUser.Roles = rolesList.ToList();
+           
+            existedUser.Token = token.AccessToken;
+            existedUser.ExpiresAt = token.AccessTokenExpiresAt;
+            existedUser.RefreshToken = token.RefreshToken;
 
             return existedUser;
         }
@@ -117,6 +117,8 @@ namespace SuttorLibrary.Core.Repositories
             var tokenResponse = await GenerateTokensAsync(createdUser);
             createdUser.Token = tokenResponse.AccessToken;
             createdUser.ExpiresAt = tokenResponse.AccessTokenExpiresAt;
+            createdUser.RefreshExpireAt = tokenResponse.RefreshTokenExpiresAt;
+            createdUser.RefreshToken = tokenResponse.RefreshToken;
 
             var rolesList = await _userManager.GetRolesAsync(createdUser);
             createdUser.Roles = rolesList.ToList();
@@ -213,7 +215,78 @@ namespace SuttorLibrary.Core.Repositories
 
 
 
+        public async Task<TokenResponseDTO?> RefreshTokensAsync(string refreshToken)
+        {
+            var stored = await _context.RefreshTokens
+                .AsTracking()
+                .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
 
+            if (stored is null || !stored.IsActive)
+                return null;
+
+            // rotate: revoke existing and create new one
+            stored.Revoked = DateTime.UtcNow;
+
+            // create new refresh token
+            var newRefreshString = GenerateSecureTokenString(64);
+            var refreshExpiresMins = 10;
+            var newRefresh = new RefreshToken
+            {
+                Token = newRefreshString,
+                UserId = stored.UserId,
+                Created = DateTime.UtcNow,
+                Expires = DateTime.UtcNow.AddMinutes(refreshExpiresMins)
+            };
+
+            stored.ReplacedByToken = newRefreshString;
+
+            _context.RefreshTokens.Add(newRefresh);
+            await _context.SaveChangesAsync();
+
+            var user = await _userManager.FindByIdAsync(stored.UserId.ToString());
+            if (user is null)
+                return null;
+
+            var jwt = await CreateJwtToken(user);
+            var accessToken = new JwtSecurityTokenHandler().WriteToken(jwt);
+
+            return new TokenResponseDTO
+            {
+                AccessToken = accessToken,
+                AccessTokenExpiresAt = jwt.ValidTo,
+                RefreshToken = newRefreshString,
+                RefreshTokenExpiresAt = newRefresh.Expires
+            };
+        }
+        public async Task<TokenResponseDTO> GenerateTokensAsync(AppUser user)
+        {
+            // Create access token
+            var jwt = await CreateJwtToken(user);
+            var accessToken = new JwtSecurityTokenHandler().WriteToken(jwt);
+            var accessExpires = jwt.ValidTo;
+
+            // Create refresh token
+            var refreshTokenString = GenerateSecureTokenString(64);
+            int refreshExpiresMins = 10;
+            var refreshToken = new RefreshToken
+            {
+                Token = refreshTokenString,
+                UserId = user.Id,
+                Expires = DateTime.UtcNow.AddMinutes(refreshExpiresMins),
+                Created = DateTime.UtcNow
+            };
+
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+
+            return new TokenResponseDTO
+            {
+                AccessToken = accessToken,
+                AccessTokenExpiresAt = accessExpires,
+                RefreshToken = refreshTokenString,
+                RefreshTokenExpiresAt = refreshToken.Expires
+            };
+        }
 
         private async Task<JwtSecurityToken> CreateJwtToken(AppUser user)
         {
@@ -253,87 +326,11 @@ namespace SuttorLibrary.Core.Repositories
 
             return token;
         }
-
-        public async Task<TokenResponseDTO?> RefreshTokensAsync(string refreshToken)
-        {
-            var stored = await _context.RefreshTokens
-                .AsTracking()
-                .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
-
-            if (stored is null || !stored.IsActive)
-                return null;
-
-            // rotate: revoke existing and create new one
-            stored.Revoked = DateTime.UtcNow;
-
-            // create new refresh token
-            var newRefreshString = GenerateSecureTokenString(64);
-            var refreshExpiresDays = _config.GetValue<int?>("JWT:RefreshTokenDurationDays") ?? 30;
-            var newRefresh = new RefreshToken
-            {
-                Token = newRefreshString,
-                UserId = stored.UserId,
-                Created = DateTime.UtcNow,
-                Expires = DateTime.UtcNow.AddDays(refreshExpiresDays)
-            };
-
-            stored.ReplacedByToken = newRefreshString;
-
-            _context.RefreshTokens.Add(newRefresh);
-            await _context.SaveChangesAsync();
-
-            var user = await _userManager.FindByIdAsync(stored.UserId.ToString());
-            if (user is null)
-                return null;
-
-            var jwt = await CreateJwtToken(user);
-            var accessToken = new JwtSecurityTokenHandler().WriteToken(jwt);
-
-            return new TokenResponseDTO
-            {
-                AccessToken = accessToken,
-                AccessTokenExpiresAt = jwt.ValidTo,
-                RefreshToken = newRefreshString,
-                RefreshTokenExpiresAt = newRefresh.Expires
-            };
-        }
-
         private static string GenerateSecureTokenString(int size = 64)
         {
             var bytes = RandomNumberGenerator.GetBytes(size);
             return Convert.ToBase64String(bytes);
         }
-
-        public async Task<TokenResponseDTO> GenerateTokensAsync(AppUser user)
-        {
-            // Create access token
-            var jwt = await CreateJwtToken(user);
-            var accessToken = new JwtSecurityTokenHandler().WriteToken(jwt);
-            var accessExpires = jwt.ValidTo;
-
-            // Create refresh token
-            var refreshTokenString = GenerateSecureTokenString(64);
-            var refreshExpiresDays = _config.GetValue<int?>("JWT:RefreshTokenDurationDays") ?? 30;
-            var refreshToken = new RefreshToken
-            {
-                Token = refreshTokenString,
-                UserId = user.Id,
-                Expires = DateTime.UtcNow.AddDays(refreshExpiresDays),
-                Created = DateTime.UtcNow
-            };
-
-            _context.RefreshTokens.Add(refreshToken);
-            await _context.SaveChangesAsync();
-
-            return new TokenResponseDTO
-            {
-                AccessToken = accessToken,
-                AccessTokenExpiresAt = accessExpires,
-                RefreshToken = refreshTokenString,
-                RefreshTokenExpiresAt = refreshToken.Expires
-            };
-        }
-
         public async Task<bool> RevokeRefreshTokenAsync(string refreshToken)
         {
             var stored = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == refreshToken);

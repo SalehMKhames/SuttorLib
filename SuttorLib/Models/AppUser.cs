@@ -35,5 +35,9 @@ namespace SuttorLibrary.Models
         public string? Token { get; set; }
         [NotMapped]
         public List<string> Roles { get; set; } = new();
+        [NotMapped]
+        public string? RefreshToken { get; set; }
+        [NotMapped]
+        public DateTime RefreshExpireAt { get; set; }
     }
 }

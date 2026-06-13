@@ -416,5 +416,31 @@ namespace SuttorLibrary.Core.Repositories
 
             await _context.SaveChangesAsync();
         }
+
+        public async Task<List<Book>?> GetBooksAsync()
+        {
+            return (List<Book>?)await base.GetAll();
+        }
+
+        public async Task<bool> IsFinishReading(string bookId)
+        {
+            var book = await _context.Books.FirstOrDefaultAsync(b => b.Id == bookId);
+            if (book is not null) 
+            {
+                var download = await _context.Downloads
+                    .FirstOrDefaultAsync(d => d.Id == book.Id);
+
+                if (download is not null) { 
+                    download.IsFinishReading = true;
+
+                    _context.Update(download);
+                    await _context.SaveChangesAsync();
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 }

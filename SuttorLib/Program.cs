@@ -18,25 +18,6 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
-//CORS Configurations
-var corsPolicy = "AllowSpecificOrigins";
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(corsPolicy, policyBuilder =>
-    {
-        var allowedOrigins = builder.Configuration["CorsSettings:AllowedOrigins"]?.Split(",") ?? new[] { "http://localhost:3000" };
-
-        policyBuilder
-            .WithOrigins(allowedOrigins)
-            .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials()  //For JWT cookies/headers
-            .WithExposedHeaders("Content-Disposition")  //For file downloads
-            .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
-    });
-});
-
-
 // Configure form limits
 builder.Services.Configure<FormOptions>(options =>
 {
@@ -51,7 +32,7 @@ builder.Services.Configure<FormOptions>(options =>
 builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySQL(builder.Configuration.GetConnectionString("Debugging")!)
+    options.UseMySQL(builder.Configuration.GetConnectionString("Default")!)
 );
 
 //Configuring MongoDB connection
@@ -69,7 +50,28 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(
     }
 ).AddEntityFrameworkStores<AppDbContext>().AddDefaultTokenProviders();
 
+//CORS Configurations
+var corsPolicy = "AllowSpecificOrigins";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(corsPolicy, policyBuilder =>
+    {
+        var allowedOrigins = builder.Configuration["CorsSettings:AllowedOrigins"]?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(o => o.Trim())
+            .Where(o => !string.IsNullOrEmpty(o))
+            .ToArray()
+            ?? new[] { "http://localhost:3000" };
 
+        policyBuilder
+            .WithOrigins(allowedOrigins)
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()  //For JWT cookies/headers
+            .WithExposedHeaders("Content-Disposition")  //For file downloads
+            .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+    });
+});
 
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

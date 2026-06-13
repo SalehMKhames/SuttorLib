@@ -38,6 +38,8 @@ namespace SuttorLib.DTOs
         public string Content { get; set; } = string.Empty;
     }
 
+    // For nested comments (Replies), we can use the same DTO
+    // But with an additional property for the parent comment ID
     public class BlogCommentDTO
     {
         public string Id { get; set; } = string.Empty;
@@ -51,7 +53,7 @@ namespace SuttorLib.DTOs
         public List<BlogCommentDTO> Replies { get; set; } = new();
     }
 
-    public class UpdateCommentRequestDto
+    public class UpdateCommentDto
     {
         public string? Content { get; set; }
     }

@@ -7,7 +7,7 @@ namespace SuttorLibrary.Core.Interfaces
     {
         public Task<object?> GetBookWithDetailsAsync(string id);
         public Task<object?> GetBookByName(string bookName);
-
+        public Task<List<Book>?> GetBooksAsync();
         public Task<IEnumerable<object?>?> GetBooksByCategory(string categoryName);
         public Task<IEnumerable<object?>?> GetBooksByAuthor(string authorName);
         public Task<IEnumerable<Category?>?> GetCategories();
@@ -25,5 +25,6 @@ namespace SuttorLibrary.Core.Interfaces
         // Link book to category/author/language (does not save changes; caller should call UnitOfWork.CompleteAsync)
         public Task LinkBookToAuthor(string bookId, string authorId);
         public Task LinkBookToCategory(string bookId, string categoryId);
+        public Task<bool> IsFinishReading(string bookId);
     }
 }
