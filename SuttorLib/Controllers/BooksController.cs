@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
@@ -19,17 +20,82 @@ namespace SuttorLib.Controllers
 
         //Get /api/Books
         [HttpGet(Name = "GetAllBooks")]
-        public async Task<IActionResult> GetAllBooks()
+        public async Task<IActionResult> GetAllBooks([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+            if (page < 1 || pageSize < 1)
+                return BadRequest("Page and pageSize must be positive integers.");
+
+            const int maxPageSize = 200;
+            pageSize = Math.Min(pageSize, maxPageSize);
+
             try
             {
                 var books = await _unit.BookRepo.GetBooksAsync();
                 if (books is null || !books.Any())
                     return NotFound("No books found.");
 
-                return Ok(books);
+                List<GetBookDTO> bookDTOs = new();
+
+                foreach (var book in books)
+                {
+                    Type type = book.GetType();
+
+                    string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
+                    IFormFile? bookCover = null;
+                    if (!string.IsNullOrEmpty(photoPath))
+                    {
+                        bookCover = await _fileService.GetPictureAsync(photoPath);
+                    }
+
+                    var bookDto = new GetBookDTO
+                    {
+                        Id = (string)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                        Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
+                        Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
+                        Photo = bookCover!,
+                        FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
+                        PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
+                        PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
+                        FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! * 1024 * 1024,
+                        UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
+                        language = (string)type.GetProperty("language")!.GetValue(book, null)!,
+                        Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
+                        Categories_Names = (List<string>)type.GetProperty("categories")!.GetValue(book, null)!
+                    };
+
+                    bookDTOs.Add(bookDto);
+                }
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var searchLower = search.ToLowerInvariant();
+                    bookDTOs = bookDTOs?.Where(u =>
+                        (u!.Title?.ToLowerInvariant().Contains(searchLower) ?? false)
+                    ).ToList()!;
+                }
+
+                int total = bookDTOs.Count();
+                var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+                var items = bookDTOs
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                _logger.LogInformation("The requested books page {Page}/{TotalPages} (size {PageSize}) search={Search}",
+                    page, totalPages, pageSize, search ?? "none");
+
+                var result = new
+                {
+                    Total = total,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalPages = totalPages,
+                    Items = items
+                };
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -64,14 +130,14 @@ namespace SuttorLib.Controllers
 
                 var bookDto = new GetBookDTO
                 {
-                    Id = (Guid)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                    Id = (string)type.GetProperty("ClientId")!.GetValue(book, null)!,
                     Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
                     Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
                     Photo = bookCover!,
                     FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
                     PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
                     PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)!,
+                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! *1024*1024,
                     UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                     language = (string)type.GetProperty("language")!.GetValue(book, null)!,
                     Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
@@ -113,14 +179,14 @@ namespace SuttorLib.Controllers
 
                 var bookDto = new GetBookDTO
                 {
-                    Id = (Guid)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                    Id = (string)type.GetProperty("ClientId")!.GetValue(book, null)!,
                     Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
                     Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
                     Photo = bookCover!,
                     FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
                     PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
                     PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)!,
+                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)!*1024*1024,
                     UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                     language = (string)type.GetProperty("language")!.GetValue(book, null)!,
                     Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
@@ -629,7 +695,7 @@ namespace SuttorLib.Controllers
 
         //Patch /api/Books/{id}/FinishRead
         [HttpPatch("{BookId}/FinishReading")]
-        public async Task<IActionResult> FinishBooReading([FromRoute] string BookId)
+        public async Task<IActionResult> FinishBookReading([FromRoute] string BookId)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);

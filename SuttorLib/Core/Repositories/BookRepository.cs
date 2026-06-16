@@ -417,9 +417,53 @@ namespace SuttorLibrary.Core.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<List<Book>?> GetBooksAsync()
+        public async Task<List<object?>?> GetBooksAsync()
         {
-            return (List<Book>?)await base.GetAll();
+            var books = (List<Book>?)await base.GetAll();
+            if(books is null || books.Count == 0)
+                return null;
+
+            List<object>? booksObjects = new List<object>();
+
+            foreach (var book in books)
+            {
+                booksObjects.Add(new 
+                {
+                    id = book.Id,
+                    title = book.Title,
+                    description = book.Description,
+                    pageCount = book.PageCount,
+                    publishedAt = book.PublishedAT,
+                    uploadedAt = book.UploadedAt,
+                    fileSize = book.FileSize,
+                    filePath = book.FilePath,
+                    photoPath = book.PhotoPath,
+                    authors = _context.BookAuthors
+                        .Where(ba => ba.Book_Id == book.Id)
+                        .Join(
+                            _context.Authors,
+                            ba => ba.Author_Id,
+                            a => a.Id,
+                            (ba, a) => new { a.Name, a.Description }
+                        )
+                        .ToList(),
+                    categories = _context.BookCategories
+                        .Where(bc => bc.bookId == book.Id)
+                        .Join(
+                            _context.Categories,
+                            bc => bc.categoryId,
+                            c => c.Id,
+                            (bc, c) => new { c.Name }
+                        )
+                        .ToList(),
+                    language = _context.Languages
+                        .Where(l => l.Id == book.LanguageId)
+                        .Select(l => l.Language)
+                        .FirstOrDefault()
+                });
+            }
+
+            return booksObjects.Count == 0 ? null : booksObjects;
         }
 
         public async Task<bool> IsFinishReading(string bookId)

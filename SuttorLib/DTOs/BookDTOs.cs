@@ -18,18 +18,18 @@ namespace SuttorLibrary.DTOs
 
     public class GetBookDTO
     {
-        public Guid Id { get; set; }
+        public string Id { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public int PageCount { get; set; }
         public int PublishedAT { get; set; }
-        public string FilePath { get; set; }
-        public IFormFile Photo { get; set; }
+        public string FilePath { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+        public IFormFile? Photo { get; set; } = null;
         public DateTime UploadedAt { get; set; }
         public string language { get; set; } = string.Empty;
-        public long FileSize { get; set; }
-        public List<string> Authors_Names { get; set; }
-        public List<string> Categories_Names { get; set; }
+        public List<string> Authors_Names { get; set; } = new List<string>();
+        public List<string> Categories_Names { get; set; } = new List<string>();
     }
 
     public class RatingDTO
