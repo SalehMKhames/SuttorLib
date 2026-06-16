@@ -39,7 +39,8 @@ namespace SuttorLib.DTOs
         public string Content { get; set; } = string.Empty;
         public List<string>? Tags { get; set; } = new();
     }
-
+    //For the public responses that will get back from the Controller endpoints
+    //with mapping the info that will come back from MySQL DB.
     public class BlogCommentResponseDto
     {
         public string Id { get; set; } = string.Empty;
@@ -57,21 +58,26 @@ namespace SuttorLib.DTOs
     }
     // For nested comments (Replies), we can use the same DTO
     // But with an additional property for the parent comment ID
+    
+    //Use it in the BlogService
     public class BlogCommentDTO
     {
         public string Id { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public string CommenterId { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+        public List<string> Tags { get; set; } = new();
         public int LikesCount { get; set; }
         public int DislikesCount { get; set; }
-        public bool CurrentUserLiked { get; set; }
-        public bool CurrentUserDisliked { get; set; }
+        public List<string> UserLikes { get; set; } = new();
+        public List<string> UserDislikes { get; set; } = new();
         public List<BlogCommentDTO> Replies { get; set; } = new();
     }
 
     public class UpdateCommentDto
     {
+        public string? commentId { get; set; }
+        public string? blogId { get; set; }
         public string? Content { get; set; }
         public List<string>? Tags { get; set; } = new();
     }

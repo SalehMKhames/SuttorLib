@@ -21,6 +21,10 @@ namespace SuttorLib.Models
         [BsonRepresentation(BsonType.DateTime)]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        [BsonElement("createdAt")]
+        [BsonRepresentation(BsonType.DateTime)]
+        public DateTime UpdatedAt { get; set; }
+
         [BsonElement("Tags")]
         [BsonRepresentation(BsonType.Array)]
         public List<string> Tags { get; set; } = new();

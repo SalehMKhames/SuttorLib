@@ -22,6 +22,9 @@ namespace SuttorLib.Models
         [BsonRepresentation(BsonType.DateTime)]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        [BsonRepresentation(BsonType.DateTime)]
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
         [Required]
         [BsonElement("publisher_Id")]
         public string PublisherId { get; set; } = string.Empty;
@@ -43,6 +46,10 @@ namespace SuttorLib.Models
         
         [BsonElement("userDislikes")]
         public List<string> UserDislikes { get; set; } = new();
+
+        [BsonElement("isPublished")]
+        [BsonRepresentation(BsonType.Boolean)]
+        public bool IsPublished { get; set; }
 
         [BsonElement("comments")]
         public List<Comment> Comments { get; set; } = new();
