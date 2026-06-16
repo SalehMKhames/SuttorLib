@@ -204,7 +204,7 @@ namespace SuttorLib.Controllers
 
         //GET /api/Books/ByCategory?category=...
         [HttpGet("ByCategory", Name = "GetBooksByCategory")]
-        public async Task<IActionResult> GetBooksByCategory([FromQuery] string category)
+        public async Task<IActionResult> GetBooksByCategory([FromQuery] string category, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         {
             if (!ModelState.IsValid)
                 return BadRequest();
@@ -216,7 +216,58 @@ namespace SuttorLib.Controllers
                 if (books is null || !books.Any())
                     return NotFound($"No books found in the category '{category}'.");
 
-                return Ok(books);
+                List<GetBookDTO> bookDTOs = new();
+
+                foreach (var book in books)
+                {
+                    Type type = book.GetType();
+
+                    string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
+                    IFormFile? bookCover = null;
+                    if (!string.IsNullOrEmpty(photoPath))
+                    {
+                        bookCover = await _fileService.GetPictureAsync(photoPath);
+                    }
+
+                    var bookDto = new GetBookDTO
+                    {
+                        Id = (string)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                        Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
+                        Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
+                        Photo = bookCover!,
+                        FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
+                        PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
+                        PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
+                        FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! * 1024 * 1024,
+                        UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
+                        language = (string)type.GetProperty("language")!.GetValue(book, null)!,
+                        Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
+                        Categories_Names = (List<string>)type.GetProperty("categories")!.GetValue(book, null)!
+                    };
+
+                    bookDTOs.Add(bookDto);
+                }
+
+                int total = bookDTOs.Count();
+                var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+                var items = bookDTOs
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                _logger.LogInformation("The requested books by category page {Page}/{TotalPages} (size {PageSize})",
+                    page, totalPages, pageSize);
+
+                var result = new
+                {
+                    Total = total,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalPages = totalPages,
+                    Items = items
+                };
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -227,7 +278,7 @@ namespace SuttorLib.Controllers
 
         //GET /api/Books/ByAuthos?author?=...
         [HttpGet("ByAuthor")]
-        public async Task<IActionResult> GetBooksByAuthor([FromQuery] string author)
+        public async Task<IActionResult> GetBooksByAuthor([FromQuery] string author, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         {
             if (!ModelState.IsValid)
                 return BadRequest();
@@ -240,7 +291,58 @@ namespace SuttorLib.Controllers
                 if (books is null || !books.Any())
                     return NotFound($"No books found in the author '{author}'.");
 
-                return Ok(books);
+                List<GetBookDTO> bookDTOs = new();
+
+                foreach (var book in books)
+                {
+                    Type type = book.GetType();
+
+                    string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
+                    IFormFile? bookCover = null;
+                    if (!string.IsNullOrEmpty(photoPath))
+                    {
+                        bookCover = await _fileService.GetPictureAsync(photoPath);
+                    }
+
+                    var bookDto = new GetBookDTO
+                    {
+                        Id = (string)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                        Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
+                        Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
+                        Photo = bookCover!,
+                        FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
+                        PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
+                        PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
+                        FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! * 1024 * 1024,
+                        UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
+                        language = (string)type.GetProperty("language")!.GetValue(book, null)!,
+                        Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
+                        Categories_Names = (List<string>)type.GetProperty("categories")!.GetValue(book, null)!
+                    };
+
+                    bookDTOs.Add(bookDto);
+                }
+
+                int total = bookDTOs.Count();
+                var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+                var items = bookDTOs
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                _logger.LogInformation("The requested books by category page {Page}/{TotalPages} (size {PageSize})",
+                    page, totalPages, pageSize);
+
+                var result = new
+                {
+                    Total = total,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalPages = totalPages,
+                    Items = items
+                };
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
