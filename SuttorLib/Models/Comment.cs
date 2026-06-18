@@ -36,12 +36,15 @@ namespace SuttorLib.Models
         public int Dislikes { get; set; }
 
         [BsonElement("userLikes")]
-        public List<string> UserLikes { get; set; } = new();
+        [BsonRepresentation(BsonType.Array)]
+        public List<string> UserIdsLikes { get; set; } = new();
 
         [BsonElement("userDislikes")]
-        public List<string> UserDislikes { get; set; } = new();
+        [BsonRepresentation(BsonType.Array)]
+        public List<string> UserIdsDislikes { get; set; } = new();
 
         [BsonElement("replies")]
+        [BsonRepresentation(BsonType.Array)]
         public List<Comment> Replies { get; set; } = new();
     }
 }

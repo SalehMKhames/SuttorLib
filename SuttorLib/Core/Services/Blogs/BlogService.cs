@@ -28,24 +28,29 @@ namespace SuttorLib.Core.Services.Blogs
         }
 
         // ========================  Blog Operations  =====================================
-        public async Task<GetBlogDTO> CreateBlogAsync(string userId, CreateBlogDTO createDTO)
+        public async Task<Models.Blog> CreateBlogAsync(string userId, CreateBlogDTO createDTO)
         {
             var blog = new Models.Blog 
             {
                 Title = createDTO.Title,
                 Content = createDTO.Content,
                 CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
                 PublisherId = userId,
                 Likes = 0,
                 Dislikes = 0,
-                Tags = createDTO.Tags,
+                Tags = NormalizeTags(createDTO.Tags ?? new List<string>()),
                 Views = 0,
-                Category = createDTO.Category
+                CategoryId = createDTO.Category,
+                IsPublished = true,
+                UserIdsLikes = new List<string>(),
+                UserIdsDislikes = new List<string>(),
+                Comments = new List<ObjectId>()
             };
 
             await _blog.InsertOneAsync(blog);
             
-            return MapToResponseDto(blog);
+            return blog;
         }
 
         public async Task<PaginatedBlogResponseDto> GetAllBlogs(BlogFilterDto dto)
@@ -105,7 +110,7 @@ namespace SuttorLib.Core.Services.Blogs
             };
         }
 
-        public async Task<GetBlogDTO> UpdateBlogAsync(string blogId, UpdateBlogDTO updateDto, string userId)
+        public async Task<Models.Blog> UpdateBlogAsync(string blogId, UpdateBlogDTO updateDto, string userId)
         {
             if (!ObjectId.TryParse(blogId, out var objectId))
                 throw new ArgumentException("Invalid blog ID");
@@ -132,7 +137,7 @@ namespace SuttorLib.Core.Services.Blogs
             await _blog.UpdateOneAsync(b => b.Id == objectId, update);
 
             var updatedBlog = await _blog.Find(b => b.Id == objectId).FirstOrDefaultAsync();
-            return MapToResponseDto(updatedBlog);
+            return updatedBlog;
         }
 
         public async Task<bool> DeleteBlogAsync(string blogId, string userId)
@@ -152,7 +157,7 @@ namespace SuttorLib.Core.Services.Blogs
         
         }
 
-        public async Task<GetBlogDTO> GetBlogById(string blogId)
+        public async Task<Models.Blog> GetBlogById(string blogId)
         {
             if (!ObjectId.TryParse(blogId, out var objectId))
                 throw new ArgumentException("Invalid blog ID");
@@ -165,12 +170,12 @@ namespace SuttorLib.Core.Services.Blogs
             var update = Builders<Models.Blog>.Update.Inc(b => b.Views, 1);
             await _blog.UpdateOneAsync(b => b.Id == objectId, update);
 
-            return MapToResponseDto(blog);
+            return blog;
         }
 
-        public async Task<List<GetBlogDTO>?> GetBlogsByCategory(string category, int page = 1, int pageSize = 10)
+        public async Task<PaginatedBlogResponseDto?> GetBlogsByCategory(string category, int page = 1, int pageSize = 10)
         {
-            var filter = Builders<Models.Blog>.Filter.Eq(b => b.Category, category);
+            var filter = Builders<Models.Blog>.Filter.Eq(b => b.CategoryId, category);
             var totalCount = await _blog.CountDocumentsAsync(filter);
 
             var skip = (page - 1) * pageSize;
@@ -193,7 +198,7 @@ namespace SuttorLib.Core.Services.Blogs
             };
         }
 
-        public async Task<List<GetBlogDTO>?> GetBlogsByPublisher(string userId, int page = 1, int pageSize = 10)
+        public async Task<PaginatedBlogResponseDto?> GetBlogsByPublisher(string userId, int page = 1, int pageSize = 10)
         {
             var filter = Builders<Models.Blog>.Filter.Eq(b => b.PublisherId, userId);
             var totalCount = await _blog.CountDocumentsAsync(filter);
@@ -218,8 +223,11 @@ namespace SuttorLib.Core.Services.Blogs
             };
         }
         
-        public async Task<List<GetBlogDTO>?> SearchBlogsByTags(List<string> tags, int page = 1, int pageSize = 10)
+        public async Task<PaginatedBlogResponseDto?> SearchBlogsByTags(List<string> tags, int page = 1, int pageSize = 10)
         {
+            if (tags == null || !tags.Any())
+                throw new ArgumentException("Tags list cannot be empty");
+
             var normalizedTag = NormalizeTags(tags).First();
             var filter = Builders<Models.Blog>.Filter.AnyEq(b => b.Tags, normalizedTag);
 
@@ -247,28 +255,45 @@ namespace SuttorLib.Core.Services.Blogs
 
         // ========================  Comment Operations  =====================================
 
-        public async Task<BlogCommentDTO> CreateCommentAsync(string blogId, string userId, CreateCommentDTO commentDTO)
+        public async Task<Comment> CreateCommentAsync(string blogId, string userId, CreateCommentDTO commentDTO)
         {
             if (!ObjectId.TryParse(blogId, out var objectId))
                 throw new ArgumentException("Invalid blog ID");
+
+            if (string.IsNullOrWhiteSpace(commentDTO.Content))
+                throw new ArgumentException("Comment content cannot be empty");
+
 
             var comment = new Comment
             {
                 Content = commentDTO.Content,
                 CommenterId = userId,
                 CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                Tags = commentDTO.Tags ?? new List<string>(),
+                Likes = 0,
+                Dislikes = 0,
+                UserIdsLikes = new List<string>(),
+                UserIdsDislikes = new List<string>(),
+                Replies = new List<Comment>()
             };
 
+            await _comment.InsertOneAsync(comment);
+
+            var res = await _comment.Find(c => c.Content == comment.Content).FirstOrDefaultAsync();
+
             var update = Builders<Models.Blog>.Update
-                .Push(b => b.Comments, comment)
-                .Inc(b => b.Views, 1);
+                .Push(b => b.Comments, res.Id);
 
-            await _blog.UpdateOneAsync(b => b.Id == objectId, update);
+            var result = await _blog.UpdateOneAsync(b => b.Id == objectId, update);
 
-            return MapToCommentResponseDto(comment);
+            if (result.ModifiedCount == 0)
+                throw new KeyNotFoundException("Blog not found");
+
+            return comment;
         }
         
-        public async Task<BlogCommentDTO> GetCommentById(string commentId)
+        public async Task<Comment> GetCommentById(string commentId)
         {
             if (!ObjectId.TryParse(commentId, out var comId))
                 throw new ArgumentException("Invalid comment ID");
@@ -277,10 +302,10 @@ namespace SuttorLib.Core.Services.Blogs
             if (comment is null)
                 throw new KeyNotFoundException("Comment not found");
 
-            return MapToCommentResponseDto(comment);
+            return comment;
         }
         
-        public async Task<List<BlogCommentDTO>> GetCommentsAsync(string blogId)
+        public async Task<List<Comment>> GetCommentsAsync(string blogId)
         {
             if (!ObjectId.TryParse(blogId, out var objectId))
                 throw new ArgumentException("Invalid blog ID");
@@ -289,10 +314,22 @@ namespace SuttorLib.Core.Services.Blogs
             if (blog == null)
                 throw new KeyNotFoundException("Blog not found");
 
-            return blog.Comments.Select(MapToCommentResponseDto).ToList();
+            var blogComsId = blog.Comments;
+            if (blogComsId.Count == 0 || blogComsId is null)
+                return [];
+
+            var comments = new List<Comment>();
+
+            foreach (var comId in blogComsId)
+            {
+                var com = await _comment.Find(c => c.Id == comId).FirstOrDefaultAsync();
+                comments.Add(com);
+            }
+
+            return comments;
         }
         
-        public async Task<BlogCommentDTO> UpdateComment(string commentId, UpdateCommentDto updateDTO, string userId)
+        public async Task<Comment> UpdateComment(string commentId, UpdateCommentDto updateDTO, string userId)
         {
             if (!ObjectId.TryParse(updateDTO.blogId, out var blogObjectId) || !ObjectId.TryParse(commentId, out var commentObjectId))
                 throw new ArgumentException("Invalid blog or comment ID");
@@ -304,20 +341,26 @@ namespace SuttorLib.Core.Services.Blogs
             if (blog == null)
                 throw new KeyNotFoundException("Blog not found");
 
-            var comment = blog.Comments.FirstOrDefault(c => c.Id == commentObjectId);
-            if (comment == null)
+            ObjectId? com = blog.Comments.FirstOrDefault(c => c == commentObjectId);
+            if (com == null)
                 throw new KeyNotFoundException("Comment not found");
+
+            var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
 
             if (comment.CommenterId != userId)
                 throw new UnauthorizedAccessException("You can only update your own comments");
 
             comment.Content = updateDTO.Content;
             comment.UpdatedAt = DateTime.UtcNow;
+            if (updateDTO.Tags is not null || updateDTO.Tags!.Count == 0)
+                comment.Tags = updateDTO.Tags;
+            else
+                comment.Tags = comment.Tags;
+            
+            var update = Builders<Comment>.Update.Set(c => c, comment);
+            await _comment.UpdateOneAsync(b => b.Id == commentObjectId, update);
 
-            var update = Builders<Models.Blog>.Update.Set(b => b.Comments, blog.Comments);
-            await _blog.UpdateOneAsync(b => b.Id == blogObjectId, update);
-
-            return MapToCommentResponseDto(comment);
+            return comment;
         }
 
         public async Task<bool> DeleteCommentAsync(string blogId, string commentId, string userId)
@@ -329,14 +372,18 @@ namespace SuttorLib.Core.Services.Blogs
             if (blog == null)
                 throw new KeyNotFoundException("Blog not found");
 
-            var comment = blog.Comments.FirstOrDefault(c => c.Id == commentObjectId);
-            if (comment == null)
+            ObjectId? com = blog.Comments.FirstOrDefault(c => c == commentObjectId);
+            if (com == null)
                 throw new KeyNotFoundException("Comment not found");
+
+            var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
 
             if (comment.CommenterId != userId)
                 throw new UnauthorizedAccessException("You can only delete your own comments");
 
-            var update = Builders<Models.Blog>.Update.PullFilter(b => b.Comments, c => c.Id == commentObjectId);
+            await _comment.DeleteOneAsync(c => c.Id == comment.Id);
+
+            var update = Builders<Models.Blog>.Update.PullFilter(b => b.Comments, c => c == commentObjectId);
             var result = await _blog.UpdateOneAsync(b => b.Id == blogObjectId, update);
 
             return result.ModifiedCount > 0;
@@ -357,10 +404,10 @@ namespace SuttorLib.Core.Services.Blogs
             var updateBuilder = Builders<Models.Blog>.Update;
             UpdateDefinition<Models.Blog> update;
 
-            if (blog.UserLikes.Contains(userId))
+            if (blog.UserIdsLikes.Contains(userId))
             {
                 update = updateBuilder.Combine(
-                    updateBuilder.Pull(b => b.UserLikes, userId),
+                    updateBuilder.Pull(b => b.UserIdsLikes, userId),
                     updateBuilder.Inc(b => b.Likes, -1)
                 );
             }
@@ -368,13 +415,13 @@ namespace SuttorLib.Core.Services.Blogs
             {
                 var updates = new List<UpdateDefinition<Models.Blog>>();
 
-                if (blog.UserDislikes.Contains(userId))
+                if (blog.UserIdsDislikes.Contains(userId))
                 {
-                    updates.Add(updateBuilder.Pull(b => b.UserDislikes, userId));
+                    updates.Add(updateBuilder.Pull(b => b.UserIdsDislikes, userId));
                     updates.Add(updateBuilder.Inc(b => b.Dislikes, -1));
                 }
 
-                updates.Add(updateBuilder.Push(b => b.UserLikes, userId));
+                updates.Add(updateBuilder.Push(b => b.UserIdsLikes, userId));
                 updates.Add(updateBuilder.Inc(b => b.Likes, 1));
 
                 update = updateBuilder.Combine(updates);
@@ -393,7 +440,7 @@ namespace SuttorLib.Core.Services.Blogs
                 throw new ArgumentException("Invalid blog ID");
 
             var update = Builders<Models.Blog>.Update
-                .Pull(b => b.UserLikes, userId)
+                .Pull(b => b.UserIdsLikes, userId)
                 .Inc(b => b.Likes, -1);
 
             await _blog.UpdateOneAsync(b => b.Id == objectId, update);
@@ -414,10 +461,10 @@ namespace SuttorLib.Core.Services.Blogs
             var updateBuilder = Builders<Models.Blog>.Update;
             UpdateDefinition<Models.Blog> update;
 
-            if (blog.UserLikes.Contains(userId))
+            if (blog.UserIdsLikes.Contains(userId))
             {
                 update = updateBuilder.Combine(
-                    updateBuilder.Pull(b => b.UserDislikes, userId),
+                    updateBuilder.Pull(b => b.UserIdsDislikes, userId),
                     updateBuilder.Inc(b => b.Dislikes, -1)
                 );
             }
@@ -425,13 +472,13 @@ namespace SuttorLib.Core.Services.Blogs
             {
                 var updates = new List<UpdateDefinition<Models.Blog>>();
 
-                if (blog.UserLikes.Contains(userId))
+                if (blog.UserIdsLikes.Contains(userId))
                 {
-                    updates.Add(updateBuilder.Pull(b => b.UserLikes, userId));
+                    updates.Add(updateBuilder.Pull(b => b.UserIdsLikes, userId));
                     updates.Add(updateBuilder.Inc(b => b.Likes, -1));
                 }
 
-                updates.Add(updateBuilder.Push(b => b.UserDislikes, userId));
+                updates.Add(updateBuilder.Push(b => b.UserIdsDislikes, userId));
                 updates.Add(updateBuilder.Inc(b => b.Dislikes, 1));
 
                 update = updateBuilder.Combine(updates);
@@ -450,7 +497,7 @@ namespace SuttorLib.Core.Services.Blogs
                 throw new ArgumentException("Invalid blog ID");
 
             var update = Builders<Models.Blog>.Update
-                .Pull(b => b.UserDislikes, userId)
+                .Pull(b => b.UserIdsDislikes, userId)
                 .Inc(b => b.Dislikes, -1);
 
             await _blog.UpdateOneAsync(b => b.Id == objectId, update);
@@ -468,24 +515,27 @@ namespace SuttorLib.Core.Services.Blogs
             if (blog == null)
                 throw new KeyNotFoundException("Blog not found");
 
-            var comment = blog.Comments.FirstOrDefault(c => c.Id == commentObjectId);
-            if (comment == null)
+            ObjectId? com = blog.Comments.FirstOrDefault(c => c == commentObjectId);
+            if (com == null)
                 throw new KeyNotFoundException("Comment not found");
 
-            if (comment.UserLikes.Contains(userId))
+            var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
+
+
+            if (comment.UserIdsLikes.Contains(userId))
             {
-                comment.UserLikes.Remove(userId);
+                comment.UserIdsLikes.Remove(userId);
                 comment.Likes--;
             }
             else
             {
-                if (comment.UserDislikes.Contains(userId))
+                if (comment.UserIdsDislikes.Contains(userId))
                 {
-                    comment.UserDislikes.Remove(userId);
+                    comment.UserIdsDislikes.Remove(userId);
                     comment.Dislikes--;
                 }
 
-                comment.UserLikes.Add(userId);
+                comment.UserIdsLikes.Add(userId);
                 comment.Likes++;
             }
 
@@ -496,8 +546,8 @@ namespace SuttorLib.Core.Services.Blogs
             {
                 LikesCount = comment.Likes,
                 DislikesCount = comment.Dislikes,
-                UserLiked = comment.UserLikes.Contains(userId),
-                UserDisliked = comment.UserDislikes.Contains(userId)
+                UserLiked = comment.UserIdsLikes.Contains(userId),
+                UserDisliked = comment.UserIdsDislikes.Contains(userId)
             };
         }
         
@@ -510,24 +560,26 @@ namespace SuttorLib.Core.Services.Blogs
             if (blog == null)
                 throw new KeyNotFoundException("Blog not found");
 
-            var comment = blog.Comments.FirstOrDefault(c => c.Id == commentObjectId);
-            if (comment == null)
+            ObjectId? com = blog.Comments.FirstOrDefault(c => c == commentObjectId);
+            if (com == null)
                 throw new KeyNotFoundException("Comment not found");
 
-            if (comment.UserDislikes.Contains(userId))
+            var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
+
+            if (comment.UserIdsDislikes.Contains(userId))
             {
-                comment.UserDislikes.Remove(userId);
+                comment.UserIdsDislikes.Remove(userId);
                 comment.Dislikes--;
             }
             else
             {
-                if (comment.UserLikes.Contains(userId))
+                if (comment.UserIdsLikes.Contains(userId))
                 {
-                    comment.UserLikes.Remove(userId);
+                    comment.UserIdsLikes.Remove(userId);
                     comment.Likes--;
                 }
 
-                comment.UserDislikes.Add(userId);
+                comment.UserIdsDislikes.Add(userId);
                 comment.Dislikes++;
             }
 
@@ -538,8 +590,8 @@ namespace SuttorLib.Core.Services.Blogs
             {
                 LikesCount = comment.Likes,
                 DislikesCount = comment.Dislikes,
-                UserLiked = comment.UserLikes.Contains(userId),
-                UserDisliked = comment.UserDislikes.Contains(userId)
+                UserLiked = comment.UserIdsLikes.Contains(userId),
+                UserDisliked = comment.UserIdsDislikes.Contains(userId)
             };
         }
         
@@ -552,13 +604,15 @@ namespace SuttorLib.Core.Services.Blogs
             if (blog == null)
                 throw new KeyNotFoundException("Blog not found");
 
-            var comment = blog.Comments.FirstOrDefault(c => c.Id == commentObjectId);
-            if (comment == null)
+            ObjectId? com = blog.Comments.FirstOrDefault(c => c == commentObjectId);
+            if (com == null)
                 throw new KeyNotFoundException("Comment not found");
 
-            if (comment.UserLikes.Contains(userId))
+            var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
+
+            if (comment.UserIdsLikes.Contains(userId))
             {
-                comment.UserLikes.Remove(userId);
+                comment.UserIdsLikes.Remove(userId);
                 comment.Likes--;
             }
 
@@ -569,8 +623,8 @@ namespace SuttorLib.Core.Services.Blogs
             {
                 LikesCount = comment.Likes,
                 DislikesCount = comment.Dislikes,
-                UserLiked = comment.UserLikes.Contains(userId),
-                UserDisliked = comment.UserDislikes.Contains(userId)
+                UserLiked = comment.UserIdsLikes.Contains(userId),
+                UserDisliked = comment.UserIdsDislikes.Contains(userId)
             };
         }
         
@@ -583,13 +637,15 @@ namespace SuttorLib.Core.Services.Blogs
             if (blog == null)
                 throw new KeyNotFoundException("Blog not found");
 
-            var comment = blog.Comments.FirstOrDefault(c => c.Id == commentObjectId);
-            if (comment == null)
+            ObjectId? com = blog.Comments.FirstOrDefault(c => c == commentObjectId);
+            if (com == null)
                 throw new KeyNotFoundException("Comment not found");
 
-            if (comment.UserDislikes.Contains(userId))
+            var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
+
+            if (comment.UserIdsDislikes.Contains(userId))
             {
-                comment.UserDislikes.Remove(userId);
+                comment.UserIdsDislikes.Remove(userId);
                 comment.Dislikes--;
             }
 
@@ -600,47 +656,14 @@ namespace SuttorLib.Core.Services.Blogs
             {
                 LikesCount = comment.Likes,
                 DislikesCount = comment.Dislikes,
-                UserLiked = comment.UserLikes.Contains(userId),
-                UserDisliked = comment.UserDislikes.Contains(userId)
+                UserLiked = comment.UserIdsLikes.Contains(userId),
+                UserDisliked = comment.UserIdsDislikes.Contains(userId)
             };
         }
         
 
 
         //========================  Helper Methods  =====================================
-
-        private GetBlogDTO MapToResponseDto(Models.Blog blog)
-        {
-            return new GetBlogDTO
-            {
-                Id = blog.Id.ToString(),
-                Title = blog.Title,
-                Content = blog.Content,
-                Tags = blog.Tags,
-                CreatedAt = blog.CreatedAt,
-                Likes = blog.Likes,
-                Dislikes = blog.Dislikes,
-                Views = blog.Views,
-                Comments = blog.Comments
-            };
-        }
-
-        private BlogCommentDTO MapToCommentResponseDto(Comment comment)
-        {
-            return new BlogCommentDTO
-            {
-                Id = comment.Id.ToString(),
-                Content = comment.Content,
-                CommenterId = comment.CommenterId,
-                CreatedAt = comment.CreatedAt,
-                Tags = comment.Tags,
-                LikesCount = comment.Likes,
-                DislikesCount = comment.Dislikes,
-                UserLikes = comment.UserLikes,
-                UserDislikes = comment.UserDislikes,
-                Replies = comment.Replies.Select(MapToCommentResponseDto).ToList()
-            };
-        }
 
         private List<string> NormalizeTags(List<string> tags)
         {
@@ -657,8 +680,8 @@ namespace SuttorLib.Core.Services.Blogs
             {
                 LikesCount = blog.Likes,
                 DislikesCount = blog.Dislikes,
-                UserLiked = blog.UserLikes.Contains(userId),
-                UserDisliked = blog.UserDislikes.Contains(userId)
+                UserLiked = blog.UserIdsLikes.Contains(userId),
+                UserDisliked = blog.UserIdsDislikes.Contains(userId)
             };
         }
     }

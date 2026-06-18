@@ -1,4 +1,4 @@
-﻿using MongoDB.Bson.Serialization.Attributes;
+﻿using MongoDB.Bson;
 using SuttorLib.Models;
 
 namespace SuttorLib.DTOs
@@ -19,12 +19,24 @@ namespace SuttorLib.DTOs
         public string? Category { get; set; } = string.Empty;
     }
 
-    public class GetBlogDTO
+    public class CreateCommentDTO
+    {
+        public string Content { get; set; } = string.Empty;
+        public List<string>? Tags { get; set; } = new();
+        public string? Category { get; set; }
+    }
+
+    //For the public responses that will get back from the Controller endpoints
+    //with mapping the info that will come back from MySQL DB.
+    public class BlogDTO
     {
         public string Id { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public string publisherId { get; set; } = string.Empty;
+        public string? publisherName { get; set; } = string.Empty;
+        public string? publisherUserName { get; set; } = string.Empty;
+        public IFormFile? publisherPic { get; set; }
         public int Likes { get; set; }
         public int Dislikes { get; set; }
         public int Views { get; set; }
@@ -34,13 +46,6 @@ namespace SuttorLib.DTOs
         public string Category { get; set; } = string.Empty;
     }
 
-    public class CreateCommentDTO
-    {
-        public string Content { get; set; } = string.Empty;
-        public List<string>? Tags { get; set; } = new();
-    }
-    //For the public responses that will get back from the Controller endpoints
-    //with mapping the info that will come back from MySQL DB.
     public class BlogCommentResponseDto
     {
         public string Id { get; set; } = string.Empty;
@@ -52,31 +57,11 @@ namespace SuttorLib.DTOs
         public DateTime UpdatedAt { get; set; }
         public int LikesCount { get; set; }
         public int DislikesCount { get; set; }
-        public bool CurrentUserLiked { get; set; }
-        public bool CurrentUserDisliked { get; set; }
         public List<BlogCommentResponseDto> Replies { get; set; } = new();
-    }
-    // For nested comments (Replies), we can use the same DTO
-    // But with an additional property for the parent comment ID
-    
-    //Use it in the BlogService
-    public class BlogCommentDTO
-    {
-        public string Id { get; set; } = string.Empty;
-        public string Content { get; set; } = string.Empty;
-        public string CommenterId { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; }
-        public List<string> Tags { get; set; } = new();
-        public int LikesCount { get; set; }
-        public int DislikesCount { get; set; }
-        public List<string> UserLikes { get; set; } = new();
-        public List<string> UserDislikes { get; set; } = new();
-        public List<BlogCommentDTO> Replies { get; set; } = new();
     }
 
     public class UpdateCommentDto
     {
-        public string? commentId { get; set; }
         public string? blogId { get; set; }
         public string? Content { get; set; }
         public List<string>? Tags { get; set; } = new();
@@ -103,7 +88,7 @@ namespace SuttorLib.DTOs
 
     public class PaginatedBlogResponseDto
     {
-        public List<BlogListItemDto> Items { get; set; } = new();
+        public List<Blog> Items { get; set; } = new();
         public int TotalCount { get; set; }
         public int Page { get; set; }
         public int PageSize { get; set; }

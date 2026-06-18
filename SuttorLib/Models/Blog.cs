@@ -15,6 +15,7 @@ namespace SuttorLib.Models
         [BsonRepresentation(BsonType.String)]
         public string Title { get; set; } = string.Empty;
 
+        [Required]
         [BsonElement("content")]
         [BsonRepresentation(BsonType.String)]
         public string Content { get; set; } = string.Empty;
@@ -42,20 +43,23 @@ namespace SuttorLib.Models
         public List<string> Tags { get; set; } = new();
 
         [BsonElement("userLikes")]
-        public List<string> UserLikes { get; set; } = new();
+        [BsonRepresentation(BsonType.Array)]
+        public List<string> UserIdsLikes { get; set; } = new();
         
         [BsonElement("userDislikes")]
-        public List<string> UserDislikes { get; set; } = new();
+        [BsonRepresentation(BsonType.Array)]
+        public List<string> UserIdsDislikes { get; set; } = new();
 
         [BsonElement("isPublished")]
         [BsonRepresentation(BsonType.Boolean)]
         public bool IsPublished { get; set; }
 
         [BsonElement("comments")]
-        public List<Comment> Comments { get; set; } = new();
+        [BsonRepresentation(BsonType.Array)]
+        public List<ObjectId> Comments { get; set; } = new();
 
         [BsonElement("category")]
         [BsonRepresentation(BsonType.ObjectId)]
-        public string Category { get; set; } = string.Empty;
+        public string CategoryId { get; set; } = string.Empty;
     }
 }

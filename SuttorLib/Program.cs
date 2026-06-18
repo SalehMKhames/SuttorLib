@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MongoDB.Driver;
 using Scalar.AspNetCore;
+using SuttorLib.Core.Services.Blogs;
 using SuttorLib.Data;
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
@@ -31,14 +33,18 @@ builder.Services.Configure<FormOptions>(options =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+//Connect to MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySQL(builder.Configuration.GetConnectionString("Default")!)
+    options.UseMySQL(builder.Configuration.GetConnectionString("Debugging")!)
 );
 
 //Configuring MongoDB connection
 builder.Services.Configure<BlogDbSettings>(
     builder.Configuration.GetSection("SuttorBlog")
 );
+////Creating the Indexes for MongoDB
+//MongoIndexesInitializer.EnsureIndexes(builderGetRequiredService<IMongoDatabase>());
+builder.Services.AddSingleton<BlogService>();
 
 builder.Services.AddIdentity<AppUser, IdentityRole>(
     options => {
