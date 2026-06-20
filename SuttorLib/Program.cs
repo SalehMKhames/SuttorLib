@@ -2,9 +2,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using SuttorLib.Core.Services.Blog;
 using SuttorLib.Core.Services.Blogs;
@@ -213,7 +214,11 @@ provider.Mappings[".heif"] = "image/heif";
 provider.Mappings[".bmp"] = "image/bmp";
 provider.Mappings[".raw"] = "image/heic";
 
-app.UseStaticFiles( new StaticFileOptions { ContentTypeProvider = provider });
+app.UseStaticFiles( new StaticFileOptions 
+{
+    FileProvider = new PhysicalFileProvider(builder.Environment.ContentRootPath),
+    ContentTypeProvider = provider 
+});
 
 app.UseCors(corsPolicy);
 

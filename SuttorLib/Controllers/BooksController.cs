@@ -1006,7 +1006,7 @@ namespace SuttorLib.Controllers
         }
 
         // GET api/Books/{id}/readBook
-        [HttpGet("{bookId}/readBook")]
+        [HttpGet("{bookId}/read")]
         public async Task<IActionResult> ReadBook([FromRoute] string bookId)
         {
             if (!ModelState.IsValid)
@@ -1021,8 +1021,11 @@ namespace SuttorLib.Controllers
 
                 Type type = book.GetType();
 
-                string? bookPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
+                string? bookPath = (string)type.GetProperty("filePath")!.GetValue(book, null)!;
                 string? bookType = (string)type.GetProperty("fileType")!.GetValue(book, null)!;
+
+                //Make sure that the bookPath is in the root
+                bookPath = _fileService.ResolveStoragePath(bookPath);
 
                 if (!System.IO.File.Exists(bookPath))
                 {

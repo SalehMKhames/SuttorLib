@@ -287,7 +287,7 @@ namespace SuttorLibrary.Core.Services
             return _configuration.GetValue<int>("FileStorage:MaxFileSizeMB", 100);
         }
 
-        private string ResolveStoragePath(string configuredPath)
+        public string ResolveStoragePath(string configuredPath)
         {
             if (string.IsNullOrWhiteSpace(configuredPath))
                 throw new InvalidOperationException("File storage path not configured.");
@@ -301,7 +301,7 @@ namespace SuttorLibrary.Core.Services
 
             // If leading ~ or leading slashes, trim them and combine with content root
             trimmed = trimmed.TrimStart('~', '/', '\\');
-            var combined = Path.Combine(_env.WebRootPath, trimmed);
+            var combined = Path.Combine(_env.ContentRootPath, trimmed);
             return Path.GetFullPath(combined);
         }
     }
