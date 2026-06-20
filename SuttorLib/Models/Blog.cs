@@ -43,11 +43,9 @@ namespace SuttorLib.Models
         public List<string> Tags { get; set; } = new();
 
         [BsonElement("userLikes")]
-        [BsonRepresentation(BsonType.Array)]
         public List<string> UserIdsLikes { get; set; } = new();
         
         [BsonElement("userDislikes")]
-        [BsonRepresentation(BsonType.Array)]
         public List<string> UserIdsDislikes { get; set; } = new();
 
         [BsonElement("isPublished")]
@@ -55,11 +53,10 @@ namespace SuttorLib.Models
         public bool IsPublished { get; set; }
 
         [BsonElement("comments")]
-        [BsonRepresentation(BsonType.Array)]
         public List<ObjectId> Comments { get; set; } = new();
 
         [BsonElement("category")]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string CategoryId { get; set; } = string.Empty;
+        [BsonRepresentation(BsonType.String)]
+        public string Category { get; set; } = string.Empty;
     }
 }

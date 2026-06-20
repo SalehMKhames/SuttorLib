@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations; 
 
 namespace SuttorLibrary.DTOs
 {
@@ -26,6 +26,8 @@ namespace SuttorLibrary.DTOs
         public string FilePath { get; set; } = string.Empty;
         public long FileSize { get; set; }
         public IFormFile? Photo { get; set; } = null;
+        public string FileLink { get; set; } = string.Empty;
+        public string CoverLink { get; set; } = string.Empty;
         public DateTime UploadedAt { get; set; }
         public string language { get; set; } = string.Empty;
         public List<string> Authors_Names { get; set; } = new List<string>();

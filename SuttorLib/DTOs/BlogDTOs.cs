@@ -1,4 +1,5 @@
 ﻿using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 using SuttorLib.Models;
 
 namespace SuttorLib.DTOs
@@ -18,14 +19,7 @@ namespace SuttorLib.DTOs
         public List<string>? Tags { get; set; } = new List<string>();
         public string? Category { get; set; } = string.Empty;
     }
-
-    public class CreateCommentDTO
-    {
-        public string Content { get; set; } = string.Empty;
-        public List<string>? Tags { get; set; } = new();
-        public string? Category { get; set; }
-    }
-
+    
     //For the public responses that will get back from the Controller endpoints
     //with mapping the info that will come back from MySQL DB.
     public class BlogDTO
@@ -44,6 +38,31 @@ namespace SuttorLib.DTOs
         public List<string> Tags { get; set; } = new();
         public List<Comment> Comments { get; set; } = new();
         public string Category { get; set; } = string.Empty;
+    }
+
+    public class CreateCommentDTO
+    {
+        public string Content { get; set; } = string.Empty;
+        public List<string>? Tags { get; set; } = new();
+        public string? Category { get; set; }
+    }
+
+    public class CommentDTO
+    {
+        public ObjectId Id { get; set; }
+        public string Content { get; set; } = string.Empty;
+        public string CommenterId { get; set; } = string.Empty;
+        public string? CommenterFullName { get; set; } = string.Empty;
+        public string? CommenterUserName { get; set; } = string.Empty;
+        public IFormFile? CommenterPhoto { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; }
+        public List<string> Tags { get; set; } = new();
+        public int Likes { get; set; }
+        public int Dislikes { get; set; }
+        public List<string> UserIdsLikes { get; set; } = new();
+        public List<string> UserIdsDislikes { get; set; } = new();
+        public List<Comment> Replies { get; set; } = new();
     }
 
     public class BlogCommentResponseDto

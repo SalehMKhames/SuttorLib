@@ -115,7 +115,7 @@ namespace SuttorLibrary.Core.Services
 
             try
             {
-                var storagePath = _configuration["FileStorage:Path"] ?? "private/Books";
+                var storagePath = _configuration["FileStorage:Path"] ?? "private\\Books";
                 storagePath = ResolveStoragePath(storagePath!);
                 
                 if (!Directory.Exists(storagePath))
@@ -177,7 +177,7 @@ namespace SuttorLibrary.Core.Services
                 throw new InvalidOperationException($"File extension not allowed. Allowed: {GetAllowedPictureExtensions()}");
 
             try {
-                var storagePath = _configuration["FileStorage:UsersPicsPath"] ?? "private/Users";
+                var storagePath = _configuration["FileStorage:UsersPicsPath"] ?? "private\\Users";
                 storagePath = ResolveStoragePath(storagePath!);
                 if (!Directory.Exists(storagePath))
                     Directory.CreateDirectory(storagePath);
@@ -301,7 +301,7 @@ namespace SuttorLibrary.Core.Services
 
             // If leading ~ or leading slashes, trim them and combine with content root
             trimmed = trimmed.TrimStart('~', '/', '\\');
-            var combined = Path.Combine(_env.ContentRootPath, trimmed);
+            var combined = Path.Combine(_env.WebRootPath, trimmed);
             return Path.GetFullPath(combined);
         }
     }

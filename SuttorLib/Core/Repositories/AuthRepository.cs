@@ -301,6 +301,7 @@ namespace SuttorLibrary.Core.Repositories
 
             var claims = new[]
             {
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id ?? string.Empty),
                 new Claim(ClaimTypes.NameIdentifier, user.Id ?? string.Empty),
                 new Claim(ClaimTypes.Name, user.UserName ?? string.Empty),
                 new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
@@ -326,11 +327,13 @@ namespace SuttorLibrary.Core.Repositories
 
             return token;
         }
+        
         private static string GenerateSecureTokenString(int size = 64)
         {
             var bytes = RandomNumberGenerator.GetBytes(size);
             return Convert.ToBase64String(bytes);
         }
+        
         public async Task<bool> RevokeRefreshTokenAsync(string refreshToken)
         {
             var stored = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == refreshToken);

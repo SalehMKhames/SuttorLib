@@ -5,6 +5,7 @@ using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
 using SuttorLibrary.Models;
+using System.Net;
 using System.Security.Claims;
 
 namespace SuttorLib.Controllers
@@ -44,14 +45,46 @@ namespace SuttorLib.Controllers
 
                     string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
                     IFormFile? bookCover = null;
+
+                    // extract authors names (authors is a list of anonymous objects { Name, Description })
+                    var authorsNames = new List<string>();
+                    var authorsObj = type.GetProperty("authors")?.GetValue(book, null);
+                    if (authorsObj is System.Collections.IEnumerable authorsEnum)
+                    {
+                        foreach (var a in authorsEnum)
+                        {
+                            var aType = a?.GetType();
+                            var nameVal = aType?.GetProperty("Name")?.GetValue(a, null)?.ToString();
+                            if (!string.IsNullOrEmpty(nameVal))
+                                authorsNames.Add(nameVal);
+                        }
+                    }
+
+                    // extract categories names (categories is a list of anonymous objects { Name })
+                    var categoriesNames = new List<string>();
+                    var categoriesObj = type.GetProperty("categories")?.GetValue(book, null);
+                    if (categoriesObj is System.Collections.IEnumerable catsEnum)
+                    {
+                        foreach (var c in catsEnum)
+                        {
+                            var cType = c?.GetType();
+                            var nameVal = cType?.GetProperty("Name")?.GetValue(c, null)?.ToString();
+                            if (!string.IsNullOrEmpty(nameVal))
+                                categoriesNames.Add(nameVal);
+                        }
+                    }
+
                     if (!string.IsNullOrEmpty(photoPath))
                     {
                         bookCover = await _fileService.GetPictureAsync(photoPath);
                     }
 
+                    var encodedBookPath = BuildUrl((string)type.GetProperty("filePath")!.GetValue(book, null)!);
+                    var encodedPhotoPath = BuildUrl(photoPath);
+
                     var bookDto = new GetBookDTO
                     {
-                        Id = (string)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                        Id = (string)type.GetProperty("id")!.GetValue(book, null)!,
                         Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
                         Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
                         Photo = bookCover!,
@@ -61,8 +94,11 @@ namespace SuttorLib.Controllers
                         FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! * 1024 * 1024,
                         UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                         language = (string)type.GetProperty("language")!.GetValue(book, null)!,
-                        Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
-                        Categories_Names = (List<string>)type.GetProperty("categories")!.GetValue(book, null)!
+                        Authors_Names = authorsNames,
+                        Categories_Names = categoriesNames,
+                        // Generate absolute URLs for the frontend
+                        FileLink = encodedBookPath,
+                        CoverLink = encodedPhotoPath
                     };
 
                     bookDTOs.Add(bookDto);
@@ -123,25 +159,60 @@ namespace SuttorLib.Controllers
 
                 string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
                 IFormFile? bookCover = null;
+
+                // extract authors names (authors is a list of anonymous objects { Name, Description })
+                var authorsNames = new List<string>();
+                var authorsObj = type.GetProperty("authors")?.GetValue(book, null);
+                if (authorsObj is System.Collections.IEnumerable authorsEnum)
+                {
+                    foreach (var a in authorsEnum)
+                    {
+                        var aType = a?.GetType();
+                        var nameVal = aType?.GetProperty("Name")?.GetValue(a, null)?.ToString();
+                        if (!string.IsNullOrEmpty(nameVal))
+                            authorsNames.Add(nameVal);
+                    }
+                }
+
+                // extract categories names (categories is a list of anonymous objects { Name })
+                var categoriesNames = new List<string>();
+                var categoriesObj = type.GetProperty("categories")?.GetValue(book, null);
+                if (categoriesObj is System.Collections.IEnumerable catsEnum)
+                {
+                    foreach (var c in catsEnum)
+                    {
+                        var cType = c?.GetType();
+                        var nameVal = cType?.GetProperty("Name")?.GetValue(c, null)?.ToString();
+                        if (!string.IsNullOrEmpty(nameVal))
+                            categoriesNames.Add(nameVal);
+                    }
+                }
+
                 if (!string.IsNullOrEmpty(photoPath))
                 {
                     bookCover = await _fileService.GetPictureAsync(photoPath);
                 }
 
+                var encodedBookPath = BuildUrl((string)type.GetProperty("filePath")!.GetValue(book, null)!);
+                var encodedPhotoPath = BuildUrl(photoPath);
+
                 var bookDto = new GetBookDTO
                 {
-                    Id = (string)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                    Id = (string)type.GetProperty("id")!.GetValue(book, null)!,
                     Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
                     Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
                     Photo = bookCover!,
                     FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
                     PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
                     PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! *1024*1024,
+                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! * 1024 * 1024,
                     UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                     language = (string)type.GetProperty("language")!.GetValue(book, null)!,
-                    Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
-                    Categories_Names = (List<string>)type.GetProperty("categories")!.GetValue(book, null)!
+                    Authors_Names = authorsNames,
+                    Categories_Names = categoriesNames,
+                    // Generate absolute URLs for the frontend
+                    FileLink = encodedBookPath,
+                    CoverLink = encodedPhotoPath
                 };
 
                 return Ok(bookDto);
@@ -172,25 +243,60 @@ namespace SuttorLib.Controllers
 
                 string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
                 IFormFile? bookCover = null;
+
+                // extract authors names (authors is a list of anonymous objects { Name, Description })
+                var authorsNames = new List<string>();
+                var authorsObj = type.GetProperty("authors")?.GetValue(book, null);
+                if (authorsObj is System.Collections.IEnumerable authorsEnum)
+                {
+                    foreach (var a in authorsEnum)
+                    {
+                        var aType = a?.GetType();
+                        var nameVal = aType?.GetProperty("Name")?.GetValue(a, null)?.ToString();
+                        if (!string.IsNullOrEmpty(nameVal))
+                            authorsNames.Add(nameVal);
+                    }
+                }
+
+                // extract categories names (categories is a list of anonymous objects { Name })
+                var categoriesNames = new List<string>();
+                var categoriesObj = type.GetProperty("categories")?.GetValue(book, null);
+                if (categoriesObj is System.Collections.IEnumerable catsEnum)
+                {
+                    foreach (var c in catsEnum)
+                    {
+                        var cType = c?.GetType();
+                        var nameVal = cType?.GetProperty("Name")?.GetValue(c, null)?.ToString();
+                        if (!string.IsNullOrEmpty(nameVal))
+                            categoriesNames.Add(nameVal);
+                    }
+                }
+
                 if (!string.IsNullOrEmpty(photoPath))
                 {
                     bookCover = await _fileService.GetPictureAsync(photoPath);
                 }
 
+                var encodedBookPath = BuildUrl((string)type.GetProperty("filePath")!.GetValue(book, null)!);
+                var encodedPhotoPath = BuildUrl(photoPath);
+
                 var bookDto = new GetBookDTO
                 {
-                    Id = (string)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                    Id = (string)type.GetProperty("id")!.GetValue(book, null)!,
                     Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
                     Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
                     Photo = bookCover!,
                     FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
                     PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
                     PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)!*1024*1024,
+                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! * 1024 * 1024,
                     UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                     language = (string)type.GetProperty("language")!.GetValue(book, null)!,
-                    Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
-                    Categories_Names = (List<string>)type.GetProperty("categories")!.GetValue(book, null)!
+                    Authors_Names = authorsNames,
+                    Categories_Names = categoriesNames,
+                    // Generate absolute URLs for the frontend
+                    FileLink = encodedBookPath,
+                    CoverLink = encodedPhotoPath
                 };
 
                 return Ok(bookDto);
@@ -224,14 +330,46 @@ namespace SuttorLib.Controllers
 
                     string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
                     IFormFile? bookCover = null;
+
+                    // extract authors names (authors is a list of anonymous objects { Name, Description })
+                    var authorsNames = new List<string>();
+                    var authorsObj = type.GetProperty("authors")?.GetValue(book, null);
+                    if (authorsObj is System.Collections.IEnumerable authorsEnum)
+                    {
+                        foreach (var a in authorsEnum)
+                        {
+                            var aType = a?.GetType();
+                            var nameVal = aType?.GetProperty("Name")?.GetValue(a, null)?.ToString();
+                            if (!string.IsNullOrEmpty(nameVal))
+                                authorsNames.Add(nameVal);
+                        }
+                    }
+
+                    // extract categories names (categories is a list of anonymous objects { Name })
+                    var categoriesNames = new List<string>();
+                    var categoriesObj = type.GetProperty("categories")?.GetValue(book, null);
+                    if (categoriesObj is System.Collections.IEnumerable catsEnum)
+                    {
+                        foreach (var c in catsEnum)
+                        {
+                            var cType = c?.GetType();
+                            var nameVal = cType?.GetProperty("Name")?.GetValue(c, null)?.ToString();
+                            if (!string.IsNullOrEmpty(nameVal))
+                                categoriesNames.Add(nameVal);
+                        }
+                    }
+
                     if (!string.IsNullOrEmpty(photoPath))
                     {
                         bookCover = await _fileService.GetPictureAsync(photoPath);
                     }
 
+                    var encodedBookPath = BuildUrl((string)type.GetProperty("filePath")!.GetValue(book, null)!);
+                    var encodedPhotoPath = BuildUrl(photoPath);
+
                     var bookDto = new GetBookDTO
                     {
-                        Id = (string)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                        Id = (string)type.GetProperty("id")!.GetValue(book, null)!,
                         Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
                         Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
                         Photo = bookCover!,
@@ -241,8 +379,11 @@ namespace SuttorLib.Controllers
                         FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! * 1024 * 1024,
                         UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                         language = (string)type.GetProperty("language")!.GetValue(book, null)!,
-                        Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
-                        Categories_Names = (List<string>)type.GetProperty("categories")!.GetValue(book, null)!
+                        Authors_Names = authorsNames,
+                        Categories_Names = categoriesNames,
+                        // Generate absolute URLs for the frontend
+                        FileLink = encodedBookPath,
+                        CoverLink = encodedPhotoPath
                     };
 
                     bookDTOs.Add(bookDto);
@@ -299,14 +440,46 @@ namespace SuttorLib.Controllers
 
                     string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
                     IFormFile? bookCover = null;
+
+                    // extract authors names (authors is a list of anonymous objects { Name, Description })
+                    var authorsNames = new List<string>();
+                    var authorsObj = type.GetProperty("authors")?.GetValue(book, null);
+                    if (authorsObj is System.Collections.IEnumerable authorsEnum)
+                    {
+                        foreach (var a in authorsEnum)
+                        {
+                            var aType = a?.GetType();
+                            var nameVal = aType?.GetProperty("Name")?.GetValue(a, null)?.ToString();
+                            if (!string.IsNullOrEmpty(nameVal))
+                                authorsNames.Add(nameVal);
+                        }
+                    }
+
+                    // extract categories names (categories is a list of anonymous objects { Name })
+                    var categoriesNames = new List<string>();
+                    var categoriesObj = type.GetProperty("categories")?.GetValue(book, null);
+                    if (categoriesObj is System.Collections.IEnumerable catsEnum)
+                    {
+                        foreach (var c in catsEnum)
+                        {
+                            var cType = c?.GetType();
+                            var nameVal = cType?.GetProperty("Name")?.GetValue(c, null)?.ToString();
+                            if (!string.IsNullOrEmpty(nameVal))
+                                categoriesNames.Add(nameVal);
+                        }
+                    }
+
                     if (!string.IsNullOrEmpty(photoPath))
                     {
                         bookCover = await _fileService.GetPictureAsync(photoPath);
                     }
 
+                    var encodedBookPath = BuildUrl((string)type.GetProperty("filePath")!.GetValue(book, null)!);
+                    var encodedPhotoPath = BuildUrl(photoPath);
+
                     var bookDto = new GetBookDTO
                     {
-                        Id = (string)type.GetProperty("ClientId")!.GetValue(book, null)!,
+                        Id = (string)type.GetProperty("id")!.GetValue(book, null)!,
                         Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
                         Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
                         Photo = bookCover!,
@@ -316,8 +489,11 @@ namespace SuttorLib.Controllers
                         FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! * 1024 * 1024,
                         UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                         language = (string)type.GetProperty("language")!.GetValue(book, null)!,
-                        Authors_Names = (List<string>)type.GetProperty("authors")!.GetValue(book, null)!,
-                        Categories_Names = (List<string>)type.GetProperty("categories")!.GetValue(book, null)!
+                        Authors_Names = authorsNames,
+                        Categories_Names = categoriesNames,
+                        // Generate absolute URLs for the frontend
+                        FileLink = encodedBookPath,
+                        CoverLink = encodedPhotoPath
                     };
 
                     bookDTOs.Add(bookDto);
@@ -827,6 +1003,60 @@ namespace SuttorLib.Controllers
                 _logger.LogError(ex, "Cannot modify finishing the reading for book ID {BookId}", BookId);
                 return Problem("An error occurred while modify the finishing of the reading.");
             }
+        }
+
+        // GET api/Books/{id}/readBook
+        [HttpGet("{bookId}/readBook")]
+        public async Task<IActionResult> ReadBook([FromRoute] string bookId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest();
+            if (string.IsNullOrEmpty(bookId))
+                return BadRequest("Book ID is required.");
+
+            try {
+                var book = await _unit.BookRepo.GetBookWithDetailsAsync(bookId);
+                if (book is null)
+                    return NotFound($"Book with ID '{bookId}' not found.");
+
+                Type type = book.GetType();
+
+                string? bookPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
+                string? bookType = (string)type.GetProperty("fileType")!.GetValue(book, null)!;
+
+                if (!System.IO.File.Exists(bookPath))
+                {
+                    
+                    _logger.LogWarning("File missing on disk for book {Id}: {Path}", bookId, bookPath);
+                    return NotFound(new { message = "File could not be found on the server." });
+                    
+                }
+
+                // enableRangeProcessing lets ASP.NET Core respond to HTTP byte-range
+                // requests (206 Partial Content) — this is what lets PDF.js stream
+                // the file page-by-page instead of downloading it all upfront.
+                return PhysicalFile(bookPath, bookType, enableRangeProcessing: true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving book by ID {BookId}", bookId);
+                return Problem("An error occurred while retrieving the book.");
+            }
+        }
+
+        private string BuildUrl(string relativePath)
+        {
+
+            var baseUrl = _configuration["FileStorage:ApiBaseUrl"] ?? "https://suttor.runasp.net";
+            return $"{baseUrl.TrimEnd('/')}/{ToURLPath(relativePath)}";
+        }
+
+        private static string ToURLPath(string relativePath)
+        {
+            var segments = relativePath.Replace('\\', '/')
+                .Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+            return string.Join("/", segments.Select(Uri.EscapeDataString));
         }
     }
 }

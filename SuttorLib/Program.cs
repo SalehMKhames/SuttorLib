@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using MongoDB.Driver;
+using Microsoft.AspNetCore.StaticFiles;
 using Scalar.AspNetCore;
+using SuttorLib.Core.Services.Blog;
 using SuttorLib.Core.Services.Blogs;
 using SuttorLib.Data;
 using SuttorLibrary.Core;
@@ -35,16 +37,17 @@ builder.Services.AddOpenApi();
 
 //Connect to MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySQL(builder.Configuration.GetConnectionString("Debugging")!)
+    options.UseMySQL(builder.Configuration.GetConnectionString("Default")!)
 );
 
 //Configuring MongoDB connection
 builder.Services.Configure<BlogDbSettings>(
-    builder.Configuration.GetSection("SuttorBlog")
-);
-////Creating the Indexes for MongoDB
-//MongoIndexesInitializer.EnsureIndexes(builderGetRequiredService<IMongoDatabase>());
-builder.Services.AddSingleton<BlogService>();
+    builder.Configuration.GetSection("BlogDbSettings")
+)
+.AddOptions<BlogDbSettings>()
+.Bind(builder.Configuration.GetSection("BlogDbSettings"))
+.ValidateDataAnnotations();
+
 
 builder.Services.AddIdentity<AppUser, IdentityRole>(
     options => {
@@ -79,8 +82,11 @@ builder.Services.AddCors(options =>
     });
 });
 
+
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IBlogServices, BlogService>();
 
 //Add Jwt Authentication
 builder.Services.AddAuthentication(
@@ -187,7 +193,27 @@ app.MapScalarApiReference(options =>
 
 app.UseHttpsRedirection();
 
-app.UseStaticFiles();
+app.UseForwardedHeaders(new ForwardedHeadersOptions { 
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
+var provider = new FileExtensionContentTypeProvider();
+//Files
+provider.Mappings[".epub"] = "application/epub+zip";
+provider.Mappings[".pdf"] = "application/pdf";
+provider.Mappings[".doc"] = "application/msword";
+provider.Mappings[".docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+//Photos
+provider.Mappings[".webp"] = "image/webp";
+provider.Mappings[".heic"] = "image/heic";
+provider.Mappings[".jpg"] = "image/jpeg";
+provider.Mappings[".jpeg"] = "image/jpeg";
+provider.Mappings[".png"] = "image/png";
+provider.Mappings[".heif"] = "image/heif";
+provider.Mappings[".bmp"] = "image/bmp";
+provider.Mappings[".raw"] = "image/heic";
+
+app.UseStaticFiles( new StaticFileOptions { ContentTypeProvider = provider });
 
 app.UseCors(corsPolicy);
 

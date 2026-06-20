@@ -18,15 +18,12 @@ namespace SuttorLib.Models
         public string CommenterId { get; set; } = string.Empty;
 
         [BsonElement("createdAt")]
-        [BsonRepresentation(BsonType.DateTime)]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        [BsonElement("createdAt")]
-        [BsonRepresentation(BsonType.DateTime)]
+        [BsonElement("updatedAt")]
         public DateTime UpdatedAt { get; set; }
 
         [BsonElement("Tags")]
-        [BsonRepresentation(BsonType.Array)]
         public List<string> Tags { get; set; } = new();
 
         [BsonElement("likes")]
@@ -36,15 +33,12 @@ namespace SuttorLib.Models
         public int Dislikes { get; set; }
 
         [BsonElement("userLikes")]
-        [BsonRepresentation(BsonType.Array)]
         public List<string> UserIdsLikes { get; set; } = new();
 
         [BsonElement("userDislikes")]
-        [BsonRepresentation(BsonType.Array)]
         public List<string> UserIdsDislikes { get; set; } = new();
 
         [BsonElement("replies")]
-        [BsonRepresentation(BsonType.Array)]
         public List<Comment> Replies { get; set; } = new();
     }
 }

@@ -25,6 +25,7 @@ namespace SuttorLibrary.Core.Repositories
                     description = b.Description,
                     pageCount = b.PageCount,
                     publishedAt = b.PublishedAT,
+                    fileType = b.FileType,
                     uploadedAt = b.UploadedAt,
                     fileSize = b.FileSize,
                     filePath = b.FilePath,

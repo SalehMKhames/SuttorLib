@@ -20,11 +20,15 @@ namespace SuttorLib.Core.Services.Blogs
             _dbSettings = dbSettings;
             _httpContext = httpContext;
 
-            var mongoClient = new MongoClient(_dbSettings.Value.ConnectionString);
-            var mongoDatabase = mongoClient.GetDatabase(_dbSettings.Value.DatabaseName);
+            var cs = _dbSettings?.Value?.ConnectionString;
+            if (string.IsNullOrWhiteSpace(cs))
+                throw new InvalidOperationException("BlogDbSettings.ConnectionString is missing. Ensure configuration binds the 'BlogDbSettings' section.");
 
-            _blog = mongoDatabase.GetCollection<Models.Blog>(_dbSettings.Value.BlogCollection);
-            _comment = mongoDatabase.GetCollection<Comment>(_dbSettings.Value.CommentCollection);
+            var mongoClient = new MongoClient(cs);
+            var mongoDatabase = mongoClient.GetDatabase(_dbSettings?.Value?.DatabaseName);
+
+            _blog = mongoDatabase.GetCollection<Models.Blog>(_dbSettings?.Value?.BlogCollection);
+            _comment = mongoDatabase.GetCollection<Comment>(_dbSettings?.Value?.CommentCollection);
         }
 
         // ========================  Blog Operations  =====================================
@@ -41,7 +45,7 @@ namespace SuttorLib.Core.Services.Blogs
                 Dislikes = 0,
                 Tags = NormalizeTags(createDTO.Tags ?? new List<string>()),
                 Views = 0,
-                CategoryId = createDTO.Category,
+                Category = createDTO.Category,
                 IsPublished = true,
                 UserIdsLikes = new List<string>(),
                 UserIdsDislikes = new List<string>(),
@@ -153,7 +157,7 @@ namespace SuttorLib.Core.Services.Blogs
                 throw new UnauthorizedAccessException("You can only delete your own blogs");
 
             var result = await _blog.DeleteOneAsync(b => b.Id == objectId);
-            return result.DeletedCount > 0;
+            return result.IsAcknowledged;
         
         }
 
@@ -175,7 +179,7 @@ namespace SuttorLib.Core.Services.Blogs
 
         public async Task<PaginatedBlogResponseDto?> GetBlogsByCategory(string category, int page = 1, int pageSize = 10)
         {
-            var filter = Builders<Models.Blog>.Filter.Eq(b => b.CategoryId, category);
+            var filter = Builders<Models.Blog>.Filter.Eq(b => b.Category, category);
             var totalCount = await _blog.CountDocumentsAsync(filter);
 
             var skip = (page - 1) * pageSize;
