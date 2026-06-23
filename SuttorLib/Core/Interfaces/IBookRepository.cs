@@ -26,5 +26,9 @@ namespace SuttorLibrary.Core.Interfaces
         public Task LinkBookToAuthor(string bookId, string authorId);
         public Task LinkBookToCategory(string bookId, string categoryId);
         public Task<bool> IsFinishReading(string bookId);
+
+        // Update Authot and Category
+        public Task<Category?> updateCategory(string catId, string catName, string catIcon);
+        public Task<Author?> updateAuthor(string authId, string authName, string authPhoto, string authDesc);
     }
 }

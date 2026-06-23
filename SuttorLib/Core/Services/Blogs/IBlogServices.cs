@@ -19,7 +19,7 @@ namespace SuttorLib.Core.Services.Blog
 
         //Basic Comment operations
         public Task<Comment> CreateCommentAsync(string blogId, string userId, CreateCommentDTO commentDTO);
-        Task<List<Comment>> GetCommentsAsync(string blogId);
+        Task<List<Comment>?> GetCommentsAsync(string blogId);
         public Task<Comment> GetCommentById(string commentId);
         public Task<Comment> UpdateComment(string commentId, UpdateCommentDto updateDTO, string userId);
         public Task<bool> DeleteCommentAsync(string blogId, string commentId, string userId);

@@ -65,4 +65,17 @@ namespace SuttorLibrary.DTOs
         public IFormFile Picture { get; set; }
         public string Desc { get; set; }
     }
+
+    public class UpdateCategory
+    {
+        public string Name { get; set; }
+        public string Icon { get; set; }
+    }
+
+    public class UpdateAuthor
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public IFormFile? Picture { get; set; }
+    }
 }

@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 using MySqlX.XDevAPI.Common;
 using SuttorLib.Core.Services.Blog;
 using SuttorLib.DTOs;
+using SuttorLib.Models;
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
 using SuttorLibrary.Models;
@@ -107,7 +109,8 @@ namespace SuttorLib.Controllers
 
                 if (user is null)
                     result.PublisherId = "Unknown Publisher";
-                else {
+                else
+                {
                     userName = user.UserName;
                     userFullName = user.FullName;
 
@@ -144,8 +147,7 @@ namespace SuttorLib.Controllers
                 else
                     blogDTO.Comments = comments;
 
-                _logger.LogInformation("Blogs retrieved Successfully.");
-
+                _logger.LogInformation("Blog with id: {ID} retrieved Successfully.", blogDTO.Id.ToString());
                 return Ok(blogDTO);
             }
             catch (KeyNotFoundException)
@@ -160,43 +162,33 @@ namespace SuttorLib.Controllers
         }
 
         // GET api/Blog/
-        [HttpGet()]
-        public async Task<IActionResult> GetAllBlogs([FromQuery] int Page = 1,
-            [FromQuery] int PageSize = 10,
-            [FromQuery] string SortBy = "recent",
-            [FromQuery] string? SearchItem = null,
-            [FromQuery] string? Tag = null,
-            [FromQuery] string? PublisherId = null
-         )
+        [HttpGet]
+        public async Task<IActionResult> GetAllBlogs([FromQuery] BlogFilterDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-
-            var dto = new BlogFilterDto {
-                Page = Page,
-                PageSize = PageSize,
-                SearchTerm = SearchItem,
-                PublisherId = PublisherId,
-                Tag = Tag,
-                SortBy = SortBy
-            };
 
             try
             {
                 var result = await _blogService.GetAllBlogs(dto);
                 if (result is null || result.TotalCount == 0)
+                {
+                    _logger.LogInformation("Not blogs found in the GetAllBlogs function");
                     return NotFound("There is no blogs.");
+                }
 
-                ///TODO: Convert to BlogDTO and return it with result instead of result.Item.
                 List<BlogDTO> blogs = new List<BlogDTO>();
-                foreach (var item in result.Items) 
+                foreach (var item in result.Items)
                 {
                     var user = await _unit.UserRepo.GetById(item.PublisherId);
                     string? userName = null, userFullName = null;
                     IFormFile? userPic = null;
 
                     if (user is null)
+                    {
+                        _logger.LogInformation("The Publisher of the Blog {id} is unknown.", item.Id.ToString());
                         item.PublisherId = "Unknown Publisher";
+                    }
                     else
                     {
                         userName = user.UserName;
@@ -223,7 +215,7 @@ namespace SuttorLib.Controllers
                     };
 
                     var categories = await _unit.BookRepo.GetCategories();
-                    Category cat = categories!.FirstOrDefault(c => c!.Id == item.Category)!;
+                    Category cat = categories!.FirstOrDefault(c => c!.Name == item.Category)!;
                     if (cat is null)
                         blogDTO.Category = "";
                     else
@@ -238,7 +230,8 @@ namespace SuttorLib.Controllers
                     blogs.Add(blogDTO);
                 }
 
-                return Ok(new { blogs, result.TotalCount, result.TotalPages, result.PageSize});
+                _logger.LogInformation("Blogs returned Successfully from GetAllBlogs");
+                return Ok(new { blogs, result.TotalCount, result.TotalPages, result.PageSize });
             }
             catch (Exception ex)
             {
@@ -335,7 +328,9 @@ namespace SuttorLib.Controllers
                 else
                     blogDTO.Comments = comments;
 
-                return Ok(blog);
+                _logger.LogInformation("Blog with the Id: {ID} updated successfully.", blog.Id.ToString());
+
+                return Ok(blogDTO);
 
             }
             catch (KeyNotFoundException)
@@ -363,13 +358,15 @@ namespace SuttorLib.Controllers
             if (string.IsNullOrEmpty(id))
                 return BadRequest("The Blog id is required");
 
-            try {
+            try
+            {
                 var userId = User.FindFirst("sub")?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
                 var isDel = await _blogService.DeleteBlogAsync(id, userId);
-                if (!isDel) {
+                if (!isDel)
+                {
                     _logger.LogInformation("DeleteBlog: blog not found {id}", id);
                     return NotFound($"Blog with ID '{id}' not found.");
                 }
@@ -401,7 +398,8 @@ namespace SuttorLib.Controllers
             if (string.IsNullOrEmpty(category))
                 return BadRequest("Caregory Name is required");
 
-            try {
+            try
+            {
                 var res = await _blogService.GetBlogsByCategory(category, page, pageSize);
                 if (res is null || res.TotalCount == 0)
                     return NotFound("Sorry, There is no blogs for this category");
@@ -410,12 +408,15 @@ namespace SuttorLib.Controllers
 
                 foreach (var item in res.Items)
                 {
-                    var user = await _unit.UserRepo.GetById(item.PublisherId);
+                    AppUser? user = await _unit.UserRepo.GetById(item.PublisherId);
                     string? userName = null, userFullName = null;
                     IFormFile? userPic = null;
 
                     if (user is null)
-                        item.PublisherId = "Unknown Publisher";
+                    {
+                        _logger.LogInformation("The Publisher of the Blog {id} is unknown.", item.Id.ToString());
+                        userFullName = "Unknown Publisher";
+                    }
                     else
                     {
                         userName = user.UserName;
@@ -431,7 +432,7 @@ namespace SuttorLib.Controllers
                         Title = item.Title,
                         Content = item.Content,
                         CreatedAt = item.CreatedAt,
-                        publisherId = item.PublisherId,
+                        publisherId = user.Id,
                         publisherName = userFullName,
                         publisherUserName = userName,
                         publisherPic = userPic,
@@ -442,7 +443,7 @@ namespace SuttorLib.Controllers
                     };
 
                     var categories = await _unit.BookRepo.GetCategories();
-                    Category cat = categories!.FirstOrDefault(c => c!.Id == item.Category)!;
+                    Category cat = categories!.FirstOrDefault(c => c!.Name == item.Category)!;
                     if (cat is null)
                         blogDTO.Category = "";
                     else
@@ -489,11 +490,22 @@ namespace SuttorLib.Controllers
                 foreach (var item in res.Items)
                 {
                     var user = await _unit.UserRepo.GetById(userId);
-
                     string? userName = user!.UserName, userFullName = user.FullName;
+                    IFormFile? userPic = null;
 
-                    IFormFile? userPic = user.PhotoPath is null ?
+                    if (user is null)
+                    {
+                        _logger.LogInformation("The Publisher of the Blog {id} is unknown.", item.Id.ToString());
+                        userFullName = "Unknown Publisher";
+                    }
+                    else
+                    {
+                        userName = user.UserName;
+                        userFullName = user.FullName;
+
+                        userPic = user.PhotoPath is null ?
                             null : await _fileService.GetPictureAsync(user.PhotoPath);
+                    }
 
                     var blogDTO = new BlogDTO
                     {
@@ -512,7 +524,7 @@ namespace SuttorLib.Controllers
                     };
 
                     var categories = await _unit.BookRepo.GetCategories();
-                    Category cat = categories!.FirstOrDefault(c => c!.Id == item.Category)!;
+                    Category cat = categories!.FirstOrDefault(c => c!.Name == item.Category)!;
                     if (cat is null)
                         blogDTO.Category = "";
                     else
@@ -548,7 +560,8 @@ namespace SuttorLib.Controllers
             if (tags == null || tags.Count == 0)
                 return BadRequest("At least one tag is required");
 
-            try {
+            try
+            {
                 var res = await _blogService.SearchBlogsByTags(tags, page, pageSize);
                 if (res is null || res.TotalCount == 0)
                     return NotFound("Sorry, There is no blogs for this tag");
@@ -581,7 +594,7 @@ namespace SuttorLib.Controllers
                     };
 
                     var categories = await _unit.BookRepo.GetCategories();
-                    Category cat = categories!.FirstOrDefault(c => c!.Id == item.Category)!;
+                    Category cat = categories!.FirstOrDefault(c => c!.Name == item.Category)!;
                     if (cat is null)
                         blogDTO.Category = "";
                     else
@@ -624,14 +637,18 @@ namespace SuttorLib.Controllers
             if (string.IsNullOrEmpty(dto.Content))
                 return BadRequest("Comment content is required");
 
-            try {
+            try
+            {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
                 var res = await _blogService.CreateCommentAsync(blogId, userId, dto);
                 if (res is null)
+                {
+                    _logger.LogError("Cannot create the comment {id} in the blog {blogId}", res.Id, blogId);
                     return BadRequest("Something went wrong in creating your feed! Please, try again later.");
+                }
 
                 _logger.LogInformation("Comment uploaded successfully: {id}", res.Id);
 
@@ -645,67 +662,578 @@ namespace SuttorLib.Controllers
         }
 
         // GET /api/Blog/{blogId}/comments
-        //[HttpGet("{blogId}/comments")]
-        //public async Task<IActionResult> GetAllComments([FromRoute] string blogId)
-        //{
-        //    if (!ModelState.IsValid)
-        //        return BadRequest(ModelState);
+        [HttpGet("{blogId}/comments")]
+        public async Task<IActionResult> GetAllComments([FromRoute] string blogId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-        //    if (string.IsNullOrEmpty(blogId))
-        //        return BadRequest("Blog Id is required");
+            if (string.IsNullOrEmpty(blogId))
+                return BadRequest("Blog Id is required");
 
-        //    try {
-        //        var result = await _blogService.GetCommentsAsync(blogId);
+            try
+            {
+                var result = await _blogService.GetCommentsAsync(blogId);
 
-        //        if (result is null || result.Count == 0)
-        //            return NotFound("No comments for this blog.");
+                if (result is null || result.Count == 0)
+                {
+                    _logger.LogInformation("No comments for the blog {id}.", blogId);
+                    return NotFound("No comments for this blog.");
+                }
 
-        //        List<CommentDTO> coms = new List<CommentDTO>();
-        //        foreach (var item in result)
-        //        {
-        //            var user = await _unit.UserRepo.GetById(item.CommenterId);
-        //            string? userName = null, userFullName = null;
-        //            IFormFile? userPic = null;
+                List<CommentDTO> coms = new List<CommentDTO>();
+                foreach (var item in result)
+                {
+                    var user = await _unit.UserRepo.GetById(item.CommenterId);
+                    string? userName = null, userFullName = null;
+                    IFormFile? userPic = null;
 
-        //            if (user is null)
-        //                item.CommenterId = "Unknown Publisher";
-        //            else
-        //            {
-        //                userName = user.UserName;
-        //                userFullName = user.FullName;
+                    if (user is null)
+                    {
+                        _logger.LogInformation("The Publisher of the Blog {id} is unknown.", item.Id.ToString());
+                        userFullName = "Unknown Publisher";
+                    }
+                    else
+                    {
+                        userName = user.UserName;
+                        userFullName = user.FullName;
 
-        //                userPic = user.PhotoPath is null ?
-        //                    null : await _fileService.GetPictureAsync(user.PhotoPath);
-        //            }
+                        userPic = user.PhotoPath is null ?
+                            null : await _fileService.GetPictureAsync(user.PhotoPath);
+                    }
 
-        //            var com = new CommentDTO
-        //            {
-        //                Id = item.Id,
-        //                Content = item.Content,
-        //                CreatedAt = item.CreatedAt,
-        //                CommenterId = item.CommenterId,
-        //                CommenterFullName = userFullName,
-        //                CommenterUserName = userName,
-        //                CommenterPhoto = userPic,
-        //                Tags = item.Tags,
-        //                UpdatedAt = item.UpdatedAt,
-        //                Likes = item.Likes,
-        //                Dislikes = item.Dislikes,
-        //                UserIdsLikes = item.UserIdsLikes,
-        //                UserIdsDislikes = item.UserIdsDislikes,
-        //                Replies = item.Replies
-        //            };
+                    var com = new CommentDTO
+                    {
+                        Id = item.Id,
+                        Content = item.Content,
+                        CreatedAt = item.CreatedAt,
+                        CommenterId = item.CommenterId,
+                        CommenterFullName = userFullName,
+                        CommenterUserName = userName,
+                        CommenterPhoto = userPic,
+                        Tags = item.Tags,
+                        UpdatedAt = item.UpdatedAt,
+                        Likes = item.Likes,
+                        Dislikes = item.Dislikes,
+                        UserIdsLikes = item.UserIdsLikes,
+                        UserIdsDislikes = item.UserIdsDislikes,
+                        Replies = item.Replies
+                    };
 
-        //            coms.Add(com);
-        //        }
-        //        // TODO: REturn the Values you want by creating an new dto like PaginatedBlogResponseDto but for comments.
-        //        return Ok(new { coms, result.To});
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "An error occurred while fetching all blogs.");
-        //        return StatusCode(500, "An error occurred while fetching all blogs.");
-        //    }
-        //}
+                    coms.Add(com);
+                }
+
+                var total = coms.Count;
+
+                var skip = (page - 1) * pageSize;
+                var items = coms
+                    .Skip(skip)
+                    .Take(pageSize)
+                    .ToList();
+
+                var paginatedComments = new PaginatedCommentResponseDto
+                {
+                    Items = coms,
+                    TotalCount = coms.Count,
+                    PageSize = pageSize,
+                    Page = page,
+                    TotalPages = (int)Math.Ceiling(total / (double)pageSize)
+                };
+
+                return Ok(paginatedComments);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Blog not found");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while fetching all blogs.");
+                return StatusCode(500, "An error occurred while fetching all blogs.");
+            }
+        }
+
+        // GET /api/Blog/{blogId}/comment?cId=...
+        [HttpGet("{blogId}/comment")]
+        public async Task<IActionResult> GetComment([FromRoute] string blogId, [FromQuery] string commentId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (blogId is null || commentId is null)
+                return BadRequest("Both of Blog ID and Comment Id are required.");
+
+            try
+            {
+                var blog = await _blogService.GetBlogById(blogId);
+                if (blog is null)
+                    return NotFound($"No blog with the title: {blog?.Title}");
+
+                if (!ObjectId.TryParse(commentId, out var comId))
+                    throw new ArgumentException("Invalid comment ID");
+
+                var isCommentExist = blog.Comments.Contains(comId);
+                if (!isCommentExist)
+                    return NotFound();
+
+                Comment? comment = await _blogService.GetCommentById(commentId);
+                if (comment is null)
+                    return NotFound();
+
+                var user = await _unit.UserRepo.GetById(comment.CommenterId);
+                string? userName = null, userFullName = null;
+                IFormFile? userPic = null;
+
+                if (user is null)
+                {
+                    _logger.LogInformation("The Publisher of the Blog {id} is unknown.", comment.Id.ToString());
+                    userFullName = "Unknown Publisher";
+                }
+                else
+                {
+                    userName = user.UserName;
+                    userFullName = user.FullName;
+
+                    userPic = user.PhotoPath is null ?
+                        null : await _fileService.GetPictureAsync(user.PhotoPath);
+                }
+
+                var com = new CommentDTO
+                {
+                    Id = comment.Id,
+                    Content = comment.Content,
+                    CreatedAt = comment.CreatedAt,
+                    CommenterId = comment.CommenterId,
+                    CommenterFullName = userFullName,
+                    CommenterUserName = userName,
+                    CommenterPhoto = userPic,
+                    Tags = comment.Tags,
+                    UpdatedAt = comment.UpdatedAt,
+                    Likes = comment.Likes,
+                    Dislikes = comment.Dislikes,
+                    UserIdsLikes = comment.UserIdsLikes,
+                    UserIdsDislikes = comment.UserIdsDislikes,
+                    Replies = comment.Replies
+                };
+
+                return Ok(com);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Blog not found");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while fetching all blogs.");
+                return StatusCode(500, "An error occurred while fetching all blogs.");
+            }
+        }
+
+        // PATCH /api/Blog/{blogId}/comment/{commentId}/update
+        [Authorize]
+        [HttpPatch("{blogId}/comment/{commentId}/update")]
+        public async Task<IActionResult> updateComment([FromRoute] string blogId, [FromRoute] string commentId, [FromBody] UpdateCommentDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (blogId is null || commentId is null)
+                return BadRequest("Both of Blog ID and Comment Id are required.");
+
+            try
+            {
+                var userId = User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var blog = await _blogService.GetBlogById(blogId);
+                if (blog is null)
+                    return NotFound($"No blog with the title: {blog?.Title}");
+
+                if (!ObjectId.TryParse(commentId, out var comId))
+                    throw new ArgumentException("Invalid comment ID");
+
+                var isCommentExist = blog.Comments.Contains(comId);
+                if (!isCommentExist)
+                    return NotFound();
+
+                var comment = await _blogService.UpdateComment(commentId, dto, userId);
+
+                return Accepted();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Blog not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while fetching all blogs.");
+                return StatusCode(500, "An error occurred while fetching all blogs.");
+            }
+        }
+
+        // DELETE /api/Blog/{blogId}/comment/{commentId}/delete
+        [Authorize]
+        [HttpDelete("{blogId}/comment/{commentId}/delete")]
+        public async Task<IActionResult> deleteComment([FromRoute] string blogId, [FromRoute] string commentId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (blogId is null || commentId is null)
+                return BadRequest("Both of Blog ID and Comment Id are required.");
+
+            try
+            {
+                var userId = User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var isDel = await _blogService.DeleteCommentAsync(blogId, commentId, userId);
+                if (!isDel)
+                    return NotFound($"Comment with ID '{commentId}' not found.");
+
+                return Ok(new { success = true, message = "Comment deleted successfully." });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Blog not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while fetching all blogs.");
+                return StatusCode(500, "An error occurred while fetching all blogs.");
+            }
+        }
+
+
+        // ============================= Like/Dislike Operations =============================
+
+        [Authorize]
+        [HttpPost("{blogId}/like")]
+        public async Task<IActionResult> LikeBlog([FromRoute] string blogId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(blogId))
+                return BadRequest("Blog Id is required");
+            try
+            {
+                var userId = User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var res = await _blogService.LikeBlogAsync(blogId, userId);
+                if (res is null)
+                {
+                    _logger.LogInformation("The user with Id: {UserId} tried to like the blog with Id: {BlogId} but failed", userId, blogId);
+                    return NotFound($"Blog with ID '{blogId}' not found.");
+                }
+
+                _logger.LogInformation("The user with Id: {UserId} liked the blog with Id: {BlogId}", userId, blogId);
+                return Ok(res);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Blog not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while liking the blog.");
+                return StatusCode(500, "An error occurred while liking the blog.");
+            }
+        }
+
+        [Authorize]
+        [HttpPost("{blogId}/dislike")]
+        public async Task<IActionResult> DislikeBlog([FromRoute] string blogId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(blogId))
+                return BadRequest("Blog Id is required");
+            try
+            {
+                var userId = User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var res = await _blogService.DislikeBlogAsync(blogId, userId);
+                if (res is null)
+                {
+                    _logger.LogInformation("The user with Id: {UserId} tried to dislike the blog with Id: {BlogId} but failed", userId, blogId);
+                    return NotFound($"Blog with ID '{blogId}' not found.");
+                }
+
+                _logger.LogInformation("The user with Id: {UserId} disliked the blog with Id: {BlogId}", userId, blogId);
+                return Ok(res);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Blog not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while disliking the blog.");
+                return StatusCode(500, "An error occurred while disliking the blog.");
+            }
+        }
+
+        [Authorize]
+        [HttpDelete("{blogId}/like")]
+        public async Task<IActionResult> RemoveLikeFromBlog([FromRoute] string blogId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(blogId))
+                return BadRequest("Blog Id is required");
+            try
+            {
+                var userId = User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var res = await _blogService.RemoveLikeFromBlogAsync(blogId, userId);
+                if (res is null)
+                {
+                    _logger.LogInformation("The user with Id: {UserId} tried to remove like from the blog with Id: {BlogId} but failed", userId, blogId);
+                    return NotFound($"Blog with ID '{blogId}' not found.");
+                }
+
+                _logger.LogInformation("The user with Id: {UserId} removed like from the blog with Id: {BlogId}", userId, blogId);
+                return Ok(res);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Blog not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while removing like from the blog.");
+                return StatusCode(500, "An error occurred while removing like from the blog.");
+            }
+        }
+
+        [Authorize]
+        [HttpDelete("{blogId}/dislike")]
+        public async Task<IActionResult> RemoveDislikeFromBlog([FromRoute] string blogId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(blogId))
+                return BadRequest("Blog Id is required");
+            try
+            {
+                var userId = User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var res = await _blogService.RemoveDislikeFromBlogAsync(blogId, userId);
+                if (res is null)
+                {
+                    _logger.LogInformation("The user with Id: {UserId} tried to remove dislike from the blog with Id: {BlogId} but failed", userId, blogId);
+                    return NotFound($"Blog with ID '{blogId}' not found.");
+                }
+
+                _logger.LogInformation("The user with Id: {UserId} removed dislike from the blog with Id: {BlogId}", userId, blogId);
+                return Ok(res);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Blog not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while removing dislike from the blog.");
+                return StatusCode(500, "An error occurred while removing dislike from the blog.");
+            }
+        }
+
+
+        [Authorize]
+        [HttpPost("{blogId}/comment/{commentId}/like")]
+        public async Task<IActionResult> LikeComment([FromRoute] string blogId, [FromRoute] string commentId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(blogId))
+                return BadRequest("Blog Id is required");
+            try
+            {
+                var userId = User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var res = await _blogService.LikeCommentAsync(blogId, commentId, userId);
+                if (res is null)
+                {
+                    _logger.LogInformation("The user with Id: {UserId} tried to like the comment with Id: {CommentId} but failed", userId, commentId);
+                    return NotFound($"Comment with ID '{commentId}' not found.");
+                }
+
+                _logger.LogInformation("The user with Id: {UserId} liked the comment with Id: {CommentId}", userId, commentId);
+                return Ok(res);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Comment not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while liking the comment.");
+                return StatusCode(500, "An error occurred while liking the comment.");
+            }
+        }
+
+        [Authorize]
+        [HttpPost("{blogId}/comment/{commentId}/dislike")]
+        public async Task<IActionResult> DislikeComment([FromRoute] string blogId, [FromRoute] string commentId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(blogId))
+                return BadRequest("Blog Id is required");
+            try
+            {
+                var userId = User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var res = await _blogService.DislikeCommentAsync(blogId, commentId, userId);
+                if (res is null)
+                {
+                    _logger.LogInformation("The user with Id: {UserId} tried to dislike the comment with Id: {CommentId} but failed", userId, commentId);
+                    return NotFound($"Comment with ID '{commentId}' not found.");
+                }
+
+                _logger.LogInformation("The user with Id: {UserId} disliked the comment with Id: {CommentId}", userId, commentId);
+                return Ok(res);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Comment not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while disliking the comment.");
+                return StatusCode(500, "An error occurred while disliking the comment.");
+            }
+        }
+
+        [Authorize]
+        [HttpDelete("{blogId}/comment/{commentId}/like")]
+        public async Task<IActionResult> RemoveLikeFromComment([FromRoute] string blogId, [FromRoute] string commentId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(blogId))
+                return BadRequest("Blog Id is required");
+            if (string.IsNullOrEmpty(commentId))
+                return BadRequest("Comment Id is required");
+            try
+            {
+                var userId = User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var res = await _blogService.RemoveLikeFromCommentAsync(blogId, commentId, userId);
+                if (res is null)
+                {
+                    _logger.LogInformation("The user with Id: {UserId} tried to remove like from the comment with Id: {CommentId} but failed", userId, commentId);
+                    return NotFound($"Comment with ID '{commentId}' not found.");
+                }
+
+                _logger.LogInformation("The user with Id: {UserId} removed like from the comment with Id: {CommentId}", userId, commentId);
+                return Ok(res);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Comment not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while removing like from the comment.");
+                return StatusCode(500, "An error occurred while removing like from the comment.");
+            }
+        }
+
+        [Authorize]
+        [HttpDelete("{blogId}/comment/{commentId}/dislike")]
+        public async Task<IActionResult> RemoveDislikeFromComment([FromRoute] string blogId, [FromRoute] string commentId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(blogId))
+                return BadRequest("Blog Id is required");
+            if (string.IsNullOrEmpty(commentId))
+                return BadRequest("Comment Id is required");
+
+            try
+            {
+                var userId = User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var res = await _blogService.RemoveDislikeFromCommentAsync(blogId, commentId, userId);
+                if (res is null)
+                {
+                    _logger.LogInformation("The user with Id: {UserId} tried to remove dislike from the comment with Id: {CommentId} but failed", userId, commentId);
+                    return NotFound($"Comment with ID '{commentId}' not found.");
+                }
+
+                _logger.LogInformation("The user with Id: {UserId} removed dislike from the comment with Id: {CommentId}", userId, commentId);
+                return Ok(res);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Comment not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while removing dislike from the comment.");
+                return StatusCode(500, "An error occurred while removing dislike from the comment.");
+            }
+        }
+
     }
 }

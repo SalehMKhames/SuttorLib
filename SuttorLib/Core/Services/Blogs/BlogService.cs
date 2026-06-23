@@ -120,7 +120,7 @@ namespace SuttorLib.Core.Services.Blogs
                 throw new ArgumentException("Invalid blog ID");
 
             var blog = await _blog.Find(b => b.Id == objectId).FirstOrDefaultAsync();
-            if (blog == null)
+            if (blog is null)
                 throw new KeyNotFoundException("Blog not found");
 
             if (blog.PublisherId != userId)
@@ -309,7 +309,7 @@ namespace SuttorLib.Core.Services.Blogs
             return comment;
         }
         
-        public async Task<List<Comment>> GetCommentsAsync(string blogId)
+        public async Task<List<Comment>?> GetCommentsAsync(string blogId)
         {
             if (!ObjectId.TryParse(blogId, out var objectId))
                 throw new ArgumentException("Invalid blog ID");
@@ -320,7 +320,7 @@ namespace SuttorLib.Core.Services.Blogs
 
             var blogComsId = blog.Comments;
             if (blogComsId.Count == 0 || blogComsId is null)
-                return [];
+                return null;
 
             var comments = new List<Comment>();
 
@@ -358,8 +358,7 @@ namespace SuttorLib.Core.Services.Blogs
             comment.UpdatedAt = DateTime.UtcNow;
             if (updateDTO.Tags is not null || updateDTO.Tags!.Count == 0)
                 comment.Tags = updateDTO.Tags;
-            else
-                comment.Tags = comment.Tags;
+            
             
             var update = Builders<Comment>.Update.Set(c => c, comment);
             await _comment.UpdateOneAsync(b => b.Id == commentObjectId, update);
