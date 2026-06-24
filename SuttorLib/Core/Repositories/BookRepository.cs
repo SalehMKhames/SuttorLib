@@ -224,13 +224,13 @@ namespace SuttorLibrary.Core.Repositories
             return books.Count > 0 ? books : null;
         }
 
-        public async Task<bool> AddRating(string BookId, RatingDTO dto)
+        public async Task<bool> AddRating(string BookId, RatingDTO dto, string userId)
         { 
             var existingRating = await _context.BookRatings.AddAsync(new BookRating
             {
                 Id = Guid.NewGuid().ToString(),
                 BookId = BookId,
-                UserId = dto.UserId,
+                UserId = userId,
                 Rating = dto.Rating,
                 Comment = dto.Comment
             });
@@ -243,18 +243,21 @@ namespace SuttorLibrary.Core.Repositories
             return existingRating != null;
         }
 
-        public async Task<bool> DeleteRating(string rateId)
+        public async Task<bool> DeleteRating(string rateId, string userId)
         {
             var rate = await _context.BookRatings.FirstOrDefaultAsync(r => r.Id == rateId);
             if (rate == null) 
-                return false;
+                throw new KeyNotFoundException();
+
+            if (userId != rate.UserId)
+                throw new UnauthorizedAccessException();
 
             _context.Remove(rate);
 
             //update authors' rating
             await UpdateAuthorRating(rate.BookId);
-
             await _context.SaveChangesAsync();
+
             return true;
         }
 

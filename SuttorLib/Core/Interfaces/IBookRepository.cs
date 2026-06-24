@@ -13,9 +13,10 @@ namespace SuttorLibrary.Core.Interfaces
         public Task<IEnumerable<Category?>?> GetCategories();
         public Task<IEnumerable<Author?>?> GetAuthors();
         public Task<IEnumerable<Languages?>?> GetLanguages();
-        public Task<bool> AddRating(string BookId, RatingDTO dto);
+
+        public Task<bool> AddRating(string BookId, RatingDTO dto, string userId);
         public Task<List<BookRating>?> GetBookRatings(string BookId);
-        public Task<bool> DeleteRating(string rateId);
+        public Task<bool> DeleteRating(string rateId, string userId);
 
         // Add new category/author (does not save changes; caller should call UnitOfWork.CompleteAsync)
         public Task<Category?> AddCategory(string category);

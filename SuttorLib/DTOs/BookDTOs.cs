@@ -37,8 +37,6 @@ namespace SuttorLibrary.DTOs
     public class RatingDTO
     {
         [Required]
-        public string UserId { get; set; }
-        [Required]
         public float Rating { get; set; }
         public string Comment { get; set; } = string.Empty;
     }
