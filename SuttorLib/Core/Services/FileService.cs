@@ -168,7 +168,7 @@ namespace SuttorLibrary.Core.Services
             }
         }
 
-        public async Task<string> UploadUserPicAsync(IFormFile userPic, string username)
+        public async Task<string> UploadUserPicAsync(IFormFile userPic, string username, bool IsAuthor)
         {
             if (userPic is null || userPic.Length == 0)
                 throw new ArgumentException("File is empty.");
@@ -177,7 +177,7 @@ namespace SuttorLibrary.Core.Services
                 throw new InvalidOperationException($"File extension not allowed. Allowed: {GetAllowedPictureExtensions()}");
 
             try {
-                var storagePath = _configuration["FileStorage:UsersPicsPath"] ?? "private\\Users";
+                var storagePath = !IsAuthor ? _configuration["FileStorage:UsersPicsPath"] ?? "private\\Users" : _configuration["FileStorage:AuthorsPicsPath"] ?? "private\\Users";
                 storagePath = ResolveStoragePath(storagePath!);
                 if (!Directory.Exists(storagePath))
                     Directory.CreateDirectory(storagePath);
@@ -303,6 +303,44 @@ namespace SuttorLibrary.Core.Services
             trimmed = trimmed.TrimStart('~', '/', '\\');
             var combined = Path.Combine(_env.ContentRootPath, trimmed);
             return Path.GetFullPath(combined);
+        }
+
+        public async Task<string> UploadCategoryIcon(IFormFile icon, string category)
+        {
+            if (icon is null || icon.Length == 0)
+                throw new ArgumentException("File is empty.");
+
+            try {
+                var path = _configuration["FileStorage:CategoriesIconsPath"] ?? "private\\Icons";
+                path = ResolveStoragePath(path!);
+                if (!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
+
+                var iconName = icon.FileName;
+
+                if (icon is not null && icon.Length > 0)
+                {
+                    //Renaming the photo to {icon_picture with the extension}
+                    var coverExtension = Path.GetExtension(iconName);
+                    var coverFileName = $"{icon}_picture{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
+
+                    var coverPath = Path.Combine(path, coverFileName);
+
+                    // Overwrite cover if it exists
+                    await using (var coverStream = new FileStream(coverPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous))
+                    {
+                        await icon.CopyToAsync(coverStream);
+                    }
+                }
+
+                _logger.LogInformation("File uploaded successfully: {FileName} at {FilePath}", icon!.FileName, path);
+                return iconName;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading file: {FileName}", icon.FileName);
+                throw;
+            }
         }
     }
 }

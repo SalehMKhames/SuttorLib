@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
@@ -859,7 +858,7 @@ namespace SuttorLib.Controllers
             try
             {
                 //Add The photo of the author
-                string? PicPath = dto.Picture is null ? null : await _fileService.UploadUserPicAsync(dto.Picture, dto.Author);
+                string? PicPath = dto.Picture is null ? null : await _fileService.UploadUserPicAsync(dto.Picture, dto.Author, true);
 
                 var res = await _unit.BookRepo.AddAuthor(Guid.NewGuid().ToString(), dto.Author, dto.Desc, false, PicPath);
                 if (res is null)
@@ -1000,8 +999,8 @@ namespace SuttorLib.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Cannot modify finishing the reading for book ID {BookId}", BookId);
-                return Problem("An error occurred while modify the finishing of the reading.");
+                _logger.LogError(ex, "Cannot read for book ID {BookId}", BookId);
+                return Problem("An error occurred while reading.");
             }
         }
 
@@ -1044,6 +1043,85 @@ namespace SuttorLib.Controllers
             {
                 _logger.LogError(ex, "Error retrieving book by ID {BookId}", bookId);
                 return Problem("An error occurred while retrieving the book.");
+            }
+        }
+
+        // PATCH api/Books/authors/updateAuthor?authorId=...
+        [Authorize(Roles = "Admin")]
+        [HttpPatch("authors/updateAuthor")]
+        public async Task<IActionResult> UpdateAuthor([FromQuery] string authorId, [FromBody] UpdateAuthor dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (authorId is null)
+                return BadRequest("Author Id is required");
+
+            try {
+                var authors = await _unit.BookRepo.GetAuthors();
+                var author = authors!.FirstOrDefault(a => a!.Id == authorId);
+
+                if (author == null)
+                    return NotFound();
+
+                var photoPath = dto.Picture is null ? null : await _fileService.UploadUserPicAsync(dto.Picture, author.Name, true);
+
+                var result = await _unit.BookRepo.updateAuthor(authorId, author.Name, photoPath, dto.Description);
+
+                var authorDTO = new AuthorDTO 
+                {
+                    Id = authorId,
+                    Name = result!.Name,
+                    Description = result.Description,
+                    Picture = dto.Picture,
+                    IsRegistered = result.IsRegistered
+                };
+
+                return Ok(authorDTO);
+             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot update the author with id {ID}", authorId);
+                return Problem("An error occurred while updating author.");
+            }
+        }
+
+        // PATCH api/Books/authors/updateCategory?categoryId=...
+        [Authorize(Roles = "Admin")]
+        [HttpPatch("authors/updateCategory")]
+        public async Task<IActionResult> UpdateCategory([FromQuery] string categoryId, [FromBody] IFormFile? icon)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (categoryId is null)
+                return BadRequest("Category Id is required");
+            
+            try {
+                var cats = await _unit.BookRepo.GetCategories();
+                var cat = cats!.FirstOrDefault(c => c!.Id == categoryId);
+
+                if (cat is null)
+                    return NotFound();
+
+                var iconPath = icon is null ? null : await _fileService.UploadCategoryIcon(icon, cat.Name);
+
+                var res = await _unit.BookRepo.updateCategory(categoryId, cat.Name, iconPath);
+
+                return Ok(res);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot update the category with id {ID}", categoryId);
+                return Problem("An error occurred while updating category.");
             }
         }
 

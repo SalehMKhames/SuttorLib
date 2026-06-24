@@ -488,14 +488,14 @@ namespace SuttorLibrary.Core.Repositories
             return false;
         }
 
-        public async Task<Category?> updateCategory(string catId, string catName, string catIcon)
+        public async Task<Category?> updateCategory(string catId, string catName, string? catIcon)
         {
             var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == catId);
             if (category is null)
                 throw new KeyNotFoundException(catName);
 
             category.Name = catName;
-            category.Icon = catIcon;
+            category.Icon = catIcon is null ? category.Icon : catIcon;
 
             _context.Update(category);
             await _context.SaveChangesAsync();
@@ -503,14 +503,13 @@ namespace SuttorLibrary.Core.Repositories
             return category;
         }
 
-        public async Task<Author?> updateAuthor(string authId, string authName, string authPhoto, string authDesc)
+        public async Task<Author?> updateAuthor(string authId, string authName, string? authPhoto, string authDesc)
         {
             var author = await _context.Authors.FirstOrDefaultAsync(a => a.Id == authId);
             if (author is null)
                 throw new KeyNotFoundException(authName);
 
-            author.Name = authName;
-            author.Picture = authPhoto;
+            author.Picture = authPhoto is null ? author.Picture : authPhoto;
             author.Description = authDesc;
 
             _context.Update(author);

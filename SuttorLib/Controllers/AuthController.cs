@@ -24,7 +24,7 @@ namespace SuttorLib.Controllers
             try
             {
                 string? uploadedPicture = register.userPic is not null ?
-                    await _fileService.UploadUserPicAsync(register.userPic!, register.FullName) : null;
+                    await _fileService.UploadUserPicAsync(register.userPic!, register.FullName, false) : null;
 
                 if (string.Equals(uploadedPicture, "A picture with the same name already exists.", StringComparison.OrdinalIgnoreCase))
                     return BadRequest($"The file for '{register.userPic!.FileName}' already exists.");
@@ -138,7 +138,7 @@ namespace SuttorLib.Controllers
                     return Forbid();
 
                 var userPicPath = updateDto.newCoverPic is not null ? 
-                    await _fileService.UploadUserPicAsync(updateDto.newCoverPic!, userId) : null;
+                    await _fileService.UploadUserPicAsync(updateDto.newCoverPic!, userId, false) : null;
 
                 var result = await _unit.AuthRepo.UpdateUser(userId, updateDto.Email, updateDto.UserName, updateDto.FullName, userPicPath);
                 if (result is null)
