@@ -24,7 +24,7 @@ namespace SuttorLibrary.DTOs
         public int PageCount { get; set; }
         public int PublishedAT { get; set; }
         public string FilePath { get; set; } = string.Empty;
-        public long FileSize { get; set; }
+        public double FileSize { get; set; }
         public IFormFile? Photo { get; set; } = null;
         public string FileLink { get; set; } = string.Empty;
         public string CoverLink { get; set; } = string.Empty;
@@ -68,5 +68,11 @@ namespace SuttorLibrary.DTOs
     {
         public string Description { get; set; }
         public IFormFile? Picture { get; set; }
+    }
+
+    public class AddCategory
+    {
+        public string Name { get; set; }
+        public IFormFile? Icon { get; set; }
     }
 }

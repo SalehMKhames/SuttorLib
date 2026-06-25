@@ -4,7 +4,6 @@ using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
 using SuttorLibrary.Models;
-using System.Net;
 using System.Security.Claims;
 
 namespace SuttorLib.Controllers
@@ -90,7 +89,7 @@ namespace SuttorLib.Controllers
                         FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
                         PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
                         PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                        FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! / 1024 / 1024,
+                        FileSize = (double)type.GetProperty("fileSize")!.GetValue(book, null)! / (1024 * 1024),
                         UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                         language = (string)type.GetProperty("language")!.GetValue(book, null)!,
                         Authors_Names = authorsNames,
@@ -204,7 +203,7 @@ namespace SuttorLib.Controllers
                     FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
                     PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
                     PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! / 1024 / 1024,
+                    FileSize = (double)type.GetProperty("fileSize")!.GetValue(book, null)! / (1024 * 1024),
                     UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                     language = (string)type.GetProperty("language")!.GetValue(book, null)!,
                     Authors_Names = authorsNames,
@@ -288,7 +287,7 @@ namespace SuttorLib.Controllers
                     FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
                     PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
                     PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                    FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! / 1024 / 1024,
+                    FileSize = (double)type.GetProperty("fileSize")!.GetValue(book, null)! / (1024 * 1024),
                     UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                     language = (string)type.GetProperty("language")!.GetValue(book, null)!,
                     Authors_Names = authorsNames,
@@ -375,7 +374,7 @@ namespace SuttorLib.Controllers
                         FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
                         PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
                         PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                        FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! / 1024 / 1024,
+                        FileSize = (double)type.GetProperty("fileSize")!.GetValue(book, null)! / (1024 * 1024),
                         UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                         language = (string)type.GetProperty("language")!.GetValue(book, null)!,
                         Authors_Names = authorsNames,
@@ -485,7 +484,7 @@ namespace SuttorLib.Controllers
                         FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
                         PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
                         PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                        FileSize = (long)type.GetProperty("fileSize")!.GetValue(book, null)! / 1024 / 1024,
+                        FileSize = (double)type.GetProperty("fileSize")!.GetValue(book, null)! / (1024 * 1024),
                         UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
                         language = (string)type.GetProperty("language")!.GetValue(book, null)!,
                         Authors_Names = authorsNames,
@@ -819,32 +818,32 @@ namespace SuttorLib.Controllers
 
         //Post /api/Books/addCategory
         [HttpPost("addCategory")]
-        public async Task<IActionResult> AddCategory([FromBody] string cat, [FromBody] IFormFile? icon)
+        public async Task<IActionResult> AddCategory([FromBody] AddCategory dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            if (string.IsNullOrEmpty(cat))
+            if (string.IsNullOrEmpty(dto.Name))
                 return BadRequest("The category name is required");
 
             try
             {
-                var res = await _unit.BookRepo.AddCategory(cat);
+                var res = await _unit.BookRepo.AddCategory(dto.Name);
                 if (res is null)
-                    return BadRequest($"This category: {cat} already exists");
+                    return BadRequest($"This category: {dto.Name} already exists");
 
-                var iconPath = icon is null ? null : await _fileService.UploadCategoryIcon(icon, res.Name);
+                var iconPath = dto.Icon is null ? null : await _fileService.UploadCategoryIcon(dto.Icon, res.Name);
 
 
-                return CreatedAtAction(nameof(AddCategory), new { CategoryName = cat }, cat);
+                return CreatedAtAction(nameof(AddCategory), new { CategoryName = dto.Name }, dto.Name);
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Cannot add the category name: {Name}", cat);
+                _logger.LogWarning(ex, "Cannot add the category name: {Name}", dto.Name);
                 return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Cannot add the category name: {Name}", cat);
+                _logger.LogError(ex, "Cannot add the category name: {Name}", dto.Name);
                 return Problem("An error occurred while adding the category.");
             }
         }
@@ -907,11 +906,19 @@ namespace SuttorLib.Controllers
                 if (rates is null)
                     return NotFound("No rates were found");
 
-                List<GetRatingDTO>? ratesDto = null;
+                List<GetRatingDTO> ratesDto = new List<GetRatingDTO>();
 
                 foreach (var rate in rates) 
                 {
-                    ratesDto!.Add(new GetRatingDTO{UserId = rate.UserId, Rating = rate.Rating, Comment = rate.Comment });
+                    ratesDto.Add(
+                        new GetRatingDTO
+                        {
+                            UserId = rate.UserId, 
+                            Rating = 
+                            rate.Rating, 
+                            Comment = rate.Comment 
+                        }
+                    );
                 }
 
                 return Ok(ratesDto);
@@ -932,7 +939,7 @@ namespace SuttorLib.Controllers
                 return BadRequest(ModelState);
 
             if (id is null)
-                return BadRequest();
+                return BadRequest("Blog Id is required.");
 
             try
             {
@@ -946,8 +953,6 @@ namespace SuttorLib.Controllers
 
                 return CreatedAtAction(nameof(AddBookRating), new { dto.Rating, dto.Comment }, id);
             }
-            catch (KeyNotFoundException) { return NotFound(); }
-            catch (UnauthorizedAccessException) { return Unauthorized(); }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Cannot add the rating for book ID {BookId}", id);

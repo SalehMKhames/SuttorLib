@@ -88,6 +88,8 @@ builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IBlogServices, BlogService>();
+// Add this line after your BlogDbSettings configuration
+builder.Services.AddScoped<MongoIndexConfig>();
 
 //Add Jwt Authentication
 builder.Services.AddAuthentication(
@@ -177,6 +179,25 @@ builder.Services.AddLogging();
 builder.Services.AddExceptionHandler<AppExceptionHandler>();
 
 var app = builder.Build();
+
+// Run index creation in background (doesn't block startup)
+_ = Task.Run(async () =>
+{
+    try
+    {
+        using (var scope = app.Services.CreateScope())
+        {
+            var indexConfig = scope.ServiceProvider.GetRequiredService<MongoIndexConfig>();
+            await indexConfig.CreateIndexesAsync();
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Warning: MongoDB index creation failed: {ex.Message}");
+        // App continues running even if indexes fail
+    }
+});
+
 
 app.MapOpenApi();
 

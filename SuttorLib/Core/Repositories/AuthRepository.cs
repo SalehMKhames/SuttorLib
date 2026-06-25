@@ -69,7 +69,7 @@ namespace SuttorLibrary.Core.Repositories
             AppUser newUser = new AppUser
             {
                 Id = Guid.NewGuid().ToString(),
-                UserName = register.Username,
+                UserName = NormalizeUsername(register.Username),
                 Email = register.Email,
                 FullName = register.FullName,
                 JoinedAt = DateTime.UtcNow,
@@ -130,12 +130,13 @@ namespace SuttorLibrary.Core.Repositories
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user is null)
-                return null;
+                throw new KeyNotFoundException();
 
             if (!string.IsNullOrWhiteSpace(email) && email != user.Email)
             {
                 if (await _userManager.FindByEmailAsync(email) is not null)
                     throw new InvalidOperationException("Email is already in use.");
+
                 user.Email = email;
                 user.NormalizedEmail = email.ToUpper();
             }
@@ -144,8 +145,9 @@ namespace SuttorLibrary.Core.Repositories
             {
                 if (await _userManager.FindByNameAsync(username) is not null)
                     throw new InvalidOperationException("Username is already in use.");
-                user.UserName = username;
-                user.NormalizedUserName = username.ToUpper();
+
+                user.UserName = NormalizeUsername(username);
+                user.NormalizedUserName = user.UserName.ToUpper();
             }
 
             if (!string.IsNullOrWhiteSpace(fullName))
@@ -168,7 +170,7 @@ namespace SuttorLibrary.Core.Repositories
         {
             var user = await _userManager.FindByEmailAsync(roleDto.Email);
             if (user is null)
-                return null;
+                throw new KeyNotFoundException();
 
             // Ensure role name is normalized to common format (optional)
             var normalizedRole = roleDto.Role.Trim();
@@ -195,7 +197,7 @@ namespace SuttorLibrary.Core.Repositories
             // AppUser.Id is stored as string (Guid.ToString()), so convert Guid to string
             var user = await _userManager.FindByIdAsync(id.ToString());
             if (user is null)
-                return false;
+                throw new KeyNotFoundException();
 
             // Verify provided current password
             var passwordValid = await _userManager.CheckPasswordAsync(user, password);
@@ -343,6 +345,14 @@ namespace SuttorLibrary.Core.Repositories
             stored.Revoked = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        private static string NormalizeUsername(string? username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+                return string.Empty;
+
+            return username.StartsWith('@') ? username : "@" + username;
         }
     }
 }

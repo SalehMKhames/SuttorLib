@@ -164,6 +164,11 @@ namespace SuttorLib.Controllers
                 _logger.LogWarning(io, "Invalid operation while updating user {UserId}", userId);
                 return BadRequest(io.Message);
             }
+            catch (KeyNotFoundException nf)
+            {
+                _logger.LogWarning($"KeyNotFound in updating User: {nf.Message}");
+                return NotFound($"User with ID '{userId}' not found.");
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating user {UserId}", userId);
@@ -256,6 +261,10 @@ namespace SuttorLib.Controllers
                 await _unit.CompleteAsync();
                 return Ok(new { message = result });
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error assigning role {Role} to {Email}", roleDto.Role, roleDto.Email);
@@ -302,6 +311,10 @@ namespace SuttorLib.Controllers
                 }
                 _logger.LogInformation("DeleteUser: user {UserId} deleted by {Caller}", userId, callerId);
                 return Ok(new { success = true, message = "User deleted successfully." });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
             }
             catch (UnauthorizedAccessException ua)
             {

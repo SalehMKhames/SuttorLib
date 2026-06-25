@@ -33,7 +33,12 @@ namespace SuttorLibrary.Core.Repositories
             foreach (var id in categories)
             {
                 await _context.UserInterests
-                    .AddAsync(new UserInterests {Id = Guid.NewGuid().ToString(), UserId = dto.UserID, Category_Id = id});
+                    .AddAsync(new UserInterests 
+                    {
+                        Id = Guid.NewGuid().ToString(), 
+                        UserId = dto.UserID, 
+                        Category_Id = id
+                    });
 
                 await _context.SaveChangesAsync();
             }
@@ -62,7 +67,7 @@ namespace SuttorLibrary.Core.Repositories
             {
                 Id = user.Id,
                 FullName = user.FullName,
-                UserName = user.UserName,
+                UserName = NormalizeUsername(user.UserName),
                 Email = user.Email,
                 JoinedAt = user.JoinedAt,
                 XP = user.XP,
@@ -83,7 +88,7 @@ namespace SuttorLibrary.Core.Repositories
             {
                 Id = user.Id,
                 FullName = user.FullName,
-                UserName = user.UserName,
+                UserName = NormalizeUsername(user.UserName),
                 Email = user.Email,
                 JoinedAt = user.JoinedAt,
                 XP = user.XP,
@@ -174,6 +179,13 @@ namespace SuttorLibrary.Core.Repositories
                 .ToListAsync();
 
             return userCategories.Count > 0 ? userCategories.Cast<Category?>().ToList() : null;
+        }
+
+        private static string NormalizeUsername(string? username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+                return string.Empty;
+            return username.StartsWith('@') ? username : "@" + username;
         }
     }
 }
