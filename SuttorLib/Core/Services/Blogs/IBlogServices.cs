@@ -6,7 +6,7 @@ namespace SuttorLib.Core.Services.Blog
     public interface IBlogServices
     {
         //Basic Blog operations
-        public Task<Models.Blog> CreateBlogAsync(string userId, CreateBlogDTO blogDTO);
+        public Task<Models.Blog> CreateBlogAsync(string userId, CreateBlogDTO blogDTO, List<string> photos);
         public Task<PaginatedBlogResponseDto> GetAllBlogs(BlogFilterDto filterDto);
         public Task<Models.Blog> GetBlogById(string blogId);
         public Task<Models.Blog> UpdateBlogAsync(string blogId, UpdateBlogDTO blogDTO, string userId);

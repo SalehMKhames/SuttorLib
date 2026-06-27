@@ -1,5 +1,4 @@
 ﻿using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
 using SuttorLib.Models;
 
 namespace SuttorLib.DTOs
@@ -10,6 +9,7 @@ namespace SuttorLib.DTOs
         public string Content { get; set; } = string.Empty;
         public List<string> Tags { get; set; } = new List<string>();
         public string Category { get; set; } = string.Empty;
+        public List<IFormFile>? Photos { get; set; } = new List<IFormFile>();
     }
 
     public class UpdateBlogDTO
@@ -38,6 +38,7 @@ namespace SuttorLib.DTOs
         public List<string> Tags { get; set; } = new();
         public List<Comment> Comments { get; set; } = new();
         public string Category { get; set; } = string.Empty;
+        public List<IFormFile>? Photos { get; set; } = new();
     }
 
     public class CreateCommentDTO

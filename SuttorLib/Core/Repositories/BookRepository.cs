@@ -3,7 +3,6 @@ using SuttorLibrary.Core.Interfaces;
 using SuttorLibrary.Data;
 using SuttorLibrary.DTOs;
 using SuttorLibrary.Models;
-using System.Net;
 
 namespace SuttorLibrary.Core.Repositories
 {
@@ -59,7 +58,11 @@ namespace SuttorLibrary.Core.Repositories
                             d => d.BookID,
                             u => u.Id,
                             (d, u) => new { d.Id }
-                        ).Count()
+                        ).Count(),
+
+                    ratings = _context.BookRatings
+                        .Where(r => r.BookId == b.Id)
+                        .ToList()
                 })
                 .FirstOrDefaultAsync();
 
@@ -114,7 +117,11 @@ namespace SuttorLibrary.Core.Repositories
                     language = _context.Languages
                         .Where(l => l.Id == b.LanguageId)
                         .Select(l => l.Language )
-                        .FirstOrDefault()
+                        .FirstOrDefault(),
+
+                    ratings = _context.BookRatings
+                        .Where(r => r.BookId == b.Id)
+                        .ToList()
                 })
                 .FirstOrDefaultAsync();
             
@@ -166,7 +173,11 @@ namespace SuttorLibrary.Core.Repositories
                         language = _context.Languages
                             .Where(l => l.Id == b.Id)
                             .Select(l => l.Language)
-                            .FirstOrDefault()
+                            .FirstOrDefault(),
+
+                        ratings = _context.BookRatings
+                        .Where(r => r.BookId == b.Id)
+                        .ToList()
                     }
                 ))
             .ToListAsync();
@@ -216,7 +227,11 @@ namespace SuttorLibrary.Core.Repositories
                         language = _context.Languages
                             .Where(l => l.Id == b.Id)
                             .Select(l => l.Language)
-                            .FirstOrDefault()
+                            .FirstOrDefault(),
+
+                        ratings = _context.BookRatings
+                        .Where(r => r.BookId == b.Id)
+                        .ToList()
                     }
                 ))
             .ToListAsync();
@@ -225,18 +240,19 @@ namespace SuttorLibrary.Core.Repositories
         }
 
         public async Task<bool> AddRating(string BookId, RatingDTO dto, string userId)
-        { 
+        {
             var existingRating = await _context.BookRatings.AddAsync(new BookRating
             {
                 Id = Guid.NewGuid().ToString(),
                 BookId = BookId,
                 UserId = userId,
                 Rating = dto.Rating,
-                Comment = dto.Comment
+                Comment = dto.Comment,
+                CreatedAt = DateTime.UtcNow
             });
 
             //update authors' rating
-            await UpdateAuthorRating(BookId);
+            await UpdateBookRating(BookId);
 
             await _context.SaveChangesAsync();
 
@@ -255,7 +271,7 @@ namespace SuttorLibrary.Core.Repositories
             _context.Remove(rate);
 
             //update authors' rating
-            await UpdateAuthorRating(rate.BookId);
+            await UpdateBookRating(rate.BookId);
             await _context.SaveChangesAsync();
 
             return true;
@@ -372,55 +388,6 @@ namespace SuttorLibrary.Core.Repositories
             await _context.SaveChangesAsync();
         }
 
-        private async Task UpdateAuthorRating(string bookID)
-        {
-            var authorsIDs = await _context.BookAuthors
-                .Where(ba => ba.Book_Id == bookID)
-                .Select(ba => ba.Author_Id)
-                .Distinct()
-                .ToListAsync();
-
-            if(authorsIDs is null || authorsIDs.Count == 0)
-                return;
-
-            foreach (var authorId in authorsIDs)
-            {
-                // all book ids for this author
-                var authorBookIds = await _context.BookAuthors
-                    .Where(ba => ba.Author_Id == authorId)
-                    .Select(ba => ba.Book_Id)
-                    .Distinct()
-                    .ToListAsync();
-
-                if (authorBookIds == null || authorBookIds.Count == 0)
-                {
-                    // set rating to 0 if author has no books
-                    var authorEmpty = await _context.Authors.FirstOrDefaultAsync(a => a.Id == authorId);
-                    if (authorEmpty != null)
-                        authorEmpty.Rating = 0f;
-                    continue;
-                }
-
-                // compute average rating across the author's books
-                var ratingsQuery = _context.BookRatings
-                    .Where(br => authorBookIds.Contains(br.BookId))
-                    .Select(br => br.Rating);
-
-                float avgRating = 0f;
-
-                // If there are no ratings, default to 0
-                var anyRatings = await ratingsQuery.AnyAsync();
-                if (anyRatings)
-                    avgRating = await ratingsQuery.AverageAsync();
-
-                var author = await _context.Authors.FirstOrDefaultAsync(a => a.Id == authorId);
-                if (author != null)
-                    author.Rating = avgRating;
-            }
-
-            await _context.SaveChangesAsync();
-        }
-
         public async Task<List<object?>?> GetBooksAsync()
         {
             var books = (List<Book>?)await base.GetAll();
@@ -520,5 +487,25 @@ namespace SuttorLibrary.Core.Repositories
 
             return author;
         }
+        
+        private async Task UpdateBookRating(string id)
+        {
+            if (id is null)
+                throw new ArgumentException();
+
+            var bookRatings = await _context.BookRatings
+                .Where(br => br.BookId == id)
+                .Select(br => br.Rating)
+                .ToListAsync();
+
+            var book = await _context.Books.FirstOrDefaultAsync(b => b.Id == id);
+            if (book is null)
+                throw new KeyNotFoundException("Book not found");
+
+            book.Rating = bookRatings.Count > 0 ? bookRatings.Average() : 0f;
+
+            await _context.SaveChangesAsync();
+        }
+
     }
 }

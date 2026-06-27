@@ -12,7 +12,6 @@ namespace SuttorLibrary.Models
         public string? Picture { get; set; }
         public string? Description { get; set; }
         public bool IsRegistered { get; set; }
-        public float Rating { get; set; }
     }
 
 }

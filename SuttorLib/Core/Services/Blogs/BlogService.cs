@@ -32,7 +32,7 @@ namespace SuttorLib.Core.Services.Blogs
         }
 
         // ========================  Blog Operations  =====================================
-        public async Task<Models.Blog> CreateBlogAsync(string userId, CreateBlogDTO createDTO)
+        public async Task<Models.Blog> CreateBlogAsync(string userId, CreateBlogDTO createDTO, List<string> photosPath)
         {
             var blog = new Models.Blog 
             {
@@ -49,7 +49,8 @@ namespace SuttorLib.Core.Services.Blogs
                 IsPublished = true,
                 UserIdsLikes = new List<string>(),
                 UserIdsDislikes = new List<string>(),
-                Comments = new List<ObjectId>()
+                Comments = new List<ObjectId>(),
+                Photos = photosPath
             };
 
             await _blog.InsertOneAsync(blog);

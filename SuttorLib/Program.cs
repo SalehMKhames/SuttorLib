@@ -38,7 +38,7 @@ builder.Services.AddOpenApi();
 
 //Connect to MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySQL(builder.Configuration.GetConnectionString("Debugging")!)
+    options.UseMySQL(builder.Configuration.GetConnectionString("Default")!)
 );
 
 //Configuring MongoDB connection
@@ -205,11 +205,11 @@ app.MapScalarApiReference(options =>
 {
     options.Title = "Suttor Library API Documentation";
     options.Theme = ScalarTheme.DeepSpace;
-    options.AddPreferredSecuritySchemes("Bearer");
+    options.AddPreferredSecuritySchemes("BearerAuth");
     // Authentication/Security configuration
     options.Authentication = new ScalarAuthenticationOptions
     {
-        PreferredSecuritySchemes = ["Bearer"]
+        PreferredSecuritySchemes = ["BearerAuth"]
     };
 });
 

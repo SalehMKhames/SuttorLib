@@ -42,6 +42,8 @@ namespace SuttorLib.Controllers
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
+                List<string> photoPaths = createDTO.Photos is null ? [] : await _fileService.UploadBLogsPhotos(createDTO.Photos, createDTO.Title)!;
+
                 try
                 {
                     var categories = await _unit.BookRepo.GetCategories();
@@ -57,6 +59,7 @@ namespace SuttorLib.Controllers
                         category = await _unit.BookRepo.AddCategory(createDTO.Category);
                         createDTO.Category = category!.Name;
                     }
+
 
                     try
                     {
@@ -74,7 +77,7 @@ namespace SuttorLib.Controllers
                     return Problem("An error occurred while adding the category.");
                 }
 
-                var blog = await _blogService.CreateBlogAsync(userId, createDTO);
+                var blog = await _blogService.CreateBlogAsync(userId, createDTO, photoPaths);
 
                 _logger.LogInformation("Blog uploaded successfully: {Title}", createDTO.Title);
 
@@ -118,6 +121,17 @@ namespace SuttorLib.Controllers
                         null : await _fileService.GetPictureAsync(user.PhotoPath);
                 }
 
+                List<IFormFile> ph = new();
+                if (result.Photos is null || result.Photos.Count == 0)
+                    ph = [];
+                
+                else
+                    foreach (var photo in result.Photos)
+                    {
+                        var blogPhoto = await _fileService.GetPictureAsync(photo);
+                        ph.Add(blogPhoto);
+                    }
+
                 var blogDTO = new BlogDTO
                 {
                     Id = result.Id.ToString(),
@@ -132,6 +146,7 @@ namespace SuttorLib.Controllers
                     Likes = result.Likes,
                     Dislikes = result.Dislikes,
                     Views = result.Views,
+                    Photos = ph
                 };
 
                 var categories = await _unit.BookRepo.GetCategories();
@@ -198,6 +213,17 @@ namespace SuttorLib.Controllers
                             null : await _fileService.GetPictureAsync(user.PhotoPath);
                     }
 
+                    List<IFormFile> ph = new();
+                    if (item.Photos is null || item.Photos.Count == 0)
+                        ph = [];
+
+                    else
+                        foreach (var photo in item.Photos)
+                        {
+                            var blogPhoto = await _fileService.GetPictureAsync(photo);
+                            ph.Add(blogPhoto);
+                        }
+
                     var blogDTO = new BlogDTO
                     {
                         Id = item.Id.ToString(),
@@ -212,6 +238,7 @@ namespace SuttorLib.Controllers
                         Likes = item.Likes,
                         Dislikes = item.Dislikes,
                         Views = item.Views,
+                        Photos = ph
                     };
 
                     var categories = await _unit.BookRepo.GetCategories();
@@ -426,6 +453,17 @@ namespace SuttorLib.Controllers
                             null : await _fileService.GetPictureAsync(user.PhotoPath);
                     }
 
+                    List<IFormFile> ph = new();
+                    if (item.Photos is null || item.Photos.Count == 0)
+                        ph = [];
+
+                    else
+                        foreach (var photo in item.Photos)
+                        {
+                            var blogPhoto = await _fileService.GetPictureAsync(photo);
+                            ph.Add(blogPhoto);
+                        }
+
                     var blogDTO = new BlogDTO
                     {
                         Id = item.Id.ToString(),
@@ -440,6 +478,7 @@ namespace SuttorLib.Controllers
                         Likes = item.Likes,
                         Dislikes = item.Dislikes,
                         Views = item.Views,
+                        Photos = ph
                     };
 
                     var categories = await _unit.BookRepo.GetCategories();
@@ -507,6 +546,17 @@ namespace SuttorLib.Controllers
                             null : await _fileService.GetPictureAsync(user.PhotoPath);
                     }
 
+                    List<IFormFile> ph = new();
+                    if (item.Photos is null || item.Photos.Count == 0)
+                        ph = [];
+
+                    else
+                        foreach (var photo in item.Photos)
+                        {
+                            var blogPhoto = await _fileService.GetPictureAsync(photo);
+                            ph.Add(blogPhoto);
+                        }
+
                     var blogDTO = new BlogDTO
                     {
                         Id = item.Id.ToString(),
@@ -521,6 +571,7 @@ namespace SuttorLib.Controllers
                         Likes = item.Likes,
                         Dislikes = item.Dislikes,
                         Views = item.Views,
+                        Photos = ph
                     };
 
                     var categories = await _unit.BookRepo.GetCategories();
@@ -577,6 +628,17 @@ namespace SuttorLib.Controllers
                     IFormFile? userPic = user.PhotoPath is null ?
                             null : await _fileService.GetPictureAsync(user.PhotoPath);
 
+                    List<IFormFile> ph = new();
+                    if (item.Photos is null || item.Photos.Count == 0)
+                        ph = [];
+
+                    else
+                        foreach (var photo in item.Photos)
+                        {
+                            var blogPhoto = await _fileService.GetPictureAsync(photo);
+                            ph.Add(blogPhoto);
+                        }
+
                     var blogDTO = new BlogDTO
                     {
                         Id = item.Id.ToString(),
@@ -591,6 +653,7 @@ namespace SuttorLib.Controllers
                         Likes = item.Likes,
                         Dislikes = item.Dislikes,
                         Views = item.Views,
+                        Photos = ph
                     };
 
                     var categories = await _unit.BookRepo.GetCategories();

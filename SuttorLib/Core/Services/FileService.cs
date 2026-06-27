@@ -322,7 +322,7 @@ namespace SuttorLibrary.Core.Services
                 {
                     //Renaming the photo to {icon_picture with the extension}
                     var coverExtension = Path.GetExtension(iconName);
-                    var coverFileName = $"{icon}_picture{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
+                    var coverFileName = $"{category}_picture{(string.IsNullOrEmpty(coverExtension) ? string.Empty : coverExtension)}";
 
                     var coverPath = Path.Combine(path, coverFileName);
 
@@ -339,6 +339,57 @@ namespace SuttorLibrary.Core.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error uploading file: {FileName}", icon.FileName);
+                throw;
+            }
+        }
+
+        public async Task<List<string>>? UploadBLogsPhotos(List<IFormFile> photos, string blogId)
+        {
+            if (photos is null || photos.Count == 0)
+                return [];
+
+            try
+            {
+                var path = _configuration["FileStorage:BlogsPath"] ?? "private\\Blogs";
+                path = ResolveStoragePath(path!);
+                if (!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
+
+                path += blogId;
+                if (!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
+
+                var photosPaths = new List<string>();
+
+                for (int i = 1; i <= photos.Count; i++)
+                { 
+                    var photoName = photos[i].FileName;
+
+                    if (photos[i] is not null && photos[i].Length > 0)
+                    {
+                        //Renaming the photo to {photos[i]_picture with the extension}
+                        var extension = Path.GetExtension(photoName);
+                        var fileName = $"{blogId}_picture_{i}{(string.IsNullOrEmpty(extension) ? string.Empty : extension)}";
+
+                        var coverPath = Path.Combine(path, fileName);
+
+                        photosPaths.Add(coverPath);
+
+                        // Overwrite cover if it exists
+                        await using (var coverStream = new FileStream(coverPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous))
+                        {
+                            await photos[i].CopyToAsync(coverStream);
+                        }
+                    }
+
+                    _logger.LogInformation("File uploaded successfully: {FileName} at {FilePath}", photos[i]!.FileName, path);
+                }
+
+                return photosPaths;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading file: {FileName}", blogId);
                 throw;
             }
         }

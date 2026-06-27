@@ -13,7 +13,7 @@ namespace SuttorLibrary.Models
 
         public string UserId { get; set; }
 
-        public float Rating { get; set; }
+        public float Rating { get; set; } = 0f;
         public DateTime CreatedAt { get; set; }
         public string Comment { get; set; } = string.Empty;
     }

@@ -684,6 +684,7 @@ namespace SuttorLib.Controllers
                     Description = dto.Description,
                     PageCount = dto.PageCount,
                     PhotoPath = photoPath,
+                    Rating = 0f,
                     FileSize = dto.File.Length,
                     FileType = dto.File.ContentType.ToLowerInvariant(),
                     PublishedAT = dto.PublishedAT,
@@ -785,7 +786,9 @@ namespace SuttorLib.Controllers
                     return NotFound("This book is not found.");
 
                 // Get current user id from Claims (maynnnjkgg ,kbe null if anonymous)
-                var userId = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
 
                 var fileStream = await _fileService.DownloadFileAsync(book.Title, book.FilePath, id, userId!);
 
@@ -930,9 +933,9 @@ namespace SuttorLib.Controllers
             }
         }
 
-        //Post /api/Books/id/AddRating
+        //Post /api/Books/id/addRate
         [Authorize]
-        [HttpPost("{id}/AddRating")]
+        [HttpPost("{id}/addRate")]
         public async Task<IActionResult> AddBookRating([FromRoute] string id, [FromBody] RatingDTO dto)
         {
             if (!ModelState.IsValid)
@@ -943,7 +946,9 @@ namespace SuttorLib.Controllers
 
             try
             {
-                var userId = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
 
                 var res = await _unit.BookRepo.AddRating(id, dto, userId);
                 if (!res)
@@ -971,8 +976,9 @@ namespace SuttorLib.Controllers
                 return BadRequest();
             try
             {
-                var userId = User?.FindFirstValue(ClaimTypes.NameIdentifier);
-
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
                 var res = await _unit.BookRepo.DeleteRating(rateId, userId);
                 if (!res)
                     return BadRequest("Failed to delete the rating.");
@@ -991,7 +997,7 @@ namespace SuttorLib.Controllers
         }
 
         //Patch /api/Books/{id}/FinishRead
-        [HttpPatch("{BookId}/FinishReading")]
+        [HttpPatch("{BookId}/finishReading")]
         public async Task<IActionResult> FinishBookReading([FromRoute] string BookId)
         {
             if (!ModelState.IsValid)

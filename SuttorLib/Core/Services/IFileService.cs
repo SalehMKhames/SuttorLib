@@ -10,6 +10,7 @@ namespace SuttorLibrary.Core.Services
         Task<bool> DeleteFileAsync(string fileName);
         Task<IFormFile?> GetPictureAsync(string pathToPicture);
         Task<string> UploadCategoryIcon(IFormFile icon, string category);
+        public Task<List<string>>? UploadBLogsPhotos(List<IFormFile> photos, string blogId);
         public string ResolveStoragePath(string configuredPath);
         bool IsValidFileExtension(string fileName);
         bool IsValidPhotoExtension(string photoName);

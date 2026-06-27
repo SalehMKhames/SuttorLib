@@ -13,7 +13,7 @@ namespace SuttorLibrary.Models
         public string Description { get; set; } = string.Empty;
         public int PageCount { get; set; }
         public int PublishedAT { get; set; }
-        
+        public float Rating { get; set; }
         public string FilePath { get; set; }
         public string FileType { get; set; }
         public double FileSize { get; set; }

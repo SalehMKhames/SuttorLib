@@ -58,5 +58,8 @@ namespace SuttorLib.Models
         [BsonElement("category")]
         [BsonRepresentation(BsonType.String)]
         public string Category { get; set; } = string.Empty;
+
+        [BsonElement("photos")]
+        public List<string> Photos { get; set; } = new();
     }
 }
