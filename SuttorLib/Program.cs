@@ -49,6 +49,12 @@ builder.Services.Configure<BlogDbSettings>(
 .Bind(builder.Configuration.GetSection("BlogDbSettings"))
 .ValidateDataAnnotations();
 
+builder.Services.Configure<AiDbSettings>(
+        builder.Configuration.GetSection("AiDbSettings")
+    )
+    .AddOptions<AiDbSettings>()
+    .Bind(builder.Configuration.GetSection("AiDbSettings"))
+    .ValidateDataAnnotations();
 
 builder.Services.AddIdentity<AppUser, IdentityRole>(
     options => {
