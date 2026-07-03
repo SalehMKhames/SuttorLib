@@ -38,20 +38,7 @@ namespace SuttorLib.Controllers
                     return BadRequest("Something went wrong. Cannot Create your conversation!");
                 }
 
-                List<Message>? messages = new();
-                foreach (var message in dto.Messages)
-                {
-                    AddMessageDTO messageDto = new AddMessageDTO
-                    {
-                        role = message.role,
-                        Content = message.Content,
-                        timestamp = message.timestamp
-                    };
-                    var m = await _conversation.CreateMessage(messageDto);
-
-                    await _conversation.AddMessageToConversationAsync(result.Id.ToString(), m.Id.ToString());
-                    messages.Add(m);
-                }
+                List<Message>? messages = await _conversation.GetMessagesForConversation(result.Id.ToString()) ?? new List<Message>();
 
                 ConversationDTO cDto = new ConversationDTO
                 {
@@ -82,7 +69,7 @@ namespace SuttorLib.Controllers
         // GET api/conversations/cId=...
         [Authorize]
         [HttpGet("{cId}")]
-        public async Task<IActionResult> GetConversation([FromBody] string cId)
+        public async Task<IActionResult> GetConversation([FromRoute] string cId)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);

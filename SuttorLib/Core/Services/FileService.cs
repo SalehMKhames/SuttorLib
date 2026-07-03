@@ -355,13 +355,13 @@ namespace SuttorLibrary.Core.Services
                 if (!Directory.Exists(path))
                     Directory.CreateDirectory(path);
 
-                path += blogId;
+                path = Path.Combine(path, blogId);
                 if (!Directory.Exists(path))
                     Directory.CreateDirectory(path);
 
                 var photosPaths = new List<string>();
 
-                for (int i = 1; i <= photos.Count; i++)
+                for (int i = 0; i <= photos.Count; i++)
                 { 
                     var photoName = photos[i].FileName;
 

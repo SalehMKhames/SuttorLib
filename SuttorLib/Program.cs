@@ -12,6 +12,7 @@ using SuttorLib.Core.Services.Blogs;
 using SuttorLib.Data;
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
+using SuttorLibrary.Core.Services.aiConversations;
 using SuttorLibrary.Data;
 using SuttorLibrary.Middlewares;
 using SuttorLibrary.Models;
@@ -96,6 +97,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IBlogServices, BlogService>();
 // Add this line after your BlogDbSettings configuration
 builder.Services.AddScoped<MongoIndexConfig>();
+
+builder.Services.AddScoped<IConversationService, ConversationService>();
 
 //Add Jwt Authentication
 builder.Services.AddAuthentication(

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using SuttorLib.Data;
@@ -10,13 +11,23 @@ public class ConversationService : IConversationService
 {
     private readonly IMongoCollection<Conversation> _conversation;
     private readonly IMongoCollection<Message> _message;
+    private readonly IOptions<AiDbSettings> _dbSettings;
+    private readonly IHttpContextAccessor _httpContext;
 
-    public ConversationService(AiDbSettings settings)
+    public ConversationService(IOptions<AiDbSettings> dbSettings, IHttpContextAccessor httpContext)
     {
-        var client = new MongoClient(settings.ConnectionString);
-        var database = client.GetDatabase(settings.DatabaseName);
-        _conversation = database.GetCollection<Conversation>(settings.Conversations);
-        _message = database.GetCollection<Message>(settings.Messages);
+        _dbSettings = dbSettings;
+        _httpContext = httpContext;
+
+        var cs = _dbSettings?.Value?.ConnectionString;
+        if (string.IsNullOrWhiteSpace(cs))
+            throw new InvalidOperationException("AiDbSettings.ConnectionString is missing. Ensure configuration binds the 'AiDbSettings' section.");
+
+        var mongoClient = new MongoClient(cs);
+        var mongoDatabase = mongoClient.GetDatabase(_dbSettings?.Value?.DatabaseName);
+
+        _conversation = mongoDatabase.GetCollection<Conversation>(_dbSettings?.Value?.Conversations);
+        _message = mongoDatabase.GetCollection<Message>(_dbSettings?.Value?.Messages);
     }
 
 
@@ -24,14 +35,15 @@ public class ConversationService : IConversationService
     {
         List<ObjectId> messageIds = new();
         if (createDto.Messages?.Count > 0)
-        {
-            await _message.InsertManyAsync(createDto.Messages);
-            messageIds = createDto.Messages.Select(m => m.Id).ToList();
-        }
+            foreach (var mess in createDto.Messages)
+            {
+                var m = await CreateMessage(mess);
+                messageIds.Add(m.Id);
+            }
+        
 
         var conversation = new Conversation
         {
-            Id = ObjectId.GenerateNewId(),
             UserId = userId,
             Title = createDto.Title ?? "Untitled Conversation",
             CreatedAT = DateTime.UtcNow,

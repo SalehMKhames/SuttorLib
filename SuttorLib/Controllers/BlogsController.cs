@@ -81,7 +81,7 @@ namespace SuttorLib.Controllers
 
                 _logger.LogInformation("Blog uploaded successfully: {Title}", createDTO.Title);
 
-                return CreatedAtAction(nameof(CreateBlog), new { blog.Id, blog.Title }, blog);
+                return CreatedAtAction(nameof(CreateBlog), blog.Id, blog);
             }
             catch (Exception ex)
             {

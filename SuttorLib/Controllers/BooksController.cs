@@ -909,17 +909,32 @@ namespace SuttorLib.Controllers
                 if (rates is null)
                     return NotFound("No rates were found");
 
+                string username, fullName;
+                IFormFile? photo = null;
+
                 List<GetRatingDTO> ratesDto = new List<GetRatingDTO>();
 
                 foreach (var rate in rates) 
                 {
+                    var user = await _unit.UserRepo.GetById(rate.UserId);
+                    if (user is not null)
+                    {
+                        username = user.UserName;
+                        fullName = user.FullName;
+                    }
+                    else {
+                        username = "";  fullName = "Unknown User";
+                        photo = user.PhotoPath is null ? null : await _fileService.GetPictureAsync(user.PhotoPath);
+                    }
                     ratesDto.Add(
                         new GetRatingDTO
                         {
-                            UserId = rate.UserId, 
-                            Rating = 
-                            rate.Rating, 
-                            Comment = rate.Comment 
+                            UserId = rate.UserId,
+                            UserFullname = fullName,
+                            UserPhoto = photo,
+                            Username = username,
+                            Rating = rate.Rating,
+                            Comment = rate.Comment
                         }
                     );
                 }

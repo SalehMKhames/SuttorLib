@@ -45,6 +45,9 @@ namespace SuttorLibrary.DTOs
     public class GetRatingDTO
     {
         public string UserId { get; set; }
+        public string UserFullname { get; set; }
+        public string Username { get; set; }
+        public IFormFile? UserPhoto { get; set; }
         public float Rating { get; set; }
         public string Comment { get; set; } = string.Empty;
     }

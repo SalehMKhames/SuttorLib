@@ -5,7 +5,7 @@ namespace SuttorLib.DTOs;
 public class AddConversationDTO
 {
     public string? Title { get; set; }
-    public List<Message> Messages { get; set; } = new();
+    public List<AddMessageDTO> Messages { get; set; } = new();
 }
 
 public class ConversationDTO
@@ -26,5 +26,4 @@ public class AddMessageDTO
 {
     public Role role { get; set; }
     public string Content { get; set; } = string.Empty;
-    public DateTime timestamp { get; set; }
 }
