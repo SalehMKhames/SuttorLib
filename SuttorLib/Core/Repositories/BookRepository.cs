@@ -388,55 +388,6 @@ namespace SuttorLibrary.Core.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<List<object?>?> GetBooksAsync()
-        {
-            var books = (List<Book>?)await base.GetAll();
-            if(books is null || books.Count == 0)
-                return null;
-
-            List<object>? booksObjects = new List<object>();
-
-            foreach (var book in books)
-            {
-                booksObjects.Add(new 
-                {
-                    id = book.Id,
-                    title = book.Title,
-                    description = book.Description,
-                    pageCount = book.PageCount,
-                    publishedAt = book.PublishedAT,
-                    uploadedAt = book.UploadedAt,
-                    fileSize = book.FileSize,
-                    filePath = book.FilePath,
-                    photoPath = book.PhotoPath,
-                    authors = _context.BookAuthors
-                        .Where(ba => ba.Book_Id == book.Id)
-                        .Join(
-                            _context.Authors,
-                            ba => ba.Author_Id,
-                            a => a.Id,
-                            (ba, a) => new { a.Name, a.Description }
-                        )
-                        .ToList(),
-                    categories = _context.BookCategories
-                        .Where(bc => bc.bookId == book.Id)
-                        .Join(
-                            _context.Categories,
-                            bc => bc.categoryId,
-                            c => c.Id,
-                            (bc, c) => new { c.Name }
-                        )
-                        .ToList(),
-                    language = _context.Languages
-                        .Where(l => l.Id == book.LanguageId)
-                        .Select(l => l.Language)
-                        .FirstOrDefault()
-                });
-            }
-
-            return booksObjects.Count == 0 ? null : booksObjects;
-        }
-
         public async Task<bool> IsFinishReading(string bookId)
         {
             var book = await _context.Books.FirstOrDefaultAsync(b => b.Id == bookId);
@@ -507,5 +458,67 @@ namespace SuttorLibrary.Core.Repositories
             await _context.SaveChangesAsync();
         }
 
+        public async Task<PagedResult<BookListItemDto>> GetBooksPagedAsync(int page, int pageSize, string? search)
+        {
+            page = Math.Max(1, page);
+            pageSize = Math.Max(1, Math.Min(pageSize, 200));
+
+            IQueryable<Book> query = _context.Books.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.ToLowerInvariant();
+                query = query.Where(b => b.Title.ToLower().Contains(searchLower));
+            }
+
+            var total = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(b => b.UploadedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(b => new BookListItemDto
+                {
+                    Id = b.Id,
+                    Title = b.Title,
+                    Description = b.Description,
+                    PageCount = b.PageCount,
+                    PublishedAT = b.PublishedAT,
+                    FilePath = b.FilePath,
+                    FileSize = b.FileSize,
+                    PhotoPath = b.PhotoPath,
+                    UploadedAt = b.UploadedAt,
+                    Language = _context.Languages
+                        .Where(l => l.Id == b.LanguageId)
+                        .Select(l => l.Language)
+                        .FirstOrDefault() ?? string.Empty,
+                    Authors_Names = _context.BookAuthors
+                        .Where(ba => ba.Book_Id == b.Id)
+                        .Join(
+                            _context.Authors,
+                            ba => ba.Author_Id,
+                            a => a.Id,
+                            (ba, a) => a.Name)
+                        .ToList(),
+                    Categories_Names = _context.BookCategories
+                        .Where(bc => bc.bookId == b.Id)
+                        .Join(
+                            _context.Categories,
+                            bc => bc.categoryId,
+                            c => c.Id,
+                            (bc, c) => c.Name)
+                        .ToList()
+                })
+                .ToListAsync();
+
+            return new PagedResult<BookListItemDto>
+            {
+                Total = total,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(total / (double)pageSize),
+                Items = items
+            };
+        }
     }
 }

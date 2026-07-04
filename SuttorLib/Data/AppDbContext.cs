@@ -128,7 +128,7 @@ namespace SuttorLibrary.Data
             modelBuilder.Entity<RefreshToken>()
                 .HasKey(rt => rt.Id);
             modelBuilder.Entity<RefreshToken>()
-                .HasIndex(rt => rt.Token)
+                .HasIndex(rt => rt.TokenHash)
                 .IsUnique();
             modelBuilder.Entity<RefreshToken>()
                 .HasOne<AppUser>()

@@ -39,7 +39,7 @@ builder.Services.AddOpenApi();
 
 //Connect to MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySQL(builder.Configuration.GetConnectionString("Default")!)
+    options.UseMySQL(builder.Configuration.GetConnectionString("Debugging")!)
 );
 
 //Configuring MongoDB connection
@@ -180,6 +180,15 @@ builder.Services.AddAuthentication(
         },
     };
 });
+
+// Validate that the JWT signing key meets the minimum size requirement for HMAC-SHA256
+var jwtKey = builder.Configuration["JWT:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException("JWT:Key is not configured.");
+
+var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
+if (keyBytes.Length < 32)
+    throw new InvalidOperationException("JWT:Key must be at least 256 bits (32 bytes) for HMAC-SHA256. Generate a new key and store it securely.");
 
 builder.Services.AddAuthorization();
 

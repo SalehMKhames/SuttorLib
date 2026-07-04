@@ -218,6 +218,10 @@ namespace SuttorLibrary.Core.Services
                 if (!File.Exists(pathToPicture))
                     return null;
 
+                // Resolve relative paths (e.g. private\Users\file.jpg) against content root
+                var resolvedPath = ResolveStoragePath(pathToPicture);
+                picName = Path.GetFileName(resolvedPath);
+
                 // Resolve content type
                 var provider = new FileExtensionContentTypeProvider();
                 if (!provider.TryGetContentType(picName, out var contentType))
@@ -361,25 +365,28 @@ namespace SuttorLibrary.Core.Services
 
                 var photosPaths = new List<string>();
 
-                for (int i = 0; i <= photos.Count; i++)
-                { 
-                    var photoName = photos[i].FileName;
+                for (int i = 0; i < photos.Count; i++)
+                {
+                    var photo = photos[i];
 
-                    if (photos[i] is not null && photos[i].Length > 0)
+                    if (photo is null || photo.Length == 0)
+                        continue;
+
+                    if (!IsValidPhotoExtension(photo.FileName))
                     {
-                        //Renaming the photo to {photos[i]_picture with the extension}
-                        var extension = Path.GetExtension(photoName);
-                        var fileName = $"{blogId}_picture_{i}{(string.IsNullOrEmpty(extension) ? string.Empty : extension)}";
+                        _logger.LogWarning("Rejected blog photo with invalid extension: {FileName}", photo.FileName);
+                        continue;
+                    }
 
-                        var coverPath = Path.Combine(path, fileName);
+                    var extension = Path.GetExtension(photo.FileName);
+                    var fileName = $"{blogId}_picture_{i}{(string.IsNullOrEmpty(extension) ? string.Empty : extension)}";
+                    var coverPath = Path.Combine(path, fileName);
 
-                        photosPaths.Add(coverPath);
+                    photosPaths.Add(coverPath);
 
-                        // Overwrite cover if it exists
-                        await using (var coverStream = new FileStream(coverPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous))
-                        {
-                            await photos[i].CopyToAsync(coverStream);
-                        }
+                    await using (var coverStream = new FileStream(coverPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.Asynchronous))
+                    {
+                        await photo.CopyToAsync(coverStream);
                     }
 
                     _logger.LogInformation("File uploaded successfully: {FileName} at {FilePath}", photos[i]!.FileName, path);

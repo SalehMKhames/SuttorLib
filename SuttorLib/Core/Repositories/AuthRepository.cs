@@ -216,31 +216,31 @@ namespace SuttorLibrary.Core.Repositories
         }
 
 
-
         public async Task<TokenResponseDTO?> RefreshTokensAsync(string refreshToken)
         {
+            var tokenHash = HashToken(refreshToken);
             var stored = await _context.RefreshTokens
                 .AsTracking()
-                .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
+                .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash);
 
             if (stored is null || !stored.IsActive)
                 return null;
 
-            // rotate: revoke existing and create new one
+            // Rotate: revoke existing and create new one
             stored.Revoked = DateTime.UtcNow;
 
-            // create new refresh token
             var newRefreshString = GenerateSecureTokenString(64);
-            var refreshExpiresMins = 10;
+            var newHash = HashToken(newRefreshString);
+
             var newRefresh = new RefreshToken
             {
-                Token = newRefreshString,
+                TokenHash = newHash,
                 UserId = stored.UserId,
                 Created = DateTime.UtcNow,
-                Expires = DateTime.UtcNow.AddMinutes(refreshExpiresMins)
+                Expires = DateTime.UtcNow.AddDays(7)
             };
 
-            stored.ReplacedByToken = newRefreshString;
+            stored.ReplacedByTokenHash = newHash;
 
             _context.RefreshTokens.Add(newRefresh);
             await _context.SaveChangesAsync();
@@ -260,21 +260,22 @@ namespace SuttorLibrary.Core.Repositories
                 RefreshTokenExpiresAt = newRefresh.Expires
             };
         }
+
+
         public async Task<TokenResponseDTO> GenerateTokensAsync(AppUser user)
         {
-            // Create access token
             var jwt = await CreateJwtToken(user);
             var accessToken = new JwtSecurityTokenHandler().WriteToken(jwt);
             var accessExpires = jwt.ValidTo;
 
-            // Create refresh token
             var refreshTokenString = GenerateSecureTokenString(64);
-            int refreshExpiresMins = 10;
+            var tokenHash = HashToken(refreshTokenString);
+
             var refreshToken = new RefreshToken
             {
-                Token = refreshTokenString,
+                TokenHash = tokenHash,
                 UserId = user.Id,
-                Expires = DateTime.UtcNow.AddMinutes(refreshExpiresMins),
+                Expires = DateTime.UtcNow.AddDays(7),
                 Created = DateTime.UtcNow
             };
 
@@ -353,6 +354,13 @@ namespace SuttorLibrary.Core.Repositories
                 return string.Empty;
 
             return username.StartsWith('@') ? username : "@" + username;
+        }
+
+        private static string HashToken(string token)
+        {
+            var bytes = Encoding.UTF8.GetBytes(token);
+            var hash = SHA256.HashData(bytes);
+            return Convert.ToHexString(hash);
         }
     }
 }

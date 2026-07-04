@@ -79,4 +79,29 @@ namespace SuttorLibrary.DTOs
         public string Name { get; set; }
         public IFormFile? Icon { get; set; }
     }
+
+    public class BookListItemDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int PageCount { get; set; }
+        public int PublishedAT { get; set; }
+        public string FilePath { get; set; } = string.Empty;
+        public double FileSize { get; set; }
+        public string PhotoPath { get; set; } = string.Empty;
+        public DateTime UploadedAt { get; set; }
+        public string Language { get; set; } = string.Empty;
+        public List<string> Authors_Names { get; set; } = new();
+        public List<string> Categories_Names { get; set; } = new();
+    }
+
+    public class PagedResult<T>
+    {
+        public int Total { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages { get; set; }
+        public List<T> Items { get; set; } = new();
+    }
 }

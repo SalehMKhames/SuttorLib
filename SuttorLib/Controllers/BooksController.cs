@@ -31,101 +31,48 @@ namespace SuttorLib.Controllers
 
             try
             {
-                var books = await _unit.BookRepo.GetBooksAsync();
-                if (books is null || !books.Any())
+                var paged = await _unit.BookRepo.GetBooksPagedAsync(page, pageSize, search);
+
+                if (paged.Total == 0)
                     return NotFound("No books found.");
 
-                List<GetBookDTO> bookDTOs = new();
-
-                foreach (var book in books)
+                var items = new List<GetBookDTO>();
+                foreach (var book in paged.Items)
                 {
-                    Type type = book.GetType();
-
-                    string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
                     IFormFile? bookCover = null;
-
-                    // extract authors names (authors is a list of anonymous objects { Name, Description })
-                    var authorsNames = new List<string>();
-                    var authorsObj = type.GetProperty("authors")?.GetValue(book, null);
-                    if (authorsObj is System.Collections.IEnumerable authorsEnum)
+                    if (!string.IsNullOrEmpty(book.PhotoPath))
                     {
-                        foreach (var a in authorsEnum)
-                        {
-                            var aType = a?.GetType();
-                            var nameVal = aType?.GetProperty("Name")?.GetValue(a, null)?.ToString();
-                            if (!string.IsNullOrEmpty(nameVal))
-                                authorsNames.Add(nameVal);
-                        }
+                        bookCover = await _fileService.GetPictureAsync(book.PhotoPath);
                     }
 
-                    // extract categories names (categories is a list of anonymous objects { Name })
-                    var categoriesNames = new List<string>();
-                    var categoriesObj = type.GetProperty("categories")?.GetValue(book, null);
-                    if (categoriesObj is System.Collections.IEnumerable catsEnum)
+                    items.Add(new GetBookDTO
                     {
-                        foreach (var c in catsEnum)
-                        {
-                            var cType = c?.GetType();
-                            var nameVal = cType?.GetProperty("Name")?.GetValue(c, null)?.ToString();
-                            if (!string.IsNullOrEmpty(nameVal))
-                                categoriesNames.Add(nameVal);
-                        }
-                    }
-
-                    if (!string.IsNullOrEmpty(photoPath))
-                    {
-                        bookCover = await _fileService.GetPictureAsync(photoPath);
-                    }
-
-                    var encodedBookPath = BuildUrl((string)type.GetProperty("filePath")!.GetValue(book, null)!);
-                    var encodedPhotoPath = BuildUrl(photoPath);
-
-                    var bookDto = new GetBookDTO
-                    {
-                        Id = (string)type.GetProperty("id")!.GetValue(book, null)!,
-                        Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
-                        Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
+                        Id = book.Id,
+                        Title = book.Title,
+                        Description = book.Description,
+                        PageCount = book.PageCount,
+                        PublishedAT = book.PublishedAT,
+                        FilePath = book.FilePath,
+                        FileSize = book.FileSize / (1024 * 1024),
                         Photo = bookCover!,
-                        FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
-                        PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
-                        PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                        FileSize = (double)type.GetProperty("fileSize")!.GetValue(book, null)! / (1024 * 1024),
-                        UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
-                        language = (string)type.GetProperty("language")!.GetValue(book, null)!,
-                        Authors_Names = authorsNames,
-                        Categories_Names = categoriesNames,
-                        // Generate absolute URLs for the frontend
-                        FileLink = encodedBookPath,
-                        CoverLink = encodedPhotoPath
-                    };
-
-                    bookDTOs.Add(bookDto);
+                        UploadedAt = book.UploadedAt,
+                        language = book.Language,
+                        Authors_Names = book.Authors_Names,
+                        Categories_Names = book.Categories_Names,
+                        FileLink = BuildUrl(book.FilePath),
+                        CoverLink = BuildUrl(book.PhotoPath)
+                    });
                 }
-
-                if (!string.IsNullOrWhiteSpace(search))
-                {
-                    var searchLower = search.ToLowerInvariant();
-                    bookDTOs = bookDTOs?.Where(u =>
-                        (u!.Title?.ToLowerInvariant().Contains(searchLower) ?? false)
-                    ).ToList()!;
-                }
-
-                int total = bookDTOs.Count();
-                var totalPages = (int)Math.Ceiling(total / (double)pageSize);
-                var items = bookDTOs
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToList();
 
                 _logger.LogInformation("The requested books page {Page}/{TotalPages} (size {PageSize}) search={Search}",
-                    page, totalPages, pageSize, search ?? "none");
+                    paged.Page, paged.TotalPages, paged.PageSize, search ?? "none");
 
                 var result = new
                 {
-                    Total = total,
-                    Page = page,
-                    PageSize = pageSize,
-                    TotalPages = totalPages,
+                    Total = (int) paged.Total,
+                    Page = (int) paged.Page,
+                    PageSize = (int) paged.PageSize,
+                    TotalPages = (int) paged.TotalPages,
                     Items = items
                 };
 
