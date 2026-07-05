@@ -8,8 +8,11 @@ namespace SuttorLibrary.Core.Interfaces
         public Task<PagedResult<BookListItemDto>> GetBooksPagedAsync(int page, int pageSize, string? search);
         public Task<object?> GetBookWithDetailsAsync(string id);
         public Task<object?> GetBookByName(string bookName);
-        public Task<IEnumerable<object?>?> GetBooksByCategory(string categoryName);
-        public Task<IEnumerable<object?>?> GetBooksByAuthor(string authorName);
+
+        public Task<PagedResult<BookListItemDto>> GetBooksByCategoryPagedAsync(string categoryName, int page, int pageSize);
+        public Task<PagedResult<BookListItemDto>> GetBooksByAuthorPagedAsync(string authorName, int page, int pageSize);
+
+
         public Task<IEnumerable<Category?>?> GetCategories();
         public Task<IEnumerable<Author?>?> GetAuthors();
         public Task<IEnumerable<Languages?>?> GetLanguages();

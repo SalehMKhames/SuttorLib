@@ -3,6 +3,7 @@ using SuttorLibrary.Core.Interfaces;
 using SuttorLibrary.Data;
 using SuttorLibrary.DTOs;
 using SuttorLibrary.Models;
+using System.Linq.Expressions;
 
 namespace SuttorLibrary.Core.Repositories
 {
@@ -129,114 +130,6 @@ namespace SuttorLibrary.Core.Repositories
                 return null;
 
             return book;
-        }
-
-        public async Task<IEnumerable<object?>?> GetBooksByAuthor(string authorName)
-        {
-            var books = await _context.Authors
-                .Where(a => a.Name.ToLower() == authorName.ToLower())
-                .SelectMany(a => _context.BookAuthors
-                .Where(ba => ba.Author_Id == a.Id)
-                .Join(
-                    _context.Books,
-                    ba => ba.Book_Id,
-                    b => b.Id,
-                    (ba, b) => new
-                    {
-                        id = b.Id,
-                        title = b.Title,
-                        description = b.Description,
-                        pageCount = b.PageCount,
-                        publishedAt = b.PublishedAT,
-                        uploadedAt = b.UploadedAt,
-                        fileSize = b.FileSize,
-                        filePath = b.FilePath,
-                        photoPath = b.PhotoPath,
-                        authors = _context.BookAuthors
-                            .Where(ba2 => ba2.Book_Id == b.Id)
-                            .Join(
-                                _context.Authors,
-                                ba2 => ba2.Author_Id,
-                                a2 => a2.Id,
-                                (ba2, a2) => new {  a2.Name, a2.Description }
-                            )
-                        .ToList(),
-                        categories = _context.BookCategories
-                            .Where(bc => bc.bookId == b.Id)
-                            .Join(
-                                _context.Categories,
-                                bc => bc.categoryId,
-                                c => c.Id,
-                                (bc, c) => new { c.Name }
-                            )
-                            .ToList(),
-                        language = _context.Languages
-                            .Where(l => l.Id == b.Id)
-                            .Select(l => l.Language)
-                            .FirstOrDefault(),
-
-                        ratings = _context.BookRatings
-                        .Where(r => r.BookId == b.Id)
-                        .ToList()
-                    }
-                ))
-            .ToListAsync();
-
-            return books.Count > 0 ? books : null;
-        }
-
-        public async Task<IEnumerable<object?>?> GetBooksByCategory(string categoryName)
-        {
-            var books = await _context.Categories
-            .Where(c => c.Name.ToLower() == categoryName.ToLower())
-            .SelectMany(c => _context.BookCategories
-                .Where(bc => bc.categoryId == c.Id)
-                .Join(
-                    _context.Books,
-                    bc => bc.bookId,
-                    b => b.Id,
-                    (bc, b) => new
-                    {
-                        id = b.Id,
-                        title = b.Title,
-                        description = b.Description,
-                        pageCount = b.PageCount,
-                        publishedAt = b.PublishedAT,
-                        uploadedAt = b.UploadedAt,
-                        fileSize = b.FileSize,
-                        filePath = b.FilePath,
-                        photoPath = b.PhotoPath,
-                        authors = _context.BookAuthors
-                            .Where(ba => ba.Book_Id == b.Id)
-                            .Join(
-                                _context.Authors,
-                                ba => ba.Author_Id,
-                                a => a.Id,
-                                (ba, a) => new { a.Name, a.Description }
-                            )
-                            .ToList(),
-                        categories = _context.BookCategories
-                            .Where(bc2 => bc2.bookId == b.Id)
-                            .Join(
-                                _context.Categories,
-                                bc2 => bc2.categoryId,
-                                c2 => c2.Id,
-                                (bc2, c2) => new { c2.Name }
-                            )
-                            .ToList(),
-                        language = _context.Languages
-                            .Where(l => l.Id == b.Id)
-                            .Select(l => l.Language)
-                            .FirstOrDefault(),
-
-                        ratings = _context.BookRatings
-                        .Where(r => r.BookId == b.Id)
-                        .ToList()
-                    }
-                ))
-            .ToListAsync();
-
-            return books.Count > 0 ? books : null;
         }
 
         public async Task<bool> AddRating(string BookId, RatingDTO dto, string userId)
@@ -520,5 +413,116 @@ namespace SuttorLibrary.Core.Repositories
                 Items = items
             };
         }
+
+        public async Task<PagedResult<BookListItemDto>> GetBooksByCategoryPagedAsync(string categoryName, int page, int pageSize)
+        {
+            page = Math.Max(1, page);
+            pageSize = Math.Max(1, Math.Min(pageSize, 200));
+
+            var query = _context.Categories
+                .Where(c => c.Name.ToLower() == categoryName.ToLower())
+                .Join(
+                    _context.BookCategories,
+                    c => c.Id,
+                    bc => bc.categoryId,
+                    (c, bc) => bc)
+                .Join(
+                    _context.Books,
+                    bc => bc.bookId,
+                    b => b.Id,
+                    (bc, b) => b)
+                .Distinct()
+                .AsNoTracking();
+
+            var total = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(b => b.UploadedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(BookListProjection)
+                .ToListAsync();
+
+            return new PagedResult<BookListItemDto>
+            {
+                Total = total,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(total / (double)pageSize),
+                Items = items
+            };
+        }
+
+        public async Task<PagedResult<BookListItemDto>> GetBooksByAuthorPagedAsync(string authorName, int page, int pageSize)
+        {
+            page = Math.Max(1, page);
+            pageSize = Math.Max(1, Math.Min(pageSize, 200));
+
+            var query = _context.Authors
+                .Where(a => a.Name.ToLower() == authorName.ToLower())
+                .Join(
+                    _context.BookAuthors,
+                    a => a.Id,
+                    ba => ba.Author_Id,
+                    (a, ba) => ba)
+                .Join(
+                    _context.Books,
+                    ba => ba.Book_Id,
+                    b => b.Id,
+                    (ba, b) => b)
+                .Distinct()
+                .AsNoTracking();
+
+            var total = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(b => b.UploadedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(BookListProjection)
+                .ToListAsync();
+
+            return new PagedResult<BookListItemDto>
+            {
+                Total = total,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(total / (double)pageSize),
+                Items = items
+            };
+        }
+
+        private Expression<Func<Book, BookListItemDto>> BookListProjection => b => new BookListItemDto
+        {
+            Id = b.Id,
+            Title = b.Title,
+            Description = b.Description,
+            PageCount = b.PageCount,
+            PublishedAT = b.PublishedAT,
+            FilePath = b.FilePath,
+            FileSize = b.FileSize,
+            PhotoPath = b.PhotoPath,
+            UploadedAt = b.UploadedAt,
+            Language = _context.Languages
+                .Where(l => l.Id == b.LanguageId)
+                .Select(l => l.Language)
+                .FirstOrDefault() ?? string.Empty,
+            Authors_Names = _context.BookAuthors
+                .Where(ba => ba.Book_Id == b.Id)
+                .Join(
+                    _context.Authors,
+                    ba => ba.Author_Id,
+                    a => a.Id,
+                    (ba, a) => a.Name)
+                .ToList(),
+            Categories_Names = _context.BookCategories
+                .Where(bc => bc.bookId == b.Id)
+                .Join(
+                    _context.Categories,
+                    bc => bc.categoryId,
+                    c => c.Id,
+                    (bc, c) => c.Name)
+                .ToList()
+        };
     }
 }

@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+
 using Scalar.AspNetCore;
 using SuttorLib.Core.Services.Blog;
 using SuttorLib.Core.Services.Blogs;
@@ -18,6 +20,7 @@ using SuttorLibrary.Middlewares;
 using SuttorLibrary.Models;
 using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,7 +42,7 @@ builder.Services.AddOpenApi();
 
 //Connect to MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySQL(builder.Configuration.GetConnectionString("Debugging")!)
+    options.UseMySQL(builder.Configuration.GetConnectionString("Default")!)
 );
 
 //Configuring MongoDB connection
@@ -193,6 +196,10 @@ if (keyBytes.Length < 32)
 builder.Services.AddAuthorization();
 
 builder.Services.AddLogging();
+
+//builder.Services.AddHealthChecks()
+//    .AddCheck<DatabaseHealthCheck>("mysql")
+//    .AddCheck<MongoHealthCheck>("mongodb");
 
 builder.Services.AddExceptionHandler<AppExceptionHandler>();
 
