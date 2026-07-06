@@ -6,7 +6,8 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 
 using Scalar.AspNetCore;
 using SuttorLib.Core.Services.Blog;
@@ -20,7 +21,8 @@ using SuttorLibrary.Middlewares;
 using SuttorLibrary.Models;
 using System.Security.Claims;
 using System.Text;
-using System.Threading.RateLimiting;
+using SuttorLib.Core.Interfaces;
+using SuttorLib.Core.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -102,6 +104,19 @@ builder.Services.AddScoped<IBlogServices, BlogService>();
 builder.Services.AddScoped<MongoIndexConfig>();
 
 builder.Services.AddScoped<IConversationService, ConversationService>();
+
+//Firebase
+var credentialsPath = builder.Configuration["Firebase:CredentialsPath"];
+if (!string.IsNullOrWhiteSpace(credentialsPath))
+{
+    FirebaseApp.Create(new AppOptions
+    {
+        Credential = GoogleCredential.FromFile(credentialsPath)
+    });
+}
+
+builder.Services.AddScoped<IFCM, FCM>();
+
 
 //Add Jwt Authentication
 builder.Services.AddAuthentication(

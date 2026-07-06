@@ -21,6 +21,7 @@ obj/
 appsettings.*.json
 appsettings.Local.json
 secrets.json
+FCM-Key.json
 
 # OS
 Thumbs.db

@@ -1,4 +1,5 @@
-﻿using SuttorLibrary.Core.Interfaces;
+﻿using SuttorLib.Core.Services.Notifications;
+using SuttorLibrary.Core.Interfaces;
 
 namespace SuttorLibrary.Core
 {
@@ -7,6 +8,7 @@ namespace SuttorLibrary.Core
         IAuthRepository AuthRepo { get; }
         IUserRepository UserRepo { get; }
         IBookRepository BookRepo { get; }
+        IFCMRepository FCMRepo { get; }
         Task CompleteAsync();
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using SuttorLib.Models;
 using SuttorLibrary.Models;
 
 namespace SuttorLibrary.Data
@@ -19,9 +20,10 @@ namespace SuttorLibrary.Data
         public DbSet<UserInterests> UserInterests { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Languages> Languages { get; set; }
+        public DbSet<FCMToken> FCMTokens { get; set; }
 
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
@@ -136,7 +138,14 @@ namespace SuttorLibrary.Data
                 .HasForeignKey(rt => rt.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-
+            // FCM Token
+            modelBuilder.Entity<FCMToken>()
+                .HasKey(f => f.Id);
+            modelBuilder.Entity<FCMToken>()
+                .HasOne<AppUser>()
+                .WithOne()
+                .HasForeignKey<FCMToken>(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // -------- Identity seed data (Users + Roles) ---------
 
@@ -886,7 +895,7 @@ namespace SuttorLibrary.Data
                         Description = "Neil deGrasse Tyson (born October 5, 1958) is an American astrophysicist, author, and science communicator. Tyson studied at Harvard University, " +
                         "the University of Texas at Austin, and Columbia University. From 1991 to 1994, he was a postdoctoral research associate at Princeton University. In 1994, " +
                         "he joined the Hayden Planetarium as a staff scientist and the Princeton faculty as a visiting research scientist and lecturer. In 1996, he became director of the " +
-                        "planetarium and oversaw its $210 million reconstruction project, which was completed in 2000. Since 1996, he has been the director of the Hayden Planetarium at " +
+                        "planetarium and oversaw its 210 million reconstruction project, which was completed in 2000. Since 1996, he has been the director of the Hayden Planetarium at " +
                         "the Rose Center for Earth and Space in New York City. The center is part of the American Museum of Natural History, where Tyson founded the Department of Astrophysics " +
                         "in 1997 and has been a research associate in the department since 2003.\r\n\r\nFrom 1995 to 2005, Tyson wrote monthly essays in the \"Universe\" column for Natural " +
                         "History magazine, some of which were later published in his books Death by Black Hole (2007) and Astrophysics for People in a Hurry (2017). During the same period, " +

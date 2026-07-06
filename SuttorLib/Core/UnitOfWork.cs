@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using SuttorLib.Core.Services.Notifications;
 using SuttorLibrary.Core.Interfaces;
 using SuttorLibrary.Core.Repositories;
 using SuttorLibrary.Data;
@@ -16,6 +17,7 @@ namespace SuttorLibrary.Core
         private IAuthRepository? _authRepo { get; set; }
         private IUserRepository? _userRepo { get; set; }
         private IBookRepository? _bookRepo { get; set; }
+        private IFCMRepository? _FCMRepo { get; set; }
 
         public IAuthRepository AuthRepo
         {
@@ -30,6 +32,11 @@ namespace SuttorLibrary.Core
         public IBookRepository BookRepo
         {
             get { return _bookRepo ??= new BookRepository(_context); }
+        }
+
+        public IFCMRepository FCMRepo 
+        {
+            get { return _FCMRepo ??= new FCMRepository(_context); }
         }
 
         public async Task CompleteAsync()
