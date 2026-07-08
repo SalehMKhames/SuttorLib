@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SuttorLib.DTOs;
-using SuttorLib.Models;
+using SuttorLib.Models.Blog;
 using SuttorLibrary.Core.Services.aiConversations;
 using System.Security.Claims;
 

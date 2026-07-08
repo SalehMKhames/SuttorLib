@@ -2,7 +2,7 @@
 using MongoDB.Bson.Serialization.Attributes;
 using System.ComponentModel.DataAnnotations;
 
-namespace SuttorLib.Models
+namespace SuttorLib.Models.Blog
 {
     public class Blog
     {

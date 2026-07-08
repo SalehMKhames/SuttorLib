@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace SuttorLibrary.Models
+namespace SuttorLib.Models.Library
 {
     [Table("Book_Authors")]
     public class BookAuthors

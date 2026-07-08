@@ -3,7 +3,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using SuttorLib.Data;
 using SuttorLib.DTOs;
-using SuttorLib.Models;
+using SuttorLib.Models.Blog;
 
 namespace SuttorLibrary.Core.Services.aiConversations;
 

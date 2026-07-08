@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SuttorLib.Models.Library;
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
-using SuttorLibrary.Models;
 using System.Security.Claims;
 
 namespace SuttorLib.Controllers

@@ -1,6 +1,6 @@
 ﻿using MongoDB.Driver;
 using Microsoft.Extensions.Options;
-using SuttorLib.Models;
+using SuttorLib.Models.Blog;
 
 namespace SuttorLib.Data
 {

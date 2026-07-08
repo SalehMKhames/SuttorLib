@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SuttorLib.Models;
+using SuttorLib.Models.Library;
 using SuttorLibrary.Models;
 
 namespace SuttorLibrary.Data

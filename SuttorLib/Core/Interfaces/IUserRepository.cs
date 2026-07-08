@@ -1,4 +1,5 @@
-﻿using SuttorLibrary.DTOs;
+﻿using SuttorLib.Models.Library;
+using SuttorLibrary.DTOs;
 using SuttorLibrary.Models;
 
 namespace SuttorLibrary.Core.Interfaces

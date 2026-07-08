@@ -1,15 +1,15 @@
 ﻿using SuttorLib.DTOs;
-using SuttorLib.Models;
+using SuttorLib.Models.Blog;
 
 namespace SuttorLib.Core.Services.Blog
 {
     public interface IBlogServices
     {
         //Basic Blog operations
-        public Task<Models.Blog> CreateBlogAsync(string userId, CreateBlogDTO blogDTO, List<string> photos);
+        public Task<Models.Blog.Blog> CreateBlogAsync(string userId, CreateBlogDTO blogDTO, List<string> photos);
         public Task<PaginatedBlogResponseDto> GetAllBlogs(BlogFilterDto filterDto);
-        public Task<Models.Blog> GetBlogById(string blogId);
-        public Task<Models.Blog> UpdateBlogAsync(string blogId, UpdateBlogDTO blogDTO, string userId);
+        public Task<Models.Blog.Blog> GetBlogById(string blogId);
+        public Task<Models.Blog.Blog> UpdateBlogAsync(string blogId, UpdateBlogDTO blogDTO, string userId);
         public Task<bool> DeleteBlogAsync(string blogId, string userId);
 
         //Some specified Gets

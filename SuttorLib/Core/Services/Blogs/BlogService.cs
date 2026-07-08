@@ -4,13 +4,13 @@ using MongoDB.Driver;
 using SuttorLib.Core.Services.Blog;
 using SuttorLib.Data;
 using SuttorLib.DTOs;
-using SuttorLib.Models;
+using SuttorLib.Models.Blog;
 
 namespace SuttorLib.Core.Services.Blogs
 {
     public class BlogService : IBlogServices
     {
-        private readonly IMongoCollection<Models.Blog> _blog;
+        private readonly IMongoCollection<Models.Blog.Blog> _blog;
         private readonly IMongoCollection<Comment> _comment;
         private readonly IOptions<BlogDbSettings> _dbSettings;
         private readonly IHttpContextAccessor _httpContext;
@@ -27,12 +27,12 @@ namespace SuttorLib.Core.Services.Blogs
             var mongoClient = new MongoClient(cs);
             var mongoDatabase = mongoClient.GetDatabase(_dbSettings?.Value?.DatabaseName);
 
-            _blog = mongoDatabase.GetCollection<Models.Blog>(_dbSettings?.Value?.BlogCollection);
+            _blog = mongoDatabase.GetCollection<Models.Blog.Blog>(_dbSettings?.Value?.BlogCollection);
             _comment = mongoDatabase.GetCollection<Comment>(_dbSettings?.Value?.CommentCollection);
         }
 
         // ========================  Blog Operations  =====================================
-        public async Task<Models.Blog> CreateBlogAsync(string userId, CreateBlogDTO createDTO, List<string> photosPath)
+        public async Task<Models.Blog.Blog> CreateBlogAsync(string userId, CreateBlogDTO createDTO, List<string> photosPath)
         {
             var blog = new Models.Blog 
             {
@@ -60,14 +60,14 @@ namespace SuttorLib.Core.Services.Blogs
 
         public async Task<PaginatedBlogResponseDto> GetAllBlogs(BlogFilterDto dto)
         {
-            var filter = Builders<Models.Blog>.Filter.Eq(b => b.IsPublished, true);
+            var filter = Builders<Models.Blog.Blog>.Filter.Eq(b => b.IsPublished, true);
 
             // Apply search filter
             if (!string.IsNullOrWhiteSpace(dto.SearchTerm))
             {
-                var searchFilter = Builders<Models.Blog>.Filter.Or(
-                    Builders<Models.Blog>.Filter.Regex(b => b.Title, dto.SearchTerm),
-                    Builders<Models.Blog>.Filter.Regex(b => b.Content, dto.SearchTerm)
+                var searchFilter = Builders<Models.Blog.Blog>.Filter.Or(
+                    Builders<Models.Blog.Blog>.Filter.Regex(b => b.Title, dto.SearchTerm),
+                    Builders<Models.Blog.Blog>.Filter.Regex(b => b.Content, dto.SearchTerm)
                 );
                 filter &= searchFilter;
             }
@@ -76,13 +76,13 @@ namespace SuttorLib.Core.Services.Blogs
             if (!string.IsNullOrWhiteSpace(dto.Tag))
             {
                 var tag = NormalizeTags(new List<string> { dto.Tag }).First();
-                filter &= Builders<Models.Blog>.Filter.AnyEq(b => b.Tags, tag);
+                filter &= Builders<Models.Blog.Blog>.Filter.AnyEq(b => b.Tags, tag);
             }
 
             // Apply publisher filter
             if (!string.IsNullOrWhiteSpace(dto.PublisherId))
             {
-                filter &= Builders<Models.Blog>.Filter.Eq(b => b.PublisherId, dto.PublisherId);
+                filter &= Builders<Models.Blog.Blog>.Filter.Eq(b => b.PublisherId, dto.PublisherId);
             }
 
             var totalCount = await _blog.CountDocumentsAsync(filter);
@@ -90,9 +90,9 @@ namespace SuttorLib.Core.Services.Blogs
             // Apply sorting
             var sort = dto.SortBy.ToLower() switch
             {
-                "popular" => Builders<Models.Blog>.Sort.Descending(b => b.Likes),
-                "trending" => Builders<Models.Blog>.Sort.Descending(b => b.Views),
-                _ => Builders<Models.Blog>.Sort.Descending(b => b.CreatedAt)
+                "popular" => Builders<Models.Blog.Blog>.Sort.Descending(b => b.Likes),
+                "trending" => Builders<Models.Blog.Blog>.Sort.Descending(b => b.Views),
+                _ => Builders<Models.Blog.Blog>.Sort.Descending(b => b.CreatedAt)
             };
 
             var skip = (dto.Page - 1) * dto.PageSize;
@@ -115,7 +115,7 @@ namespace SuttorLib.Core.Services.Blogs
             };
         }
 
-        public async Task<Models.Blog> UpdateBlogAsync(string blogId, UpdateBlogDTO updateDto, string userId)
+        public async Task<Models.Blog.Blog> UpdateBlogAsync(string blogId, UpdateBlogDTO updateDto, string userId)
         {
             if (!ObjectId.TryParse(blogId, out var objectId))
                 throw new ArgumentException("Invalid blog ID");
@@ -127,7 +127,7 @@ namespace SuttorLib.Core.Services.Blogs
             if (blog.PublisherId != userId)
                 throw new UnauthorizedAccessException("You can only update your own blogs");
 
-            var update = Builders<Models.Blog>.Update
+            var update = Builders<Models.Blog.Blog>.Update
                 .Set(b => b.UpdatedAt, DateTime.UtcNow);
 
             if (!string.IsNullOrWhiteSpace(updateDto.Title))
@@ -162,7 +162,7 @@ namespace SuttorLib.Core.Services.Blogs
         
         }
 
-        public async Task<Models.Blog> GetBlogById(string blogId)
+        public async Task<Models.Blog.Blog> GetBlogById(string blogId)
         {
             if (!ObjectId.TryParse(blogId, out var objectId))
                 throw new ArgumentException("Invalid blog ID");
@@ -172,7 +172,7 @@ namespace SuttorLib.Core.Services.Blogs
                 throw new KeyNotFoundException("Blog not found");
 
             // Increment views
-            var update = Builders<Models.Blog>.Update.Inc(b => b.Views, 1);
+            var update = Builders<Models.Blog.Blog>.Update.Inc(b => b.Views, 1);
             await _blog.UpdateOneAsync(b => b.Id == objectId, update);
 
             return blog;
@@ -180,13 +180,13 @@ namespace SuttorLib.Core.Services.Blogs
 
         public async Task<PaginatedBlogResponseDto?> GetBlogsByCategory(string category, int page = 1, int pageSize = 10)
         {
-            var filter = Builders<Models.Blog>.Filter.Eq(b => b.Category, category);
+            var filter = Builders<Models.Blog.Blog>.Filter.Eq(b => b.Category, category);
             var totalCount = await _blog.CountDocumentsAsync(filter);
 
             var skip = (page - 1) * pageSize;
             var blogs = await _blog
                 .Find(filter)
-                .Sort(Builders<Models.Blog>.Sort.Descending(b => b.CreatedAt))
+                .Sort(Builders<Models.Blog.Blog>.Sort.Descending(b => b.CreatedAt))
                 .Skip(skip)
                 .Limit(pageSize)
                 .ToListAsync();
@@ -205,13 +205,13 @@ namespace SuttorLib.Core.Services.Blogs
 
         public async Task<PaginatedBlogResponseDto?> GetBlogsByPublisher(string userId, int page = 1, int pageSize = 10)
         {
-            var filter = Builders<Models.Blog>.Filter.Eq(b => b.PublisherId, userId);
+            var filter = Builders<Models.Blog.Blog>.Filter.Eq(b => b.PublisherId, userId);
             var totalCount = await _blog.CountDocumentsAsync(filter);
 
             var skip = (page - 1) * pageSize;
             var blogs = await _blog
                 .Find(filter)
-                .Sort(Builders<Models.Blog>.Sort.Descending(b => b.CreatedAt))
+                .Sort(Builders<Models.Blog.Blog>.Sort.Descending(b => b.CreatedAt))
                 .Skip(skip)
                 .Limit(pageSize)
                 .ToListAsync();
@@ -234,14 +234,14 @@ namespace SuttorLib.Core.Services.Blogs
                 throw new ArgumentException("Tags list cannot be empty");
 
             var normalizedTag = NormalizeTags(tags).First();
-            var filter = Builders<Models.Blog>.Filter.AnyEq(b => b.Tags, normalizedTag);
+            var filter = Builders<Models.Blog.Blog>.Filter.AnyEq(b => b.Tags, normalizedTag);
 
             var totalCount = await _blog.CountDocumentsAsync(filter);
 
             var skip = (page - 1) * pageSize;
             var blogs = await _blog
                 .Find(filter)
-                .Sort(Builders<Models.Blog>.Sort.Descending(b => b.CreatedAt))
+                .Sort(Builders<Models.Blog.Blog>.Sort.Descending(b => b.CreatedAt))
                 .Skip(skip)
                 .Limit(pageSize)
                 .ToListAsync();
@@ -287,7 +287,7 @@ namespace SuttorLib.Core.Services.Blogs
 
             var res = await _comment.Find(c => c.Content == comment.Content).FirstOrDefaultAsync();
 
-            var update = Builders<Models.Blog>.Update
+            var update = Builders<Models.Blog.Blog>.Update
                 .Push(b => b.Comments, res.Id);
 
             var result = await _blog.UpdateOneAsync(b => b.Id == objectId, update);
@@ -387,7 +387,7 @@ namespace SuttorLib.Core.Services.Blogs
 
             await _comment.DeleteOneAsync(c => c.Id == comment.Id);
 
-            var update = Builders<Models.Blog>.Update.PullFilter(b => b.Comments, c => c == commentObjectId);
+            var update = Builders<Models.Blog.Blog>.Update.PullFilter(b => b.Comments, c => c == commentObjectId);
             var result = await _blog.UpdateOneAsync(b => b.Id == blogObjectId, update);
 
             return result.ModifiedCount > 0;
@@ -405,8 +405,8 @@ namespace SuttorLib.Core.Services.Blogs
             if (blog == null)
                 throw new KeyNotFoundException("Blog not found");
 
-            var updateBuilder = Builders<Models.Blog>.Update;
-            UpdateDefinition<Models.Blog> update;
+            var updateBuilder = Builders<Models.Blog.Blog>.Update;
+            UpdateDefinition<Models.Blog.Blog> update;
 
             if (blog.UserIdsLikes.Contains(userId))
             {
@@ -417,7 +417,7 @@ namespace SuttorLib.Core.Services.Blogs
             }
             else
             {
-                var updates = new List<UpdateDefinition<Models.Blog>>();
+                var updates = new List<UpdateDefinition<Models.Blog.Blog>>();
 
                 if (blog.UserIdsDislikes.Contains(userId))
                 {
@@ -443,7 +443,7 @@ namespace SuttorLib.Core.Services.Blogs
             if (!ObjectId.TryParse(blogId, out var objectId))
                 throw new ArgumentException("Invalid blog ID");
 
-            var update = Builders<Models.Blog>.Update
+            var update = Builders<Models.Blog.Blog>.Update
                 .Pull(b => b.UserIdsLikes, userId)
                 .Inc(b => b.Likes, -1);
 
@@ -462,8 +462,8 @@ namespace SuttorLib.Core.Services.Blogs
             if (blog == null)
                 throw new KeyNotFoundException("Blog not found");
 
-            var updateBuilder = Builders<Models.Blog>.Update;
-            UpdateDefinition<Models.Blog> update;
+            var updateBuilder = Builders<Models.Blog.Blog>.Update;
+            UpdateDefinition<Models.Blog.Blog> update;
 
             if (blog.UserIdsLikes.Contains(userId))
             {
@@ -474,7 +474,7 @@ namespace SuttorLib.Core.Services.Blogs
             }
             else
             {
-                var updates = new List<UpdateDefinition<Models.Blog>>();
+                var updates = new List<UpdateDefinition<Models.Blog.Blog>>();
 
                 if (blog.UserIdsLikes.Contains(userId))
                 {
@@ -500,7 +500,7 @@ namespace SuttorLib.Core.Services.Blogs
             if (!ObjectId.TryParse(blogId, out var objectId))
                 throw new ArgumentException("Invalid blog ID");
 
-            var update = Builders<Models.Blog>.Update
+            var update = Builders<Models.Blog.Blog>.Update
                 .Pull(b => b.UserIdsDislikes, userId)
                 .Inc(b => b.Dislikes, -1);
 
@@ -543,7 +543,7 @@ namespace SuttorLib.Core.Services.Blogs
                 comment.Likes++;
             }
 
-            var update = Builders<Models.Blog>.Update.Set(b => b.Comments, blog.Comments);
+            var update = Builders<Models.Blog.Blog>.Update.Set(b => b.Comments, blog.Comments);
             await _blog.UpdateOneAsync(b => b.Id == blogObjectId, update);
 
             return new LikeDislikeResponseDto
@@ -587,7 +587,7 @@ namespace SuttorLib.Core.Services.Blogs
                 comment.Dislikes++;
             }
 
-            var update = Builders<Models.Blog>.Update.Set(b => b.Comments, blog.Comments);
+            var update = Builders<Models.Blog.Blog>.Update.Set(b => b.Comments, blog.Comments);
             await _blog.UpdateOneAsync(b => b.Id == blogObjectId, update);
 
             return new LikeDislikeResponseDto
@@ -620,7 +620,7 @@ namespace SuttorLib.Core.Services.Blogs
                 comment.Likes--;
             }
 
-            var update = Builders<Models.Blog>.Update.Set(b => b.Comments, blog.Comments);
+            var update = Builders<Models.Blog.Blog>.Update.Set(b => b.Comments, blog.Comments);
             await _blog.UpdateOneAsync(b => b.Id == blogObjectId, update);
 
             return new LikeDislikeResponseDto
@@ -653,7 +653,7 @@ namespace SuttorLib.Core.Services.Blogs
                 comment.Dislikes--;
             }
 
-            var update = Builders<Models.Blog>.Update.Set(b => b.Comments, blog.Comments);
+            var update = Builders<Models.Blog.Blog>.Update.Set(b => b.Comments, blog.Comments);
             await _blog.UpdateOneAsync(b => b.Id == blogObjectId, update);
 
             return new LikeDislikeResponseDto
@@ -678,7 +678,7 @@ namespace SuttorLib.Core.Services.Blogs
                 .ToList();
         }
 
-        private LikeDislikeResponseDto MapToLikeDislikeResponseDto(Models.Blog blog, string userId)
+        private LikeDislikeResponseDto MapToLikeDislikeResponseDto(Models.Blog.Blog blog, string userId)
         {
             return new LikeDislikeResponseDto
             {

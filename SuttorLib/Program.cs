@@ -62,6 +62,13 @@ builder.Services.Configure<AiDbSettings>(
     .Bind(builder.Configuration.GetSection("AiDbSettings"))
     .ValidateDataAnnotations();
 
+builder.Services.Configure<StatisticsSettings>(
+        builder.Configuration.GetSection("StatisticsSettings")
+    )
+    .AddOptions<StatisticsSettings>()
+    .Bind(builder.Configuration.GetSection("StatisticsSettings"))
+    .ValidateDataAnnotations();
+
 builder.Services.AddIdentity<AppUser, IdentityRole>(
     options => {
         options.Password.RequiredLength = 8;
@@ -96,6 +103,10 @@ builder.Services.AddCors(options =>
 });
 
 
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IStatisticsCalculator, StatisticsCalculatorService>();
+builder.Services.AddScoped<IRecommendationEngine, RecommendationEngineService>();
+builder.Services.AddHostedService<AnalyticsBackgroundService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddHttpContextAccessor();

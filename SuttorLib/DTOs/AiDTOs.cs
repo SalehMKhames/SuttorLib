@@ -1,4 +1,4 @@
-using SuttorLib.Models;
+using SuttorLib.Models.Blog;
 
 namespace SuttorLib.DTOs;
 

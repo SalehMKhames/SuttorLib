@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 
-namespace SuttorLibrary.Models
+namespace SuttorLib.Models.Library
 {
     [Table("Languages")]
     public class Languages

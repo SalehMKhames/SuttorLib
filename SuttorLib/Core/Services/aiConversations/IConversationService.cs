@@ -1,5 +1,5 @@
 using SuttorLib.DTOs;
-using SuttorLib.Models;
+using SuttorLib.Models.Blog;
 
 namespace SuttorLibrary.Core.Services.aiConversations;
 

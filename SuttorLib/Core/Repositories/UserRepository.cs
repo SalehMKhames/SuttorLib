@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using SuttorLib.Models.Library;
 using SuttorLibrary.Core.Interfaces;
 using SuttorLibrary.Core.Services;
 using SuttorLibrary.Data;

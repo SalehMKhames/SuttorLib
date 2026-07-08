@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using SuttorLib.Models.Library;
 using SuttorLibrary.Core.Interfaces;
 using SuttorLibrary.Data;
 using SuttorLibrary.DTOs;
-using SuttorLibrary.Models;
 using System.Linq.Expressions;
 
 namespace SuttorLibrary.Core.Repositories

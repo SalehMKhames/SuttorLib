@@ -1,7 +1,7 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace SuttorLib.Models;
+namespace SuttorLib.Models.Blog;
 
 public class Message
 {
