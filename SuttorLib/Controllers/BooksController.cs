@@ -1005,6 +1005,44 @@ namespace SuttorLib.Controllers
             }
         }
 
+        //GET api/Books/suggestions
+        [Authorize]
+        [HttpGet("suggestions")]
+        public async Task<IActionResult> BooksSuggestion()
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId is null)
+                return Unauthorized();
+
+            try {
+                var books = await _unit.UserRepo.SuggestedBooks(userId);
+                if (books is null || books.Count == 0) {
+                    _logger.LogInformation("No suggested books found for the user with the Id: {id}", userId);
+                    return NotFound("No suggested books for you right now.");
+                }
+                var bookDTOs = new List<GetBookDTO>();
+                foreach (var book in books)
+                {
+                    bookDTOs.Add(await BuildBookDtoAsync(book));
+                }
+
+                _logger.LogInformation("Found {count} suggested books for the user with the Id: {id}", bookDTOs.Count, userId);
+                return Ok(bookDTOs);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot get the suggestions for the user with id {ID}", userId);
+                return Problem("An error occurred while updating category.");
+            }
+        }
+
         private string BuildUrl(string relativePath)
         {
 

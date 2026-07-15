@@ -2,8 +2,10 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using SuttorLib.Core.Services.Files;
+using SuttorLib.Models.Library;
 using SuttorLibrary.Core;
 using SuttorLibrary.DTOs;
+using System.Security.Claims;
 using System.Security.Cryptography;
 
 namespace SuttorLibrary.Controllers
@@ -200,80 +202,107 @@ namespace SuttorLibrary.Controllers
         }
 
         //Post /api/Users/AddInterests
+        [Authorize]
         [HttpPost("AddInterests")]
-        public async Task<IActionResult> AddInterest([FromBody] UserInterestDTO dto)
+        public async Task<IActionResult> AddInterest([FromBody] List<string> categories)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            if (dto.CategoriesNames is null || dto.CategoriesNames.Count == 0)
+            if (categories is null || categories.Count == 0)
                 return BadRequest("You must add some categories that you are interested in!");
 
+           var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+           if (userId is null)
+                    return Unauthorized("User not found.");
             try {
-                var isAdded = await _unit.UserRepo.AddUserInterest(dto);
-                if (isAdded == null)
-                    return NotFound("User Not Found");
+
+                var isAdded = await _unit.UserRepo.AddUserInterest(userId, categories);
                 if (isAdded == false)
                     return BadRequest("Cannot add your interests right now. Try again.");
 
-                await _unit.CompleteAsync();
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    // Database commit failed — delete the uploaded file
+                    _logger.LogError(dbEx, "Database commit failed. Adding User's interests.");
+                    throw; // Re-throw to be caught by outer catch
+                }
+
                 return Ok(new { success = true, message = "Your interests have been added." });
             }
             catch (UnauthorizedAccessException ua)
             {
-                _logger.LogInformation(ua, "AddInterests unauthorized for {UserId}", dto.UserID);
+                _logger.LogInformation(ua, "AddInterests unauthorized for {UserId}", userId);
                 return Unauthorized(ua.Message);
             }
             catch (InvalidOperationException io)
             {
-                _logger.LogWarning(io, "AddInterests failed for {UserId}", dto.UserID);
+                _logger.LogWarning(io, "AddInterests failed for {UserId}", userId);
                 return BadRequest(io.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error adding interests user {UserId}", dto.UserID);
+                _logger.LogError(ex, "Unexpected error adding interests user {UserId}", userId);
                 return Problem("An error occurred while adding the user's interests.");
             }
         }
 
         //Patch /api/Users/ChangeInterests
+        [Authorize]
         [HttpPatch("ChangeInterests")]
-        public async Task<IActionResult> ChangeInterests([FromBody] UserInterestDTO dto)
+        public async Task<IActionResult> ChangeInterests([FromBody] List<string> categories)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            if (dto.CategoriesNames is null || dto.CategoriesNames.Count == 0)
+            if (categories is null || categories.Count == 0)
                 return BadRequest("You must add some categories that you are interested in!");
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId is null)
+                return Unauthorized();
 
             try
             {
-                var updatedCategories = await _unit.UserRepo.UpdateUserInterest(dto);
+                var updatedCategories = await _unit.UserRepo.UpdateUserInterest(userId, categories);
 
                 if (updatedCategories == null)
                     return NotFound("User not found or no matching categories were provided.");
 
-                await _unit.CompleteAsync();
+                try
+                {
+                    await _unit.CompleteAsync();
+                }
+                catch (Exception dbEx)
+                {
+                    // Database commit failed — delete the uploaded file
+                    _logger.LogError(dbEx, "Database commit failed. Updating User's interests.");
+                    throw; // Re-throw to be caught by outer catch
+                }
 
                 var responseCategories = updatedCategories
-                    .Select(c => new { Id = c?.Id, Name = c?.Name })
+                    .Select(c => new { c?.Id, c?.Name })
                     .ToList();
 
                 return Ok(new { success = true, message = "Your interests have been modified." });
             }
             catch (UnauthorizedAccessException ua)
             {
-                _logger.LogInformation(ua, "AddInterests unauthorized for {UserId}", dto.UserID);
+                _logger.LogInformation(ua, "AddInterests unauthorized for {UserId}", userId);
                 return Unauthorized(ua.Message);
             }
             catch (InvalidOperationException io)
             {
-                _logger.LogWarning(io, "AddInterests failed for {UserId}", dto.UserID);
+                _logger.LogWarning(io, "AddInterests failed for {UserId}", userId);
                 return BadRequest(io.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error adding interests user {UserId}", dto.UserID);
+                _logger.LogError(ex, "Unexpected error adding interests user {UserId}", userId);
                 return Problem("An error occurred while adding the user's interests.");
             }
         }

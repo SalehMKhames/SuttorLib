@@ -2,10 +2,10 @@
 using Microsoft.EntityFrameworkCore;
 using SuttorLib.Models.Library;
 using SuttorLibrary.Core.Interfaces;
-using SuttorLibrary.Core.Services;
 using SuttorLibrary.Data;
 using SuttorLibrary.DTOs;
 using SuttorLibrary.Models;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace SuttorLibrary.Core.Repositories
 {
@@ -16,14 +16,14 @@ namespace SuttorLibrary.Core.Repositories
         private readonly UserManager<AppUser> _userManager = userManager;
         private readonly AppDbContext _context = context;
 
-        public async Task<bool?> AddUserInterest(UserInterestDTO dto)
+        public async Task<bool> AddUserInterest(string userId, List<string> categoryNames)
         {
-            var isUserExist = await _userManager.FindByIdAsync(dto.UserID);
+            var isUserExist = await _userManager.FindByIdAsync(userId);
             if (isUserExist == null) 
-                return null;
+                throw new KeyNotFoundException("User not found.");
 
             List<string> categories = new List<string>();
-            foreach (var category in dto.CategoriesNames) 
+            foreach (var category in categoryNames) 
             {
                 var c = await _context.Categories.FindAsync(category);
                 if (c == null) continue;
@@ -37,7 +37,7 @@ namespace SuttorLibrary.Core.Repositories
                     .AddAsync(new UserInterests 
                     {
                         Id = Guid.NewGuid().ToString(), 
-                        UserId = dto.UserID, 
+                        UserId = userId, 
                         Category_Id = id
                     });
 
@@ -115,33 +115,27 @@ namespace SuttorLibrary.Core.Repositories
             return result.Succeeded;
         }
 
-        public async Task<List<Category?>?> UpdateUserInterest(UserInterestDTO dto)
+        public async Task<List<Category?>?> UpdateUserInterest(string userId, List<string> categoryNames)
         {
             //Find the user
-            var isUserExist = await _userManager.FindByIdAsync(dto.UserID);
-            if (isUserExist == null)
-                return null;
+            var isUserExist = await _userManager.FindByIdAsync(userId);
+            if (isUserExist is null)
+                throw new KeyNotFoundException("User Not Found.");
 
             var newCategoryIds = new List<string>();
-            foreach (var category in dto.CategoriesNames)
+            foreach (var category in categoryNames)
             {
-                if (Guid.TryParse(category, out var parsedGuid))
-                {
-                    var cate = await _context.Categories.FindAsync(parsedGuid);
-                    if (cate != null) newCategoryIds.Add(cate.Id);
-                }
-                else
-                {
-                    var cateByName = await _context.Categories
+                var cateByName = await _context.Categories
                         .FirstOrDefaultAsync(c => c.Name.Equals(category, StringComparison.OrdinalIgnoreCase));
 
-                    if (cateByName != null) newCategoryIds.Add(cateByName.Id);
-                }
+                if (cateByName != null)
+                    newCategoryIds.Add(cateByName.Id);
+                else continue;
             }
 
-            //Get the user's new interests' IDs from the Categories Table
+            //Get the user's interests' IDs from the Categories Table
             var existingInterests = await _context.UserInterests
-               .Where(ui => ui.UserId == dto.UserID)
+               .Where(ui => ui.UserId == userId)
                .ToListAsync();
             var existingIds = existingInterests.Select(ui => ui.Category_Id).ToList();
 
@@ -161,7 +155,7 @@ namespace SuttorLibrary.Core.Repositories
                 await _context.UserInterests.AddAsync(new UserInterests
                 {
                     Id = Guid.NewGuid().ToString(),
-                    UserId = dto.UserID,
+                    UserId = userId,
                     Category_Id = id
                 });
             }
@@ -171,7 +165,7 @@ namespace SuttorLibrary.Core.Repositories
 
             // Return the updated category objects for the user (or null if none)
             var updatedCategoryIds = await _context.UserInterests
-                .Where(ui => ui.UserId == dto.UserID)
+                .Where(ui => ui.UserId == userId)
                 .Select(ui => ui.Category_Id)
                 .ToListAsync();
 
@@ -187,6 +181,81 @@ namespace SuttorLibrary.Core.Repositories
             if (string.IsNullOrWhiteSpace(username))
                 return string.Empty;
             return username.StartsWith('@') ? username : "@" + username;
+        }
+
+        public async Task<List<BookListItemDto>?> SuggestedBooks(string userId)
+        {
+            if (string.IsNullOrEmpty(userId))
+                throw new ArgumentException("User Token is required");
+
+            var IsExistedUser = await _userManager.FindByIdAsync(userId);
+            if (IsExistedUser is null)
+                throw new KeyNotFoundException($"User with the ID: {userId} not found");
+
+            //Get the IDs of the categories that the user has interested in.
+            var categoriesIDs = await _context.UserInterests
+                .Where(ui => ui.UserId == userId)
+                .Select (ui => ui.Category_Id)
+                .AsNoTracking()
+                .ToListAsync();
+
+            //Get 5-10 Books from these categories using the joinig between the Category, Book, BookCategories tables
+            var books = new List<Book>();
+            foreach (var id in categoriesIDs)
+            {
+                IQueryable<Book> book = _context.Categories
+                    .Where(c => c.Id == id)
+                    .Join(
+                        _context.BookCategories,
+                        c => c.Id,
+                        bc => bc.categoryId,
+                        (c, bc) => bc)
+                    .Join(
+                        _context.Books,
+                        bc => bc.bookId,
+                        b => b.Id,
+                        (bc, b) => b)
+                    .Distinct()
+                    .AsNoTracking();
+
+                books.AddRange(book.Take(5));
+            }
+
+            var items = books
+                .Select(b => new BookListItemDto
+                {
+                    Id = b.Id,
+                    Title = b.Title,
+                    Description = b.Description,
+                    PageCount = b.PageCount,
+                    PublishedAT = b.PublishedAT,
+                    FilePath = b.FilePath,
+                    FileSize = b.FileSize,
+                    PhotoPath = b.PhotoPath,
+                    UploadedAt = b.UploadedAt,
+                    Language = _context.Languages
+                        .Where(l => l.Id == b.LanguageId)
+                        .Select(l => l.Language)
+                        .FirstOrDefault() ?? string.Empty,
+                    Authors_Names = _context.BookAuthors
+                        .Where(ba => ba.Book_Id == b.Id)
+                        .Join(
+                            _context.Authors,
+                            ba => ba.Author_Id,
+                            a => a.Id,
+                            (ba, a) => a.Name)
+                        .ToList(),
+                    Categories_Names = _context.BookCategories
+                        .Where(bc => bc.bookId == b.Id)
+                        .Join(
+                            _context.Categories,
+                            bc => bc.categoryId,
+                            c => c.Id,
+                            (bc, c) => c.Name)
+                        .ToList()
+                }).ToList();
+
+            return items;
         }
     }
 }
