@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using SuttorLib.Core.Services.Files;
 using SuttorLibrary.Core;
-using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
 using System.Security.Cryptography;
 
@@ -158,8 +158,8 @@ namespace SuttorLibrary.Controllers
             }
         }
 
-        //GET /api/Users/User?uid={userId}
-        [HttpGet("User")]
+        //GET /api/Users?uid={userId}
+        [HttpGet]
         public async Task<IActionResult> GetUser([FromQuery] Guid uid)
         {
             if (!ModelState.IsValid)

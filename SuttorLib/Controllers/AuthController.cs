@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SuttorLib.Core.Services.Files;
 using SuttorLibrary.Core;
-using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
 
 namespace SuttorLib.Controllers
@@ -16,6 +16,7 @@ namespace SuttorLib.Controllers
 
         //POST /api/Auth/Register
         [HttpPost("Register", Name = "Register")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateUser([FromBody] RegisterDTO register)
         {
             if (!ModelState.IsValid)
@@ -121,6 +122,7 @@ namespace SuttorLib.Controllers
         // PUT /api/Auth/Update/{{userID}}
         [Authorize]
         [HttpPut("update/{userId}", Name = "Update-User")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateUser([FromBody] UpdateUserDTO updateDto, [FromRoute] string userId)
         {
             if (!ModelState.IsValid)

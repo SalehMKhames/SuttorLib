@@ -1,3 +1,5 @@
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -6,23 +8,21 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
-using FirebaseAdmin;
-using Google.Apis.Auth.OAuth2;
-
 using Scalar.AspNetCore;
+using SuttorLib.Core.Interfaces;
+using SuttorLib.Core.Repositories;
 using SuttorLib.Core.Services.Blog;
 using SuttorLib.Core.Services.Blogs;
+using SuttorLib.Core.Services.Files;
+using SuttorLib.Core.Services.Statistics;
 using SuttorLib.Data;
 using SuttorLibrary.Core;
-using SuttorLibrary.Core.Services;
 using SuttorLibrary.Core.Services.aiConversations;
 using SuttorLibrary.Data;
 using SuttorLibrary.Middlewares;
 using SuttorLibrary.Models;
 using System.Security.Claims;
 using System.Text;
-using SuttorLib.Core.Interfaces;
-using SuttorLib.Core.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -104,17 +104,18 @@ builder.Services.AddCors(options =>
 
 
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<IStatisticsCalculator, StatisticsCalculatorService>();
-builder.Services.AddScoped<IRecommendationEngine, RecommendationEngineService>();
-builder.Services.AddHostedService<AnalyticsBackgroundService>();
+
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IBlogServices, BlogService>();
 // Add this line after your BlogDbSettings configuration
 builder.Services.AddScoped<MongoIndexConfig>();
-
 builder.Services.AddScoped<IConversationService, ConversationService>();
+builder.Services.AddScoped<IStatisticsCalculator, StatisticsCalculatorService>();
+builder.Services.AddScoped<IRecommendationEngine, RecommendationEngineService>();
+builder.Services.AddHostedService<AnalyticsBackgroundService>();
+
 
 //Firebase
 var credentialsPath = builder.Configuration["Firebase:CredentialsPath"];

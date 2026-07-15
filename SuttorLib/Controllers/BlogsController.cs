@@ -1,14 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
-using MySqlX.XDevAPI.Common;
 using SuttorLib.Core.Services.Blog;
+using SuttorLib.Core.Services.Files;
 using SuttorLib.DTOs;
 using SuttorLib.Models.Blog;
 using SuttorLib.Models.Library;
 using SuttorLibrary.Core;
-using SuttorLibrary.Core.Services;
 using SuttorLibrary.Models;
 using System.Security.Claims;
 
@@ -29,6 +27,7 @@ namespace SuttorLib.Controllers
         // Post api/Blog/Create
         [Authorize]
         [HttpPost("Create")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateBlog([FromBody] CreateBlogDTO createDTO)
         {
             if (!ModelState.IsValid)
@@ -271,6 +270,7 @@ namespace SuttorLib.Controllers
         // PATCH /api/Blog/{id}/update
         [Authorize]
         [HttpPatch("{id}/update")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateBlog([FromRoute] string blogId, [FromBody] UpdateBlogDTO dto)
         {
             if (!ModelState.IsValid)
@@ -280,7 +280,7 @@ namespace SuttorLib.Controllers
                 return BadRequest("The Blog ID is required");
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
@@ -388,7 +388,7 @@ namespace SuttorLib.Controllers
 
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
@@ -906,7 +906,7 @@ namespace SuttorLib.Controllers
 
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
@@ -953,7 +953,7 @@ namespace SuttorLib.Controllers
 
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
@@ -991,7 +991,7 @@ namespace SuttorLib.Controllers
                 return BadRequest("Blog Id is required");
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
@@ -1030,7 +1030,7 @@ namespace SuttorLib.Controllers
                 return BadRequest("Blog Id is required");
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
@@ -1069,7 +1069,7 @@ namespace SuttorLib.Controllers
                 return BadRequest("Blog Id is required");
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
@@ -1108,7 +1108,7 @@ namespace SuttorLib.Controllers
                 return BadRequest("Blog Id is required");
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
@@ -1148,7 +1148,7 @@ namespace SuttorLib.Controllers
                 return BadRequest("Blog Id is required");
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
@@ -1187,7 +1187,7 @@ namespace SuttorLib.Controllers
                 return BadRequest("Blog Id is required");
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
@@ -1228,7 +1228,7 @@ namespace SuttorLib.Controllers
                 return BadRequest("Comment Id is required");
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
@@ -1270,7 +1270,7 @@ namespace SuttorLib.Controllers
 
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 

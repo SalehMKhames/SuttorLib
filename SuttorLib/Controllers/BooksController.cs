@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SuttorLib.Core.Services.Files;
 using SuttorLib.Models.Library;
 using SuttorLibrary.Core;
-using SuttorLibrary.Core.Services;
 using SuttorLibrary.DTOs;
 using System.Security.Claims;
 
@@ -645,6 +645,7 @@ namespace SuttorLib.Controllers
 
         //Post /api/Books/addCategory
         [HttpPost("addCategory")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> AddCategory([FromBody] AddCategory dto)
         {
             if (!ModelState.IsValid)
@@ -677,6 +678,7 @@ namespace SuttorLib.Controllers
 
         //Post /api/Books/addAuthor
         [HttpPost("addAuthor")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> AddAuthor([FromBody] AddAuthorDto dto)
         {
             if (!ModelState.IsValid)
@@ -914,6 +916,7 @@ namespace SuttorLib.Controllers
         // PATCH api/Books/authors/updateAuthor?authorId=...
         [Authorize(Roles = "Admin")]
         [HttpPatch("authors/updateAuthor")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateAuthor([FromQuery] string authorId, [FromBody] UpdateAuthor dto)
         {
             if (!ModelState.IsValid)
@@ -959,6 +962,7 @@ namespace SuttorLib.Controllers
         // PATCH api/Books/authors/updateCategory?categoryId=...
         [Authorize(Roles = "Admin")]
         [HttpPatch("authors/updateCategory")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateCategory([FromQuery] string categoryId, [FromBody] IFormFile? icon)
         {
             if (!ModelState.IsValid)

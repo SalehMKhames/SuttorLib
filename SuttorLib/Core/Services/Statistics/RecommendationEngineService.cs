@@ -4,7 +4,7 @@ using SuttorLib.Core.Interfaces;
 using SuttorLib.Data;
 using SuttorLibrary.Models.Analytics;
 
-namespace SuttorLib.Core.Services
+namespace SuttorLib.Core.Services.Statistics
 {
     public class RecommendationEngineService : IRecommendationEngine
     {
@@ -19,7 +19,7 @@ namespace SuttorLib.Core.Services
         {
             var mongoClient = new MongoClient(mongoSettings.Value.ConnectionString);
             var mongoDatabase = mongoClient.GetDatabase(mongoSettings.Value.DatabaseName);
-            _recommendationsCollection = mongoDatabase.GetCollection<UserRecommendation>("UserRecommendations");
+            _recommendationsCollection = mongoDatabase.GetCollection<UserRecommendation>("RecommendationsCollection");
 
             _httpClient = httpClient;
             _pythonAiApiUrl = configuration.GetValue<string>("PythonAiApiUrl") ?? "http://localhost:8000/recommendations";
@@ -29,6 +29,8 @@ namespace SuttorLib.Core.Services
         {
             // Placeholder: Call Python API with appropriate data (e.g. Interaction histories)
             // Python API evaluates logic and returns computed recommendations
+
+            // var interactionPayload = new { /* Populate with user interaction data */ };
 
             // var response = await _httpClient.PostAsJsonAsync(_pythonAiApiUrl, interactionPayload);
             // var results = await response.Content.ReadFromJsonAsync<List<UserRecommendation>>();

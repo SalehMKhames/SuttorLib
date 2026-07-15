@@ -34,7 +34,7 @@ namespace SuttorLib.Core.Services.Blogs
         // ========================  Blog Operations  =====================================
         public async Task<Models.Blog.Blog> CreateBlogAsync(string userId, CreateBlogDTO createDTO, List<string> photosPath)
         {
-            var blog = new Models.Blog 
+            var blog = new Models.Blog.Blog
             {
                 Title = createDTO.Title,
                 Content = createDTO.Content,

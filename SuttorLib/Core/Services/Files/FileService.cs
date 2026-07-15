@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using SuttorLibrary.Data;
-using SuttorLibrary.Models;
 
-namespace SuttorLibrary.Core.Services
+namespace SuttorLib.Core.Services.Files
 {
     public class FileService(
         IConfiguration configuration, 
@@ -57,7 +56,7 @@ namespace SuttorLibrary.Core.Services
                         var user = await _context.AppUsers.FindAsync(userId);
                         if (user is not null)
                         {
-                            var download = new Download
+                            var download = new Models.Library.Download
                             {
                                 Id = Guid.NewGuid().ToString(),
                                 BookID = bookId,

@@ -6,7 +6,7 @@ using SuttorLibrary.Models.Analytics;
 using Microsoft.Extensions.Options;
 using SuttorLibrary.Data;
 
-namespace SuttorLib.Core.Services
+namespace SuttorLib.Core.Services.Statistics
 {
     public class StatisticsCalculatorService : IStatisticsCalculator
     {
@@ -18,7 +18,7 @@ namespace SuttorLib.Core.Services
             _sqlContext = sqlContext;
             var mongoClient = new MongoClient(mongoSettings.Value.ConnectionString);
             var mongoDatabase = mongoClient.GetDatabase(mongoSettings.Value.DatabaseName);
-            _statisticsCollection = mongoDatabase.GetCollection<PlatformStatistic>("PlatformStatistics");
+            _statisticsCollection = mongoDatabase.GetCollection<PlatformStatistic>("StatisticsCollection");
         }
 
         public async Task CalculateDailyStatisticsAsync()

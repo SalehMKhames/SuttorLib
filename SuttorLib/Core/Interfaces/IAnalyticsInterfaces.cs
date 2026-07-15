@@ -1,6 +1,4 @@
-using System.Threading.Tasks;
 using SuttorLibrary.Models.Analytics;
-using System.Collections.Generic;
 
 namespace SuttorLib.Core.Interfaces
 {

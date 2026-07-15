@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
-namespace SuttorLibrary.Core.Services
+namespace SuttorLib.Core.Services.Files
 {
     public interface IFileService
     {
