@@ -15,9 +15,10 @@ namespace SuttorLib.Controllers
         private readonly IFileService _fileService = fileService;
 
         //POST /api/Auth/Register
-        [HttpPost("Register", Name = "Register")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> CreateUser([FromBody] RegisterDTO register)
+        [RequestSizeLimit(104857600)]
+        [HttpPost("Register", Name = "Register")]
+        public async Task<IActionResult> CreateUser([FromForm] RegisterDTO register)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -56,6 +57,11 @@ namespace SuttorLib.Controllers
 
                 return CreatedAtAction(nameof(CreateUser), new { userId = result.Id }, result);
             }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "User registration failed for email {Email}", register.Email);
+                return BadRequest(ex.Message);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error registering user {Email}", register.Email);
@@ -69,7 +75,7 @@ namespace SuttorLib.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            
+
             try
             {
                 var result = await _unit.AuthRepo.LoginUser(login);
@@ -92,7 +98,7 @@ namespace SuttorLib.Controllers
                 IFormFile? userPic = result.PhotoPath is null ? null :
                     await _fileService.GetPictureAsync(result.PhotoPath);
 
-                UserDTO user = new UserDTO 
+                UserDTO user = new UserDTO
                 {
                     Id = result.Id,
                     FullName = result.FullName,
@@ -112,6 +118,16 @@ namespace SuttorLib.Controllers
 
                 return Ok(user);
             }
+            catch (KeyNotFoundException knf)
+            {
+                _logger.LogError(knf, "The user with the email {Email} was not found.", login.Email);
+                return NotFound("Invalid email or password.");
+            }
+            catch (ArgumentException arg)
+            {
+                _logger.LogError(arg, "Wrong Password for the email: {email}", login.Email);
+                return Unauthorized(arg.Message);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during login for {Email}", login.Email);
@@ -119,11 +135,12 @@ namespace SuttorLib.Controllers
             }
         }
 
-        // PUT /api/Auth/Update/{{userID}}
+        // PUT /api/Auth/Update/{userID}
         [Authorize]
-        [HttpPut("update/{userId}", Name = "Update-User")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> UpdateUser([FromBody] UpdateUserDTO updateDto, [FromRoute] string userId)
+        [RequestSizeLimit(104857600)]
+        [HttpPut("update/{userId}", Name = "Update-User")]
+        public async Task<IActionResult> UpdateUser([FromForm] UpdateUserDTO updateDto, [FromRoute] string userId)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -169,7 +186,7 @@ namespace SuttorLib.Controllers
             catch (KeyNotFoundException nf)
             {
                 _logger.LogWarning($"KeyNotFound in updating User: {nf.Message}");
-                return NotFound($"User with ID '{userId}' not found.");
+                return NotFound(nf.Message);
             }
             catch (Exception ex)
             {
@@ -260,12 +277,12 @@ namespace SuttorLib.Controllers
                     _logger.LogError(dbEx, "Database commit failed. Assign Role Function");
                     throw; // Re-throw to be caught by outer catch
                 }
-                await _unit.CompleteAsync();
+
                 return Ok(new { message = result });
             }
-            catch (KeyNotFoundException)
+            catch (KeyNotFoundException nf)
             {
-                return NotFound();
+                return NotFound(nf.Message);
             }
             catch (Exception ex)
             {
@@ -314,9 +331,9 @@ namespace SuttorLib.Controllers
                 _logger.LogInformation("DeleteUser: user {UserId} deleted by {Caller}", userId, callerId);
                 return Ok(new { success = true, message = "User deleted successfully." });
             }
-            catch (KeyNotFoundException)
+            catch (KeyNotFoundException nf)
             {
-                return NotFound();
+                return NotFound(nf.Message);
             }
             catch (UnauthorizedAccessException ua)
             {

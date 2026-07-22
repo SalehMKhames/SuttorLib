@@ -45,8 +45,10 @@ namespace SuttorLibrary.Core.Repositories
         public async Task<AppUser?> LoginUser(LoginDTO login)
         {
             var existedUser = await _userManager.FindByEmailAsync(login.Email!);
-            if (existedUser is null || !await _userManager.CheckPasswordAsync(existedUser, login.Password))
-                return null;
+            if (existedUser is null)
+                throw new KeyNotFoundException($"User with email '{login.Email}' not found.");
+            if (!await _userManager.CheckPasswordAsync(existedUser, login.Password))
+                throw new ArgumentException("Your Password is wrong");
 
             var token = await GenerateTokensAsync(existedUser);
             var rolesList = await _userManager.GetRolesAsync(existedUser);
@@ -62,9 +64,9 @@ namespace SuttorLibrary.Core.Repositories
         public async Task<AppUser?> RegisterUser(RegisterDTO register, string? picName)
         {
             if (await _userManager.FindByEmailAsync(register.Email) is not null)
-                    return null;
+                    throw new ArgumentException("Email is already in use.");
             if (await _userManager.FindByNameAsync(register.Username) is not null)
-                    return null;
+                    throw new ArgumentException("Username is already in use.");
 
             AppUser newUser = new AppUser
             {
@@ -130,7 +132,7 @@ namespace SuttorLibrary.Core.Repositories
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user is null)
-                throw new KeyNotFoundException();
+                throw new KeyNotFoundException("Your account not found.");
 
             if (!string.IsNullOrWhiteSpace(email) && email != user.Email)
             {
@@ -170,7 +172,7 @@ namespace SuttorLibrary.Core.Repositories
         {
             var user = await _userManager.FindByEmailAsync(roleDto.Email);
             if (user is null)
-                throw new KeyNotFoundException();
+                throw new KeyNotFoundException($"The account with email {roleDto.Email} not found.");
 
             // Ensure role name is normalized to common format (optional)
             var normalizedRole = roleDto.Role.Trim();
@@ -197,7 +199,7 @@ namespace SuttorLibrary.Core.Repositories
             // AppUser.Id is stored as string (Guid.ToString()), so convert Guid to string
             var user = await _userManager.FindByIdAsync(id.ToString());
             if (user is null)
-                throw new KeyNotFoundException();
+                throw new KeyNotFoundException("User not found");
 
             // Verify provided current password
             var passwordValid = await _userManager.CheckPasswordAsync(user, password);

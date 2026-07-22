@@ -1,5 +1,3 @@
-using SuttorLib.Core.Interfaces;
-
 namespace SuttorLib.Core.Services.Statistics
 {
     public class AnalyticsBackgroundService : BackgroundService

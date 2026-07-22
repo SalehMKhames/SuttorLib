@@ -2,7 +2,7 @@
 
 namespace SuttorLib.Core.Services.Notifications
 {
-    public interface IFCMRepository
+    public interface IFCMService
     {
         Task<string?> GetTokenByUserIdAsync(string userId);
         Task<List<string>> GetTokensByUserIdAsync(string userId);

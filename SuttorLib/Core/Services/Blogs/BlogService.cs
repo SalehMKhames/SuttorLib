@@ -336,21 +336,15 @@ namespace SuttorLib.Core.Services.Blogs
         
         public async Task<Comment> UpdateComment(string commentId, UpdateCommentDto updateDTO, string userId)
         {
-            if (!ObjectId.TryParse(updateDTO.blogId, out var blogObjectId) || !ObjectId.TryParse(commentId, out var commentObjectId))
-                throw new ArgumentException("Invalid blog or comment ID");
+            if (!ObjectId.TryParse(commentId, out var commentObjectId))
+                throw new ArgumentException("Invalid comment ID");
 
             if (string.IsNullOrWhiteSpace(updateDTO.Content))
                 throw new ArgumentException("Content cannot be empty");
 
-            var blog = await _blog.Find(b => b.Id == blogObjectId).FirstOrDefaultAsync();
-            if (blog == null)
-                throw new KeyNotFoundException("Blog not found");
-
-            ObjectId? com = blog.Comments.FirstOrDefault(c => c == commentObjectId);
-            if (com == null)
-                throw new KeyNotFoundException("Comment not found");
-
             var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
+            if (comment is null)
+                throw new KeyNotFoundException("Comment not found");
 
             if (comment.CommenterId != userId)
                 throw new UnauthorizedAccessException("You can only update your own comments");
@@ -359,7 +353,6 @@ namespace SuttorLib.Core.Services.Blogs
             comment.UpdatedAt = DateTime.UtcNow;
             if (updateDTO.Tags is not null || updateDTO.Tags!.Count == 0)
                 comment.Tags = updateDTO.Tags;
-            
             
             var update = Builders<Comment>.Update.Set(c => c, comment);
             await _comment.UpdateOneAsync(b => b.Id == commentObjectId, update);
@@ -376,16 +369,18 @@ namespace SuttorLib.Core.Services.Blogs
             if (blog == null)
                 throw new KeyNotFoundException("Blog not found");
 
-            ObjectId? com = blog.Comments.FirstOrDefault(c => c == commentObjectId);
-            if (com == null)
+            ObjectId? com = blog.Comments.Find(c => c == commentObjectId);
+            if (com is null)
                 throw new KeyNotFoundException("Comment not found");
 
-            var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
+            var comment = await _comment.Find(c => c.Id == com).FirstOrDefaultAsync();
 
             if (comment.CommenterId != userId)
                 throw new UnauthorizedAccessException("You can only delete your own comments");
 
             await _comment.DeleteOneAsync(c => c.Id == comment.Id);
+
+            blog.Comments.Remove((ObjectId)com);
 
             var update = Builders<Models.Blog.Blog>.Update.PullFilter(b => b.Comments, c => c == commentObjectId);
             var result = await _blog.UpdateOneAsync(b => b.Id == blogObjectId, update);
@@ -664,6 +659,126 @@ namespace SuttorLib.Core.Services.Blogs
                 UserDisliked = comment.UserIdsDislikes.Contains(userId)
             };
         }
+
+        //========================  Replies Methods  ====================================
+        public async Task<Comment> CreateReplyAsync(string commentId, string userId, CreateCommentDTO dto)
+        {
+            if (!ObjectId.TryParse(commentId, out var objectId))
+                throw new ArgumentException("Invalid blog ID");
+
+            if (string.IsNullOrWhiteSpace(dto.Content))
+                throw new ArgumentException("Comment content cannot be empty");
+
+            var comment = await _comment.Find(c => c.Id == objectId).FirstOrDefaultAsync();
+            if (comment is null)
+                throw new KeyNotFoundException("Comment not found");
+
+            var reply = new Comment
+            {
+                Content = dto.Content,
+                CommenterId = userId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                Tags = dto.Tags ?? new List<string>(),
+                Likes = 0,
+                Dislikes = 0,
+                UserIdsLikes = new List<string>(),
+                UserIdsDislikes = new List<string>(),
+                Replies = new List<Comment>()
+            };
+
+            comment.Replies.Add(reply);
+            var update = Builders<Comment>.Update.Set(c => c, comment);
+            await _comment.UpdateOneAsync(b => b.Id == objectId, update);
+
+            return comment;
+        }
+
+        public async Task<List<Comment>?> GetRepliesAsync(string commentId)
+        {
+            if (!ObjectId.TryParse(commentId, out var id))
+                throw new ArgumentException("Invalid comment id");
+
+            var comment = await _comment.Find(c => c.Id == id).FirstOrDefaultAsync();
+            if (comment is null)
+                throw new KeyNotFoundException("Comment not found");
+
+            return comment.Replies;
+        }
+
+        public async Task<Comment> GetReplyById(string replyId, string commentId)
+        {
+            if (!ObjectId.TryParse(commentId, out var comId))
+                throw new ArgumentException("Invalid comment id");
+            if (!ObjectId.TryParse(replyId, out var id))
+                throw new ArgumentException("Invalid reply id");
+
+            var comment = await _comment.Find(c => c.Id == comId).FirstAsync();
+            if (comment is null)
+                throw new KeyNotFoundException("Comment not found");
+
+            var reply = comment.Replies.Where(r => r.Id == id).FirstOrDefault();
+            if (comment is null)
+                throw new KeyNotFoundException("Reply not found");
+
+            return reply;
+        }
+
+        public async Task<Comment> UpdateReply(string commentId, string replyId, UpdateReplyDTO updateDTO, string userId)
+        {
+            if (!ObjectId.TryParse(commentId, out var commentObjectId))
+                throw new ArgumentException("Invalid comment ID");
+            if (!ObjectId.TryParse(replyId, out var id))
+                throw new ArgumentException("Invalid reply id");
+
+            if (string.IsNullOrWhiteSpace(updateDTO.Content))
+                throw new ArgumentException("Content cannot be empty");
+
+            var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
+            if (comment is null)
+                throw new KeyNotFoundException("Comment not found");
+
+            if (comment.Replies.Find(r => r.Id == id) is null)
+                throw new KeyNotFoundException("Reply not found");
+
+            if (comment.Replies.Find(r => r.Id == id).CommenterId != userId)
+                throw new UnauthorizedAccessException("You can only update your own reply");
+
+            comment.Replies.Find(r => r.Id == id)!.Content = updateDTO.Content;
+            comment.Replies.Find(r => r.Id == id)!.UpdatedAt = DateTime.UtcNow;
+            if (updateDTO.Tags is not null || updateDTO.Tags!.Count == 0)
+                comment.Replies.Find(r => r.Id == id)!.Tags = updateDTO.Tags;
+
+            var update = Builders<Comment>.Update.Set(c => c, comment);
+            await _comment.UpdateOneAsync(b => b.Id == commentObjectId, update);
+
+            return comment.Replies.Find(r => r.Id == id)!;
+        }
+
+        public async Task<bool> DeleteRelpy(string replyId, string commentId, string userId)
+        {
+            if (!ObjectId.TryParse(commentId, out var commentObjectId))
+                throw new ArgumentException("Invalid comment ID");
+            if (!ObjectId.TryParse(replyId, out var id))
+                throw new ArgumentException("Invalid reply id");
+
+            var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
+            if (comment is null)
+                throw new KeyNotFoundException("Comment not found");
+            var reply = comment.Replies.Find(r => r.Id == id);
+            if (reply is null)
+                throw new KeyNotFoundException("Reply not found");
+
+            if (reply.CommenterId != userId)
+                throw new UnauthorizedAccessException("You can only delete your own reply");
+
+            comment.Replies.Remove(reply);
+
+            var update = Builders<Comment>.Update.Set(c => c, comment);
+            await _comment.UpdateOneAsync(b => b.Id == commentObjectId, update);
+
+            return true;
+        }
         
 
 
@@ -688,5 +803,6 @@ namespace SuttorLib.Core.Services.Blogs
                 UserDisliked = blog.UserIdsDislikes.Contains(userId)
             };
         }
+
     }
 }

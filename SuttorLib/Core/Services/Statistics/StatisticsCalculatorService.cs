@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
-using SuttorLib.Core.Interfaces;
 using SuttorLib.Data;
 using SuttorLibrary.Models.Analytics;
 using Microsoft.Extensions.Options;

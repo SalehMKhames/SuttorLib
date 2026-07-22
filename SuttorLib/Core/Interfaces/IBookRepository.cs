@@ -6,7 +6,7 @@ namespace SuttorLibrary.Core.Interfaces
     public interface IBookRepository : IGenericRepo<Book>
     {
         public Task<PagedResult<BookListItemDto>> GetBooksPagedAsync(int page, int pageSize, string? search);
-        public Task<object?> GetBookWithDetailsAsync(string id);
+        public Task<object?> GetBookWithDetailsAsync(string id, string? userId);
         public Task<object?> GetBookByName(string bookName);
 
         public Task<PagedResult<BookListItemDto>> GetBooksByCategoryPagedAsync(string categoryName, int page, int pageSize);

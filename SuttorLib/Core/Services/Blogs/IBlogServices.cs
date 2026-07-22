@@ -19,10 +19,17 @@ namespace SuttorLib.Core.Services.Blog
 
         //Basic Comment operations
         public Task<Comment> CreateCommentAsync(string blogId, string userId, CreateCommentDTO commentDTO);
-        Task<List<Comment>?> GetCommentsAsync(string blogId);
+        public Task<List<Comment>?> GetCommentsAsync(string blogId);
         public Task<Comment> GetCommentById(string commentId);
         public Task<Comment> UpdateComment(string commentId, UpdateCommentDto updateDTO, string userId);
         public Task<bool> DeleteCommentAsync(string blogId, string commentId, string userId);
+
+        //Basic Replies operations
+        public Task<Comment> CreateReplyAsync(string commentId, string userId, CreateCommentDTO dto);
+        public Task<List<Comment>?> GetRepliesAsync(string commentId);
+        public Task<Comment> GetReplyById(string replyId, string commentId);
+        public Task<Comment> UpdateReply(string commentId, string replyId, UpdateReplyDTO updateDTO, string userId);
+        public Task<bool> DeleteRelpy(string replyId, string commentId, string userId);
 
         // Like/Dislike Operations
         Task<LikeDislikeResponseDto> LikeBlogAsync(string blogId, string userId);

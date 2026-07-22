@@ -72,9 +72,7 @@ public class ConversationService : IConversationService
         if (conversation.UserId is null || string.IsNullOrEmpty(conversation.UserId))
             throw new UnauthorizedAccessException();
 
-        List<Message> messages = await GetMessagesForConversation(id.ToString()) ?? [];  
-
-
+        List<Message> messages = await GetMessagesForConversation(id.ToString()) ?? [];
         return new ConversationDTO
         {
             Id = conversation.Id.ToString(),
@@ -87,11 +85,11 @@ public class ConversationService : IConversationService
     public async Task<List<ConversationDTO>> GetConversationsAsync(string userId)
     {
         var conversations = await _conversation
-        .Find(c => c.UserId == userId)
-        .ToListAsync();
+                .Find(c => c.UserId == userId)
+                .ToListAsync();
 
         if (conversations is null)
-            throw new KeyNotFoundException();
+            throw new KeyNotFoundException("No conversations found");
 
         var conversationDtos = new List<ConversationDTO>();
 

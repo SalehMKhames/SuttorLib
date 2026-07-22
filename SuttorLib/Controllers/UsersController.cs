@@ -1,24 +1,22 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using SuttorLib.Core.Interfaces;
 using SuttorLib.Core.Services.Files;
-using SuttorLib.Models.Library;
 using SuttorLibrary.Core;
-using SuttorLibrary.DTOs;
 using System.Security.Claims;
-using System.Security.Cryptography;
 
 namespace SuttorLibrary.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     public class UsersController(
-        IUnitOfWork unit, ILogger<UsersController> logger, IFileService fileService
+        IUnitOfWork unit, ILogger<UsersController> logger, IFileService fileService, IFCM fcm
         ) : ControllerBase
     {
         private readonly IUnitOfWork _unit = unit;
         private readonly ILogger<UsersController> _logger = logger;
         private readonly IFileService _fileService = fileService;
+        private readonly IFCM _fcm = fcm;
 
         // GET /api/Users/UserByEmail?email=...
         [HttpGet("UserByEmail", Name = "UserByEmail")]
@@ -54,6 +52,10 @@ namespace SuttorLibrary.Controllers
                 };
 
                 return Ok(result);
+            }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
             }
             catch (Exception ex)
             {
@@ -96,6 +98,10 @@ namespace SuttorLibrary.Controllers
                 };
 
                 return Ok(result);
+            }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
             }
             catch (Exception ex)
             {
@@ -234,6 +240,11 @@ namespace SuttorLibrary.Controllers
 
                 return Ok(new { success = true, message = "Your interests have been added." });
             }
+            catch (KeyNotFoundException nf)
+            {
+                _logger.LogInformation(nf, "AddInterests not found for {UserId}", userId);
+                return NotFound(nf.Message);
+            }
             catch (UnauthorizedAccessException ua)
             {
                 _logger.LogInformation(ua, "AddInterests unauthorized for {UserId}", userId);
@@ -248,6 +259,41 @@ namespace SuttorLibrary.Controllers
             {
                 _logger.LogError(ex, "Unexpected error adding interests user {UserId}", userId);
                 return Problem("An error occurred while adding the user's interests.");
+            }
+        }
+
+        //GET api/Users/Interests
+        [Authorize]
+        [HttpGet("Interests")]
+        public async Task<IActionResult> GetUserInterests()
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId is null)
+                return Unauthorized();
+            try
+            {
+                var interests = await _unit.UserRepo.GetUserInterests(userId);
+                if (interests is null || interests.Count == 0)
+                {
+                    _logger.LogInformation("No interest found for user {UserId}", userId);
+                    return NotFound("No interests found for the user.");
+                }
+
+                _logger.LogInformation("Retrieved {Count} interests for user {UserId}", interests.Count, userId);
+                return Ok(interests);
+            }
+            catch (UnauthorizedAccessException ua)
+            {
+                _logger.LogInformation(ua, "GetUserInterests unauthorized for {UserId}", userId);
+                return Unauthorized(ua.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error retrieving interests for user {UserId}", userId);
+                return Problem("An error occurred while retrieving the user's interests.");
             }
         }
 
@@ -310,11 +356,12 @@ namespace SuttorLibrary.Controllers
         //Patch /api/Users/AddXP?points=...
         [Authorize]
         [HttpPatch("AddXP")]
-        public async Task<IActionResult> Promote([FromBody] string uid, [FromQuery] int xp)
+        public async Task<IActionResult> Promote([FromQuery] int xp)
         {
             if (!ModelState.IsValid)
                 return BadRequest();
 
+            var uid = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
             if (string.IsNullOrEmpty(uid))
                 return BadRequest("User ID is required");
 
@@ -325,9 +372,10 @@ namespace SuttorLibrary.Controllers
                     return NotFound($"User with id: '{uid}' not found.");
 
                 var res = await _unit.UserRepo.PromoteToAuthor(user, xp);
-
                 if (!res)
                     return StatusCode(StatusCodes.Status304NotModified);
+
+                await _fcm.NotifyXPRewardAsync(uid, xp, user.XP);
 
                 return Ok(new { success = true, message = $"Your XP points have been added {xp} points" });
 

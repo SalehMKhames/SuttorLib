@@ -9,13 +9,13 @@ namespace SuttorLib.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ConversationsController(IConversationService conversationService, ILogger<ConversationsController> logger) : ControllerBase
     {
         private readonly IConversationService _conversation = conversationService;
         private readonly ILogger<ConversationsController> _logger = logger;
 
         // Post api/conversation/new
-        [Authorize]
         [HttpPost("new")]
         public async Task<IActionResult> NewConversation(AddConversationDTO dto)
         {
@@ -67,7 +67,6 @@ namespace SuttorLib.Controllers
         }
 
         // GET api/conversations/cId=...
-        [Authorize]
         [HttpGet("{cId}")]
         public async Task<IActionResult> GetConversation([FromRoute] string cId)
         {
@@ -104,7 +103,6 @@ namespace SuttorLib.Controllers
         }
 
         // GET api/conversations
-        [Authorize]
         [HttpGet]
         public async Task<IActionResult> GetAllConversations()
         {
@@ -114,7 +112,7 @@ namespace SuttorLib.Controllers
             try {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
-                    return Unauthorized();
+                    return Unauthorized("You are not authorized to read these conversations");
 
                 var convers = await _conversation.GetConversationsAsync(userId);
                 if (convers is null)
@@ -142,14 +140,13 @@ namespace SuttorLib.Controllers
         }
 
         // PUT api/conversations?cId=...
-        [Authorize]
-        [HttpPut]
-        public async Task<IActionResult> UpdateConversation([FromQuery] string cId, [FromBody] UpdateConversationDTO dto)
+        [HttpPut("{cId}/update")]
+        public async Task<IActionResult> UpdateConversation([FromRoute] string cId, [FromBody] UpdateConversationDTO dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            if (!string.IsNullOrEmpty(cId))
+            if (string.IsNullOrEmpty(cId))
                 return BadRequest("Conversation ID is required");
 
             try {
@@ -188,7 +185,6 @@ namespace SuttorLib.Controllers
         }
 
         // DELETE api/conversations/{id}/Delete
-        [Authorize]
         [HttpDelete("{id}/Delete")]
         public async Task<IActionResult> DeleteConversation([FromBody] string id)
         {
@@ -230,7 +226,6 @@ namespace SuttorLib.Controllers
         }
 
         // Delete api/conversations/DeleteAll
-        [Authorize]
         [HttpDelete("DeleteAll")]
         public async Task<IActionResult> DeleteAll()
         {

@@ -1,6 +1,6 @@
 using SuttorLibrary.Models.Analytics;
 
-namespace SuttorLib.Core.Interfaces
+namespace SuttorLib.Core.Services.Statistics
 {
     public interface IStatisticsCalculator
     {

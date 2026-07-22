@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
+using MySqlX.XDevAPI.Common;
+using SuttorLib.Core.Interfaces;
+using SuttorLib.Core.Repositories;
 using SuttorLib.Core.Services.Blog;
 using SuttorLib.Core.Services.Files;
 using SuttorLib.DTOs;
@@ -15,20 +18,23 @@ namespace SuttorLib.Controllers
     [Route("api/[controller]")]
     [ApiController]
     public class BlogsController(ILogger<BlogsController> logger,
-        IBlogServices blogService, IUnitOfWork unit, IFileService fileService) : ControllerBase
+        IBlogServices blogService, IUnitOfWork unit, IFileService fileService,
+        IFCM fcm) : ControllerBase
     {
         private readonly ILogger<BlogsController> _logger = logger;
         private readonly IBlogServices _blogService = blogService;
         private readonly IUnitOfWork _unit = unit;
         private readonly IFileService _fileService = fileService;
+        private readonly IFCM _fcm = fcm;
 
         // ================== BLOG OPERATIONS ==================
 
         // Post api/Blog/Create
         [Authorize]
-        [HttpPost("Create")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> CreateBlog([FromBody] CreateBlogDTO createDTO)
+        [RequestSizeLimit(104857600)]
+        [HttpPost("Create")]
+        public async Task<IActionResult> CreateBlog([FromForm] CreateBlogDTO createDTO)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -53,7 +59,6 @@ namespace SuttorLib.Controllers
                         createDTO.Category = category.Name;
                     else if (createDTO.Category == "" || string.IsNullOrEmpty(createDTO.Category))
                         createDTO.Category = "";
-
                     else
                     {
                         category = await _unit.BookRepo.AddCategory(createDTO.Category);
@@ -81,12 +86,14 @@ namespace SuttorLib.Controllers
 
                 _logger.LogInformation("Blog uploaded successfully: {Title}", createDTO.Title);
 
+                await _fcm.NotifyNewBlogAsync(blog.PublisherId, blog.Title, blog.Category);
+
                 return CreatedAtAction(nameof(CreateBlog), blog.Id, blog);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred while creating the blog.");
-                return StatusCode(500, "An error occurred while creating the blog.");
+                return BadRequest("An error occurred while creating the blog.");
             }
         }
 
@@ -124,7 +131,7 @@ namespace SuttorLib.Controllers
                 List<IFormFile> ph = new();
                 if (result.Photos is null || result.Photos.Count == 0)
                     ph = [];
-                
+
                 else
                     foreach (var photo in result.Photos)
                     {
@@ -269,9 +276,10 @@ namespace SuttorLib.Controllers
 
         // PATCH /api/Blog/{id}/update
         [Authorize]
-        [HttpPatch("{id}/update")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> UpdateBlog([FromRoute] string blogId, [FromBody] UpdateBlogDTO dto)
+        [RequestSizeLimit(104857600)]
+        [HttpPatch("{id}/update")]
+        public async Task<IActionResult> UpdateBlog([FromForm] string blogId, [FromBody] UpdateBlogDTO dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -707,6 +715,7 @@ namespace SuttorLib.Controllers
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
+
                 var res = await _blogService.CreateCommentAsync(blogId, userId, dto);
                 if (res is null)
                 {
@@ -715,6 +724,10 @@ namespace SuttorLib.Controllers
                 }
 
                 _logger.LogInformation("Comment uploaded successfully: {id}", res.Id);
+
+                var user = await _unit.UserRepo.GetById(userId);
+                var blog = await _blogService.GetBlogById(blogId);
+                await _fcm.NotifyBlogCommentAsync(blogId, user!.FullName, blog.Id.ToString());
 
                 return CreatedAtAction(nameof(CreateComment), new { res.Id, res.Content }, res);
             }
@@ -806,9 +819,9 @@ namespace SuttorLib.Controllers
 
                 return Ok(paginatedComments);
             }
-            catch (KeyNotFoundException)
+            catch (KeyNotFoundException nf)
             {
-                return NotFound("Blog not found");
+                return NotFound(nf.Message);
             }
             catch (Exception ex)
             {
@@ -838,11 +851,11 @@ namespace SuttorLib.Controllers
 
                 var isCommentExist = blog.Comments.Contains(comId);
                 if (!isCommentExist)
-                    return NotFound();
+                    return NotFound("Comment not found");
 
                 Comment? comment = await _blogService.GetCommentById(commentId);
                 if (comment is null)
-                    return NotFound();
+                    return NotFound("Comment not found");
 
                 var user = await _unit.UserRepo.GetById(comment.CommenterId);
                 string? userName = null, userFullName = null;
@@ -882,9 +895,9 @@ namespace SuttorLib.Controllers
 
                 return Ok(com);
             }
-            catch (KeyNotFoundException)
+            catch (KeyNotFoundException nf)
             {
-                return NotFound("Blog not found");
+                return NotFound(nf.Message);
             }
             catch (Exception ex)
             {
@@ -925,13 +938,13 @@ namespace SuttorLib.Controllers
 
                 return Accepted();
             }
-            catch (KeyNotFoundException)
+            catch (KeyNotFoundException nf)
             {
-                return NotFound("Blog not found");
+                return NotFound(nf.Message);
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ua)
             {
-                return Unauthorized();
+                return Unauthorized(ua.Message);
             }
             catch (Exception ex)
             {
@@ -963,13 +976,13 @@ namespace SuttorLib.Controllers
 
                 return Ok(new { success = true, message = "Comment deleted successfully." });
             }
-            catch (KeyNotFoundException)
+            catch (KeyNotFoundException nf)
             {
-                return NotFound("Blog not found");
+                return NotFound(nf.Message);
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ua)
             {
-                return Unauthorized();
+                return Unauthorized(ua.Message);
             }
             catch (Exception ex)
             {
@@ -989,6 +1002,7 @@ namespace SuttorLib.Controllers
                 return BadRequest(ModelState);
             if (string.IsNullOrEmpty(blogId))
                 return BadRequest("Blog Id is required");
+            
             try
             {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -1299,5 +1313,345 @@ namespace SuttorLib.Controllers
             }
         }
 
+
+        //======================================  REPLIES Endpoints  =========================================
+
+        // POST api/Blog/{blogId}/Comment/{commentId}/createReply
+        [Authorize]
+        [HttpPost("{blogId}/comment/{commentId}/createReply")]
+        public async Task<IActionResult> createReply([FromRoute] string commentId, CreateCommentDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (string.IsNullOrEmpty(commentId))
+                return BadRequest("Comment Id is required");
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            try
+            {
+                var reply = await _blogService.CreateReplyAsync(commentId, userId, dto);
+                if (reply is null)
+                {
+                    _logger.LogError("Cannot create the reply {id} in the comment {commnetId}", reply.Id, commentId);
+                    return BadRequest("Something went wrong in creating your feed! Please, try again later.");
+                }
+
+                _logger.LogInformation("reply uploaded successfully: {id}", reply.Id);
+
+                return CreatedAtAction(nameof(CreateComment), new { reply.Id, reply.Content }, reply);
+            }
+            catch (ArgumentNullException an)
+            {
+                return BadRequest(an.Message);
+            }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
+            }
+            catch (UnauthorizedAccessException ua)
+            {
+                return Unauthorized(ua.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while fetching all blogs.");
+                return BadRequest("An error occurred while fetching all blogs.");
+            }
+
+        }
+
+        // GET api/Blog/{blogId}/Comment/{commentId}/reply?rId=...
+        [HttpGet("{blogId}/comment/{commentId}/reply")]
+        public async Task<IActionResult> getReplyById([FromRoute] string commentId, [FromQuery] string replyId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(commentId))
+                return BadRequest("Comment Id is required");
+            if (string.IsNullOrEmpty(replyId))
+                return BadRequest("Reply Id is required");
+            try {
+                var reply = await _blogService.GetReplyById(replyId, commentId);
+                if (reply is null)
+                    return NotFound("Reply Not Found");
+
+                var user = await _unit.UserRepo.GetById(reply.CommenterId);
+                string? userName = null, userFullName = null;
+                IFormFile? userPic = null;
+
+                if (user is null)
+                {
+                    _logger.LogInformation("The Publisher of the Blog {id} is unknown.", reply.Id.ToString());
+                    userFullName = "Unknown Publisher";
+                }
+                else
+                {
+                    userName = user.UserName;
+                    userFullName = user.FullName;
+
+                    userPic = user.PhotoPath is null ?
+                        null : await _fileService.GetPictureAsync(user.PhotoPath);
+                }
+
+                var com = new CommentDTO
+                {
+                    Id = reply.Id,
+                    Content = reply.Content,
+                    CreatedAt = reply.CreatedAt,
+                    CommenterId = reply.CommenterId,
+                    CommenterFullName = userFullName,
+                    CommenterUserName = userName,
+                    CommenterPhoto = userPic,
+                    Tags = reply.Tags,
+                    UpdatedAt = reply.UpdatedAt,
+                    Likes = reply.Likes,
+                    Dislikes = reply.Dislikes,
+                    UserIdsLikes = reply.UserIdsLikes,
+                    UserIdsDislikes = reply.UserIdsDislikes,
+                    Replies = reply.Replies
+                };
+
+                return Ok(com);
+            }
+            catch (ArgumentNullException an)
+            {
+                return BadRequest(an.Message);
+            }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while fetching all replies.");
+                return BadRequest("An error occurred while fetching all replies.");
+            }
+        }
+
+        // GET api/Blog/{blogId}/Comment/{commentId}/replies
+        [HttpGet("{blogId}/comment/{commentId}/replies")]
+        public async Task<IActionResult> getAllReplies([FromRoute] string commentId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (string.IsNullOrEmpty(commentId))
+                return BadRequest("Comment Id is required");
+
+            try {
+                var replies = await _blogService.GetRepliesAsync(commentId);
+                if (replies is null || replies.Count == 0)
+                    return NotFound("No replies for this comment");
+
+                List<CommentDTO> coms = new List<CommentDTO>();
+                foreach (var item in replies)
+                {
+                    var user = await _unit.UserRepo.GetById(item.CommenterId);
+                    string? userName = null, userFullName = null;
+                    IFormFile? userPic = null;
+
+                    if (user is null)
+                    {
+                        _logger.LogInformation("The Publisher of the reply {id} is unknown.", item.Id.ToString());
+                        userFullName = "Unknown Publisher";
+                    }
+                    else
+                    {
+                        userName = user.UserName;
+                        userFullName = user.FullName;
+
+                        userPic = user.PhotoPath is null ?
+                            null : await _fileService.GetPictureAsync(user.PhotoPath);
+                    }
+
+                    var com = new CommentDTO
+                    {
+                        Id = item.Id,
+                        Content = item.Content,
+                        CreatedAt = item.CreatedAt,
+                        CommenterId = item.CommenterId,
+                        CommenterFullName = userFullName,
+                        CommenterUserName = userName,
+                        CommenterPhoto = userPic,
+                        Tags = item.Tags,
+                        UpdatedAt = item.UpdatedAt,
+                        Likes = item.Likes,
+                        Dislikes = item.Dislikes,
+                        UserIdsLikes = item.UserIdsLikes,
+                        UserIdsDislikes = item.UserIdsDislikes,
+                        Replies = item.Replies
+                    };
+
+                    coms.Add(com);
+                }
+
+                var total = coms.Count;
+
+                var skip = (page - 1) * pageSize;
+                var items = coms
+                    .Skip(skip)
+                    .Take(pageSize)
+                    .ToList();
+
+                var paginatedComments = new PaginatedCommentResponseDto
+                {
+                    Items = coms,
+                    TotalCount = coms.Count,
+                    PageSize = pageSize,
+                    Page = page,
+                    TotalPages = (int)Math.Ceiling(total / (double)pageSize)
+                };
+
+                _logger.LogInformation("Reply loaded successfully for comment {id}", commentId);
+                return Ok(paginatedComments);
+
+            }
+            catch (ArgumentNullException an)
+            {
+                return BadRequest(an.Message);
+            }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while fetching all blogs.");
+                return BadRequest("An error occurred while fetching all blogs.");
+            }
+        }
+
+        // PATCH api/Blog/{blogId}/Comment/{commentId}/reply/rId/update
+        [Authorize]
+        [HttpPatch("{blogId}/comment/{commentId}/reply/{replyId}/update")]
+        public async Task<IActionResult> updateReply([FromRoute] string commentId, [FromRoute] string replyId, [FromBody] UpdateReplyDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(commentId))
+                return BadRequest("Comment Id is required");
+            if (string.IsNullOrEmpty(replyId))
+                return BadRequest("Reply Id is required");
+
+            try {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var reply = await _blogService.UpdateReply(commentId, replyId, dto, userId);
+                if (reply is null)
+                {
+                    _logger.LogError($"Failed to update user reply {replyId} for comment {commentId}");
+                    return BadRequest("Unable to update your reply, try again later!");
+                }
+
+                var user = await _unit.UserRepo.GetById(reply.CommenterId);
+                string? userName = null, userFullName = null;
+                IFormFile? userPic = null;
+
+                if (user is null)
+                {
+                    _logger.LogInformation("The Publisher of the Blog {id} is unknown.", reply.Id.ToString());
+                    userFullName = "Unknown Publisher";
+                }
+                else
+                {
+                    userName = user.UserName;
+                    userFullName = user.FullName;
+
+                    userPic = user.PhotoPath is null ?
+                        null : await _fileService.GetPictureAsync(user.PhotoPath);
+                }
+
+                var com = new CommentDTO
+                {
+                    Id = reply.Id,
+                    Content = reply.Content,
+                    CreatedAt = reply.CreatedAt,
+                    CommenterId = reply.CommenterId,
+                    CommenterFullName = userFullName,
+                    CommenterUserName = userName,
+                    CommenterPhoto = userPic,
+                    Tags = reply.Tags,
+                    UpdatedAt = reply.UpdatedAt,
+                    Likes = reply.Likes,
+                    Dislikes = reply.Dislikes,
+                    UserIdsLikes = reply.UserIdsLikes,
+                    UserIdsDislikes = reply.UserIdsDislikes,
+                    Replies = reply.Replies
+                };
+
+                _logger.LogInformation("Reply updated successfully: {id}", reply.Id);
+
+                return Ok(reply);
+            }
+            catch (ArgumentNullException an)
+            {
+                return BadRequest(an.Message);
+            }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
+            }
+            catch (UnauthorizedAccessException ua)
+            {
+                return Unauthorized(ua.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while fetching all blogs.");
+                return BadRequest("An error occurred while fetching all blogs.");
+            }
+        }
+
+        // DELETE api/Blog/{blogId}/Comment/{commentId}/reply/rId/delete
+        [Authorize]
+        [HttpDelete("{blogId}/comment/{commentId}/reply/{replyId}/delete")]
+        public async Task<IActionResult> DeleteReplt([FromRoute] string commentId, [FromRoute] string replyId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(commentId))
+                return BadRequest("Comment Id is required");
+            if (string.IsNullOrEmpty(replyId))
+                return BadRequest("Reply Id is required");
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            try {
+                var res = await _blogService.DeleteRelpy(replyId, commentId, userId);
+                if (!res)
+                {
+                    _logger.LogError("Can not delete reply {rId} for comment {cId}", replyId, commentId);
+                    return BadRequest("Unable to delete your reply, try again later");
+                }
+
+                _logger.LogInformation("Deleted reply {id} successfully", replyId);
+                return Ok(new { success = true, message = "Your reply deleted successfully." });
+            }
+            catch (ArgumentNullException an)
+            {
+                return BadRequest(an.Message);
+            }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
+            }
+            catch (UnauthorizedAccessException ua)
+            {
+                return Unauthorized(ua.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while fetching all blogs.");
+                return BadRequest("An error occurred while fetching all blogs.");
+            }
+        }
     }
 }

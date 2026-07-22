@@ -107,13 +107,18 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IBlogServices, BlogService>();
-// Add this line after your BlogDbSettings configuration
+
 builder.Services.AddScoped<MongoIndexConfig>();
+
 builder.Services.AddScoped<IConversationService, ConversationService>();
+
 builder.Services.AddScoped<IStatisticsCalculator, StatisticsCalculatorService>();
+
 builder.Services.AddScoped<IRecommendationEngine, RecommendationEngineService>();
+
 builder.Services.AddHostedService<AnalyticsBackgroundService>();
 
 

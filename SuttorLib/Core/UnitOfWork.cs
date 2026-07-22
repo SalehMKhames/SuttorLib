@@ -17,7 +17,7 @@ namespace SuttorLibrary.Core
         private IAuthRepository? _authRepo { get; set; }
         private IUserRepository? _userRepo { get; set; }
         private IBookRepository? _bookRepo { get; set; }
-        private IFCMRepository? _FCMRepo { get; set; }
+        private IFCMService? _FCMRepo { get; set; }
 
         public IAuthRepository AuthRepo
         {
@@ -34,9 +34,9 @@ namespace SuttorLibrary.Core
             get { return _bookRepo ??= new BookRepository(_context); }
         }
 
-        public IFCMRepository FCMRepo 
+        public IFCMService FCMRepo 
         {
-            get { return _FCMRepo ??= new FCMRepository(_context); }
+            get { return _FCMRepo ??= new FCMService(_context); }
         }
 
         public async Task CompleteAsync()

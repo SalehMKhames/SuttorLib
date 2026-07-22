@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SuttorLib.Core.Interfaces;
 using SuttorLib.Core.Services.Files;
 using SuttorLib.Models.Library;
 using SuttorLibrary.Core;
@@ -10,12 +11,13 @@ namespace SuttorLib.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class BooksController(IUnitOfWork unit, ILogger<BooksController> logger, IFileService fileService, IConfiguration configuration) : ControllerBase
+    public class BooksController(IUnitOfWork unit, ILogger<BooksController> logger, IFileService fileService, IConfiguration configuration, IFCM fcm) : ControllerBase
     {
         private readonly IUnitOfWork _unit = unit;
         private readonly ILogger<BooksController> _logger = logger;
         private readonly IFileService _fileService = fileService;
         private readonly IConfiguration _configuration = configuration;
+        private readonly IFCM _fcm = fcm;
 
         //Get /api/Books
         [HttpGet(Name = "GetAllBooks")]
@@ -78,6 +80,10 @@ namespace SuttorLib.Controllers
 
                 return Ok(result);
             }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all books");
@@ -87,7 +93,7 @@ namespace SuttorLib.Controllers
 
         //GET /api/Books/{id}
         [HttpGet("{bookId}", Name = "GetBookById")]
-        public async Task<IActionResult> GetBookById([FromRoute] string bookId)
+        public async Task<IActionResult> GetBookById([FromRoute] string bookId, [FromBody] string? userId)
         {
             if (!ModelState.IsValid)
                 return BadRequest();
@@ -96,7 +102,7 @@ namespace SuttorLib.Controllers
 
             try
             {
-                var book = await _unit.BookRepo.GetBookWithDetailsAsync(bookId);
+                var book = await _unit.BookRepo.GetBookWithDetailsAsync(bookId, userId);
                 if (book is null)
                     return NotFound($"Book with ID '{bookId}' not found.");
 
@@ -162,6 +168,10 @@ namespace SuttorLib.Controllers
 
                 return Ok(bookDto);
             }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving book by ID {BookId}", bookId);
@@ -181,8 +191,6 @@ namespace SuttorLib.Controllers
             try
             {
                 var book = await _unit.BookRepo.GetBookByName(name);
-                if (book is null)
-                    return NotFound($"No books found with the name '{name}'.");
 
                 Type type = book.GetType();
 
@@ -246,6 +254,10 @@ namespace SuttorLib.Controllers
 
                 return Ok(bookDto);
             }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving books by name {Name}", name);
@@ -291,6 +303,10 @@ namespace SuttorLib.Controllers
                 };
 
                 return Ok(result);
+            }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
             }
             catch (Exception ex)
             {
@@ -341,6 +357,10 @@ namespace SuttorLib.Controllers
                 };
 
                 return Ok(result);
+            }
+            catch (KeyNotFoundException nf)
+            {
+                return NotFound(nf.Message);
             }
             catch (Exception ex)
             {
@@ -575,11 +595,12 @@ namespace SuttorLib.Controllers
 
                 _logger.LogInformation("Book uploaded successfully: {Title} with file {FileName}", dto.File.FileName, uploadedFile);
 
+                await _fcm.NotifyNewBookAsync(book.Title, dto.Categories_Names, dto.Authors_Names);
+
                 return CreatedAtAction("GetBookById", new { bookId = book.Id }, new
                 {
                     book.Id,
-                    book.Title,
-                    book.FilePath
+                    book.Title
                 });
             }
             catch (InvalidOperationException ex)
@@ -624,8 +645,8 @@ namespace SuttorLib.Controllers
                 }
                 catch (Exception dbEx)
                 {
-                // Database commit failed — delete the uploaded file
-                _logger.LogError(dbEx, "Unable to add to Download table");
+                    // Database commit failed — delete the uploaded file
+                    _logger.LogError(dbEx, "Unable to add to Download table");
                     throw; // Re-throw to be caught by outer catch
                 }
 
@@ -881,7 +902,7 @@ namespace SuttorLib.Controllers
                 return BadRequest("Book ID is required.");
 
             try {
-                var book = await _unit.BookRepo.GetBookWithDetailsAsync(bookId);
+                var book = await _unit.BookRepo.GetBookWithDetailsAsync(bookId, null);
                 if (book is null)
                     return NotFound($"Book with ID '{bookId}' not found.");
 

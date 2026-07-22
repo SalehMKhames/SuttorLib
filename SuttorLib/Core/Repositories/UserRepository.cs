@@ -5,7 +5,6 @@ using SuttorLibrary.Core.Interfaces;
 using SuttorLibrary.Data;
 using SuttorLibrary.DTOs;
 using SuttorLibrary.Models;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace SuttorLibrary.Core.Repositories
 {
@@ -62,7 +61,7 @@ namespace SuttorLibrary.Core.Repositories
 
             var user = await _userManager.FindByEmailAsync(email);
             if (user is null)
-                return null;
+                throw new KeyNotFoundException($"The account with email :{email} not found");
 
             var userDto = new GetPublicUserDTO
             {
@@ -83,7 +82,7 @@ namespace SuttorLibrary.Core.Repositories
         {
             var user = await _userManager.FindByNameAsync(username);
             if (user is null)
-                return null;
+                throw new KeyNotFoundException($"The account with username {username} not found");
 
             var userDto = new GetPublicUserDTO
             {
@@ -128,7 +127,7 @@ namespace SuttorLibrary.Core.Repositories
                 var cateByName = await _context.Categories
                         .FirstOrDefaultAsync(c => c.Name.Equals(category, StringComparison.OrdinalIgnoreCase));
 
-                if (cateByName != null)
+                if (cateByName is not null)
                     newCategoryIds.Add(cateByName.Id);
                 else continue;
             }
@@ -256,6 +255,38 @@ namespace SuttorLibrary.Core.Repositories
                 }).ToList();
 
             return items;
+        }
+
+        public async Task<List<Category?>?> GetUserInterests(string userId)
+        {
+            if (string.IsNullOrEmpty(userId))
+                throw new ArgumentException("User ID is required");
+
+            var userCategories = await _context.Categories
+                .Where(c => _context.UserInterests
+                    .Where(ui => ui.UserId == userId)
+                    .Select(ui => ui.Category_Id)
+                    .Contains(c.Id))
+                .ToListAsync();
+
+            return userCategories.Count > 0 ? userCategories.Cast<Category?>().ToList() : null;
+        }
+
+        public async Task<List<AppUser>?> GetUsersByInterests(string categoryId)
+        {
+            if (string.IsNullOrEmpty(categoryId))
+                throw new ArgumentNullException("Category ID is required");
+
+            var users = await _context.Users
+                .Where(
+                    u => _context.UserInterests
+                    .Where (ui => ui.Category_Id == categoryId)
+                    .Select (ui => ui.UserId)
+                    .Contains(u.Id)
+                )
+                .ToListAsync();
+
+            return users.Count > 0 ? users.Cast<AppUser>().ToList() : null;
         }
     }
 }

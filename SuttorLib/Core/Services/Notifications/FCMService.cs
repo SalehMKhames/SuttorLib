@@ -1,12 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SuttorLib.Models;
-using SuttorLibrary.Core.Interfaces;
 using SuttorLibrary.Data;
-using SuttorLibrary.Models;
 
 namespace SuttorLib.Core.Services.Notifications;
 
-public class FCMRepository(AppDbContext context) : IFCMRepository
+public class FCMService(AppDbContext context) : IFCMService
 {
     private readonly AppDbContext _context = context;
 

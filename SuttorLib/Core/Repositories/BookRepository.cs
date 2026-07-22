@@ -11,7 +11,7 @@ namespace SuttorLibrary.Core.Repositories
     {
         private readonly AppDbContext _context = context;
 
-        public async Task<object?> GetBookWithDetailsAsync(string id)
+        public async Task<object?> GetBookWithDetailsAsync(string id, string? userId)
         {
             if (!Guid.TryParse(id, out Guid guidId))
                 return null;
@@ -63,12 +63,19 @@ namespace SuttorLibrary.Core.Repositories
 
                     ratings = _context.BookRatings
                         .Where(r => r.BookId == b.Id)
-                        .ToList()
+                        .ToList(),
+
+                    isFinished = 
+                    string.IsNullOrEmpty(userId) ? false : 
+                        _context.Downloads
+                            .Where(d => d.BookID == b.Id && d.UserID == userId)
+                            .Select(d => d.IsFinishReading)
+                            .FirstOrDefault()
                 })
                 .FirstOrDefaultAsync();
 
             if (result is null)
-                return null;
+                throw new KeyNotFoundException("Book not found");
 
             return result;
         }
@@ -127,7 +134,7 @@ namespace SuttorLibrary.Core.Repositories
                 .FirstOrDefaultAsync();
             
             if (book is null)
-                return null;
+                throw new KeyNotFoundException("Book not found");
 
             return book;
         }
@@ -358,6 +365,9 @@ namespace SuttorLibrary.Core.Repositories
 
             IQueryable<Book> query = _context.Books.AsNoTracking();
 
+            if (query is null)
+                throw new KeyNotFoundException("No books found");
+
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var searchLower = search.ToLowerInvariant();
@@ -434,6 +444,9 @@ namespace SuttorLibrary.Core.Repositories
                 .Distinct()
                 .AsNoTracking();
 
+            if (query is null)
+                throw new KeyNotFoundException("No books found for this category");
+
             var total = await query.CountAsync();
 
             var items = await query
@@ -472,6 +485,9 @@ namespace SuttorLibrary.Core.Repositories
                     (ba, b) => b)
                 .Distinct()
                 .AsNoTracking();
+
+            if (query is null)
+                throw new KeyNotFoundException("No books for this author");
 
             var total = await query.CountAsync();
 

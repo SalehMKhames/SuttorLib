@@ -82,9 +82,14 @@ namespace SuttorLib.DTOs
 
     public class UpdateCommentDto
     {
-        public string? blogId { get; set; }
         public string? Content { get; set; }
         public List<string>? Tags { get; set; } = new();
+    }
+
+    public class UpdateReplyDTO
+    {
+        public string? Content { get; set; }
+        public List<string>? Tags { get; set; }
     }
 
     public class LikeDislikeResponseDto

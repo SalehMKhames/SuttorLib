@@ -8,7 +8,7 @@ namespace SuttorLibrary.Core
         IAuthRepository AuthRepo { get; }
         IUserRepository UserRepo { get; }
         IBookRepository BookRepo { get; }
-        IFCMRepository FCMRepo { get; }
+        IFCMService FCMRepo { get; }
         Task CompleteAsync();
     }
 }

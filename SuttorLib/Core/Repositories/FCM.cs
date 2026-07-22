@@ -1,7 +1,9 @@
 ﻿using FirebaseAdmin.Messaging;
 using SuttorLib.Core.Interfaces;
 using SuttorLib.Models;
+using SuttorLib.Models.Library;
 using SuttorLibrary.Core;
+using SuttorLibrary.Models;
 
 namespace SuttorLib.Core.Repositories;
 
@@ -46,7 +48,16 @@ public class FCM(IUnitOfWork unit, ILogger<FCM> logger) : IFCM
 
     public async Task NotifyNewBlogAsync(string blogPublisherName, string blogTitle, string category)
     {
-        var users = await _unit.UserRepo.GetAll();
+        var categories = await _unit.BookRepo.GetCategories();
+        var cat = categories!
+            .Where(c => c!.Name.Equals(category, StringComparison.CurrentCultureIgnoreCase))
+            .ToList()
+            .FirstOrDefault();
+
+        var users = await _unit.UserRepo.GetUsersByInterests(cat!.Id);
+        if (users is null || users.Count == 0)
+            return;
+        
         var title = $"{blogPublisherName} published a new blog";
         var body = string.IsNullOrWhiteSpace(category)
             ? blogTitle
@@ -61,13 +72,31 @@ public class FCM(IUnitOfWork unit, ILogger<FCM> logger) : IFCM
         }
     }
 
-    public async Task NotifyNewBookAsync(string bookTitle, List<string> categoryNames, string? authorName = null)
+    public async Task NotifyNewBookAsync(string bookTitle, List<string> categoryNames, List<string>? authorNames = null)
     {
-        var users = await _unit.UserRepo.GetAll();
+        var categories = await _unit.BookRepo.GetCategories();
+        var cat = new List<Category>();
+        var users = new List<AppUser>();
+
+        foreach (var name in categoryNames)
+            cat.Add(categories!
+                .Where(c => c!.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase))
+                .ToList()
+                .FirstOrDefault()!
+            );
+
+        foreach (var c in cat)
+        {
+            var user = await _unit.UserRepo.GetUsersByInterests(c!.Id);
+            if (user is null || user.Count == 0)
+                return;
+            users.AddRange(user);
+        }
+
         var title = "New book available";
-        var body = string.IsNullOrWhiteSpace(authorName)
+        var body = authorNames is null || authorNames.Any()
             ? $"{bookTitle}"
-            : $"{bookTitle} by {authorName}";
+            : $"{bookTitle} by {authorNames}";
 
         if (categoryNames.Any())
             body += $" in {string.Join(", ", categoryNames)}";
@@ -81,9 +110,9 @@ public class FCM(IUnitOfWork unit, ILogger<FCM> logger) : IFCM
         }
     }
 
-    public async Task NotifyBlogCommentReplyAsync(string blogId, string blogTitle, string commenterName, string blogOwnerId)
+    public async Task NotifyBlogCommentAsync(string blogId, string commenterName, string blogOwnerId)
     {
-        await SendToUserAsync(blogOwnerId, "New reply on your blog", $"{commenterName} replied to \"{blogTitle}\"", new Dictionary<string, string>
+        await SendToUserAsync(blogOwnerId, "New reply on your blog", $"{commenterName} replied to your blog", new Dictionary<string, string>
         {
             { "type", "blog_reply" },
             { "blogId", blogId }

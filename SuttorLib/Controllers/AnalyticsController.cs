@@ -1,6 +1,6 @@
 //using Microsoft.AspNetCore.Authorization;
 //using Microsoft.AspNetCore.Mvc;
-//using SuttorLib.Core.Interfaces;
+//using SuttorLib.Core.Services.Statistics;
 
 //namespace SuttorLib.Controllers
 //{
@@ -12,7 +12,7 @@
 //        private readonly IRecommendationEngine _recommendationEngine;
 
 //        public AnalyticsController(
-//            IStatisticsCalculator statisticsCalculator, 
+//            IStatisticsCalculator statisticsCalculator,
 //            IRecommendationEngine recommendationEngine)
 //        {
 //            _statisticsCalculator = statisticsCalculator;
