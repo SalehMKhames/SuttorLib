@@ -33,7 +33,6 @@ namespace SuttorLibrary.DTOs
         [DefaultValue(false)]
         [JsonPropertyName("isAuthor")]
         public bool IsAuthor { get; set; }
-        public IFormFile? userPic { get; set; }
     }
 
     public class LoginDTO 
@@ -59,7 +58,7 @@ namespace SuttorLibrary.DTOs
         [MinLength(3, ErrorMessage = "Full name must be at least 3 characters.")]
         [MaxLength(50, ErrorMessage = "Full name cannot exceed 50 characters.")]
         public string? FullName { get; set; }
-
+        public string? Bio { get; set; }
         public IFormFile? newCoverPic { get; set; }
     }
 
@@ -69,7 +68,7 @@ namespace SuttorLibrary.DTOs
         [EmailAddress(ErrorMessage = "Email is not valid.")]
         public string Email { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Current password is required.")]
+        [Required(ErrorMessage = "Old password is required.")]
         [MinLength(8, ErrorMessage = "Password must be at least 8 characters.")]
         public string OldPassword { get; set; } = string.Empty;
 
@@ -127,6 +126,7 @@ namespace SuttorLibrary.DTOs
         public string FullName { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public string? Bio { get; set; }
         public DateTime JoinedAt { get; set; }
         public int XP { get; set; }
         public string? PhotoPath { get; set; }
@@ -139,6 +139,7 @@ namespace SuttorLibrary.DTOs
         public string FullName { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public string? Bio { get; set; }
         public DateTime JoinedAt { get; set; }
         public int XP { get; set; }
         public IFormFile? Photo { get; set; }

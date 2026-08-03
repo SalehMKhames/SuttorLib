@@ -25,13 +25,8 @@ namespace SuttorLib.Controllers
 
             try
             {
-                string? uploadedPicture = register.userPic is not null ?
-                    await _fileService.UploadUserPicAsync(register.userPic!, register.FullName, false) : null;
 
-                if (string.Equals(uploadedPicture, "A picture with the same name already exists.", StringComparison.OrdinalIgnoreCase))
-                    return BadRequest($"The file for '{register.userPic!.FileName}' already exists.");
-
-                var result = await _unit.AuthRepo.RegisterUser(register, uploadedPicture);
+                var result = await _unit.AuthRepo.RegisterUser(register);
                 if (result is null)
                 {
                     _logger.LogInformation("Registration failed for email {Email}", register.Email);
@@ -50,8 +45,7 @@ namespace SuttorLib.Controllers
                 catch (Exception dbEx)
                 {
                     // Database commit failed — delete the uploaded file
-                    _logger.LogError(dbEx, "Database commit failed. Deleting uploaded file: {FileName}", uploadedPicture);
-                    await _fileService.DeleteFileAsync(result.PhotoPath!);
+                    _logger.LogError(dbEx, "Database commit failed for new user");
                     throw; // Re-throw to be caught by outer catch
                 }
 
@@ -159,7 +153,7 @@ namespace SuttorLib.Controllers
                 var userPicPath = updateDto.newCoverPic is not null ? 
                     await _fileService.UploadUserPicAsync(updateDto.newCoverPic!, userId, false) : null;
 
-                var result = await _unit.AuthRepo.UpdateUser(userId, updateDto.Email, updateDto.UserName, updateDto.FullName, userPicPath);
+                var result = await _unit.AuthRepo.UpdateUser(userId, updateDto.Email, updateDto.UserName, updateDto.FullName, userPicPath, updateDto.Bio);
                 if (result is null)
                 {
                     _logger.LogInformation("Update failed: user not found {UserId}", userId);

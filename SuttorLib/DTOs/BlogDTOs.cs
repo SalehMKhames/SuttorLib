@@ -7,9 +7,9 @@ namespace SuttorLib.DTOs
     {
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
-        public List<string> Tags { get; set; } = new List<string>();
+        public List<string>? Tags { get; set; }
         public string Category { get; set; } = string.Empty;
-        public List<IFormFile>? Photos { get; set; } = new List<IFormFile>();
+        public List<IFormFile>? Photos { get; set; }
     }
 
     public class UpdateBlogDTO
@@ -36,7 +36,7 @@ namespace SuttorLib.DTOs
         public int Views { get; set; }
         public DateTime? CreatedAt { get; set; }
         public List<string> Tags { get; set; } = new();
-        public List<Comment> Comments { get; set; } = new();
+        public List<CommentDTO> Comments { get; set; } = new();
         public string Category { get; set; } = string.Empty;
         public List<IFormFile>? Photos { get; set; } = new();
     }
@@ -50,7 +50,7 @@ namespace SuttorLib.DTOs
 
     public class CommentDTO
     {
-        public ObjectId Id { get; set; }
+        public string Id { get; set; }
         public string Content { get; set; } = string.Empty;
         public string CommenterId { get; set; } = string.Empty;
         public string? CommenterFullName { get; set; } = string.Empty;

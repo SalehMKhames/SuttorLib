@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SuttorLibrary.Data;
 
@@ -10,9 +11,11 @@ using SuttorLibrary.Data;
 namespace SuttorLib.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728111750_addBioToUser")]
+    partial class addBioToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -48,21 +51,21 @@ namespace SuttorLib.Migrations
                         new
                         {
                             Id = "d72cc571-c363-4d19-8818-9bebb24fba93",
-                            ConcurrencyStamp = "a160e11c-886b-48ef-8ecb-54c4ab87e0e9",
+                            ConcurrencyStamp = "30f07caa-e569-4c41-a32e-06de28811068",
                             Name = "Admin",
                             NormalizedName = "ADMIN"
                         },
                         new
                         {
                             Id = "b28dafd1-5b59-47f2-8af2-d510cd1ecb0b",
-                            ConcurrencyStamp = "3b984060-fe2d-4fda-9477-c585ad8b3b78",
+                            ConcurrencyStamp = "02258cfb-3ef9-434d-aa7d-eb804f36b4e3",
                             Name = "User",
                             NormalizedName = "USER"
                         },
                         new
                         {
                             Id = "60909110-f307-44d3-8d74-e9e85c5b7896",
-                            ConcurrencyStamp = "5946eb8e-a0fb-4c91-b01c-a248df285940",
+                            ConcurrencyStamp = "258817ea-2f14-43b2-ae90-b88ab750d20f",
                             Name = "Author",
                             NormalizedName = "AUTHOR"
                         });
@@ -215,52 +218,14 @@ namespace SuttorLib.Migrations
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("FcmToken");
-                });
-
-            modelBuilder.Entity("SuttorLib.Models.FcmLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("FcmLog");
-                });
-
-            modelBuilder.Entity("SuttorLib.Models.FcmUserLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
                         .HasColumnType("varchar(255)");
 
-                    b.Property<Guid>("logId")
-                        .HasColumnType("char(36)");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
-                    b.HasIndex("logId");
-
-                    b.ToTable("FcmUserLog");
+                    b.ToTable("FcmToken");
                 });
 
             modelBuilder.Entity("SuttorLib.Models.Library.Author", b =>
@@ -1423,7 +1388,7 @@ namespace SuttorLib.Migrations
                         {
                             Id = "29d93d5b-efbc-4ac7-999b-7b211629d8b0",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "00ec5c60-fafc-4dc0-9071-11347ea5ac96",
+                            ConcurrencyStamp = "7eaf073d-ea43-46c9-b309-335c8f79ee55",
                             Email = "salehalk512@gmail.com",
                             EmailConfirmed = true,
                             ExpiresAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
@@ -1433,10 +1398,10 @@ namespace SuttorLib.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "SALEHALK512@GMAIL.COM",
                             NormalizedUserName = "ADMINSALEH",
-                            PasswordHash = "AQAAAAIAAYagAAAAEDCSVLzU8JhbgwyYfKKZyURyx7fvQ4uBGgJD6Ef+KiAidiuYTmUDz/BbFy2WIlod/A==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEDk5dzQyKD2VYEmsGz2iK190Skp/7lZSotVZZuRUIIyi3VoScIcjupPgBSz+4aCizw==",
                             PhoneNumberConfirmed = false,
                             PhotoPath = "",
-                            SecurityStamp = "0b9e2b82-0a3e-488b-b701-3e62f0d95b15",
+                            SecurityStamp = "4d0814bd-ef6a-42f1-9334-0a82661fe463",
                             Token = "",
                             TwoFactorEnabled = false,
                             UserName = "AdminSaleh",
@@ -1446,7 +1411,7 @@ namespace SuttorLib.Migrations
                         {
                             Id = "f422f142-09b2-40b9-a886-a14b213973d5",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "db779144-7e03-48e1-9976-e0d2041c9a53",
+                            ConcurrencyStamp = "9cdd851b-ef15-4bd4-bf56-81b4fb4955ad",
                             Email = "userDemo@example.com",
                             EmailConfirmed = true,
                             ExpiresAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
@@ -1456,10 +1421,10 @@ namespace SuttorLib.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "USERDEMO@EXAMPLE.COM",
                             NormalizedUserName = "USER",
-                            PasswordHash = "AQAAAAIAAYagAAAAEE/pidbWYtX1lWb9l//P65B5kayWyxkJUmNawyWak71ZcFAwan65Jo9uSZyEUkbWhQ==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEB4fXsq75JW3La3CJyZ5WFNN0dJNB+UNJpPSMPnbqxPxWLa2XdiJHCZ2GTRaSKS+JQ==",
                             PhoneNumberConfirmed = false,
                             PhotoPath = "",
-                            SecurityStamp = "18d50555-8073-482b-ad5f-36496eae7c02",
+                            SecurityStamp = "e31e0261-db6c-4765-aae0-9f3c6ffe4b2f",
                             Token = "",
                             TwoFactorEnabled = false,
                             UserName = "User",
@@ -1469,7 +1434,7 @@ namespace SuttorLib.Migrations
                         {
                             Id = "b7359b68-b61a-4991-8c9f-b6394494b11a",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "c0a2bc20-7d66-4cff-913c-8f7a5dcd0f16",
+                            ConcurrencyStamp = "10e98220-0ad9-4772-9012-fe373e9ff5a0",
                             Email = "authorDemo@example.com",
                             EmailConfirmed = true,
                             ExpiresAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
@@ -1479,10 +1444,10 @@ namespace SuttorLib.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "AuthorDEMO@EXAMPLE.COM",
                             NormalizedUserName = "Author",
-                            PasswordHash = "AQAAAAIAAYagAAAAEBQuw3CA2e7ykRsJcCXnQSbnfq1vt41oywxKYePzMlZ+P/Doh+9T3bVoDHbSoFH62A==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEN0cxs+YrV2WKkUPV3SDj2XY98PIJfEDutxfENHNbtGXLWEhxDtTaXjbalHI05bsSQ==",
                             PhoneNumberConfirmed = false,
                             PhotoPath = "",
-                            SecurityStamp = "0bb8ba9f-e5ac-4110-8353-a41058cff9c7",
+                            SecurityStamp = "0a2ab293-c145-4380-b160-780c3bbf9a47",
                             Token = "",
                             TwoFactorEnabled = false,
                             UserName = "AuthorUser",
@@ -1579,17 +1544,11 @@ namespace SuttorLib.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("SuttorLib.Models.FcmUserLog", b =>
+            modelBuilder.Entity("SuttorLib.Models.FCMToken", b =>
                 {
                     b.HasOne("SuttorLibrary.Models.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SuttorLib.Models.FcmLog", null)
-                        .WithMany()
-                        .HasForeignKey("logId")
+                        .WithOne()
+                        .HasForeignKey("SuttorLib.Models.FCMToken", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

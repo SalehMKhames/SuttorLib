@@ -36,7 +36,7 @@ namespace SuttorLibrary.Core.Repositories
                             _context.Authors,
                             ba => ba.Author_Id,
                             a => a.Id,
-                            (ba, a) => new { a.Name, a.Description }
+                            (ba, a) => new {a.Id, a.Name, a.Description }
                         )
                         .ToList(),
                     categories = _context.BookCategories
@@ -45,7 +45,7 @@ namespace SuttorLibrary.Core.Repositories
                             _context.Categories,
                             bc => bc.categoryId,
                             c => c.Id,
-                            (bc, c) => new { c.Name }
+                            (bc, c) => new { c.Id, c.Name }
                         )
                         .ToList(),
                     language = _context.Languages
@@ -54,12 +54,7 @@ namespace SuttorLibrary.Core.Repositories
                         .FirstOrDefault(),
                     downloads = _context.Downloads
                         .Where(d => d.BookID == b.Id)
-                        .Join(
-                            _context.AppUsers,
-                            d => d.BookID,
-                            u => u.Id,
-                            (d, u) => new { d.Id }
-                        ).Count(),
+                        .Count(),
 
                     ratings = _context.BookRatings
                         .Where(r => r.BookId == b.Id)
@@ -110,7 +105,7 @@ namespace SuttorLibrary.Core.Repositories
                             _context.Authors,
                             ba => ba.Author_Id,
                             a => a.Id,
-                            (ba, a) => new { a.Name, a.Description }
+                            (ba, a) => new { a.Id, a.Name, a.Description }
                         )
                         .ToList(),
                     categories = _context.BookCategories

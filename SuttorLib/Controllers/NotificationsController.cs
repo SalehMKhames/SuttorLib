@@ -66,5 +66,27 @@ namespace SuttorLib.Controllers
                 return Problem("An error occurred while sending the notification.");
             }
         }
+
+        [HttpGet("Notification-Log")]
+        public async Task<IActionResult> NotificationLog([FromBody] string userId)
+        {
+            try {
+                if (userId is null)
+                    return BadRequest("User ID is required");
+
+                var log = await _fcmService.NotificationLog(userId);
+                if (log is null || log.Count == 0)
+                    return NotFound("No notification for you");
+
+                _logger.LogInformation("Getting notifications for user {userId} successfully", userId);
+                return Ok(log);
+            
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting notifications for user {userId}", userId);
+                return Problem("An error occurred while getting notifications");
+            }
+        }
     }
 }

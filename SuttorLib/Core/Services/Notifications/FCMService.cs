@@ -63,4 +63,48 @@ public class FCMService(AppDbContext context) : IFCMService
 
         _context.FCMTokens.RemoveRange(tokens);
     }
+
+    public async Task SaveNotificationToLog(string userId, string title, string body, Dictionary<string, string> type)
+    {
+        FcmLog log = new FcmLog {
+            Id = Guid.NewGuid(),
+            Title = title,
+            Body = body,
+            Type = type
+        };
+
+        await _context.FcmLog.AddAsync(log);
+        await _context.SaveChangesAsync();
+
+        await LinkUserWithNotification(userId, log.Id);
+    }
+
+    public async Task<List<FcmLog>> GetUserNotifications(string userId)
+    {
+        var logs = await _context.FcmUserLog
+            .Where(ul => ul.UserId == userId)
+            .Join(_context.FcmLog,
+                ul => ul.logId,
+                log => log.Id,
+                (ul, log) => log)
+            .ToListAsync();
+
+        if (logs is null || logs.Count == 0)
+            throw new KeyNotFoundException("No Notification");
+
+        return logs;
+    }
+
+    private async Task LinkUserWithNotification(string userId, Guid logId)
+    {
+        var userLog = new FcmUserLog
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            logId = logId
+        };
+
+        await _context.FcmUserLog.AddAsync(userLog);
+        await _context.SaveChangesAsync();
+    } 
 }

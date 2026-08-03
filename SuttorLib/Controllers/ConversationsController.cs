@@ -51,10 +51,6 @@ namespace SuttorLib.Controllers
                 _logger.LogInformation("Create the Conversation for the user with ID: {userId} Successfully", cDto.Id);
                 return CreatedAtAction(nameof(NewConversation), new { cDto.Id }, cDto);
             }
-            catch (KeyNotFoundException knf)
-            {
-                return NotFound(knf.Message);
-            }
             catch (UnauthorizedAccessException ua)
             {
                 return Unauthorized(ua.Message);
@@ -66,7 +62,7 @@ namespace SuttorLib.Controllers
             }
         }
 
-        // GET api/conversations/cId=...
+        // GET api/conversations/cId
         [HttpGet("{cId}")]
         public async Task<IActionResult> GetConversation([FromRoute] string cId)
         {
@@ -186,7 +182,7 @@ namespace SuttorLib.Controllers
 
         // DELETE api/conversations/{id}/Delete
         [HttpDelete("{id}/Delete")]
-        public async Task<IActionResult> DeleteConversation([FromBody] string id)
+        public async Task<IActionResult> DeleteConversation([FromRoute] string id)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -208,7 +204,7 @@ namespace SuttorLib.Controllers
                 }
 
                 _logger.LogInformation("Delete Conversation with ID: {id} Successfully", id);
-                return Ok(conv);
+                return Ok();
             }
             catch (KeyNotFoundException knf)
             {

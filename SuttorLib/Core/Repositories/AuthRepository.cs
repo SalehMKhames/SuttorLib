@@ -61,7 +61,7 @@ namespace SuttorLibrary.Core.Repositories
             return existedUser;
         }
 
-        public async Task<AppUser?> RegisterUser(RegisterDTO register, string? picName)
+        public async Task<AppUser?> RegisterUser(RegisterDTO register)
         {
             if (await _userManager.FindByEmailAsync(register.Email) is not null)
                     throw new ArgumentException("Email is already in use.");
@@ -78,8 +78,7 @@ namespace SuttorLibrary.Core.Repositories
                 EmailConfirmed = false,
                 IsAuthor = register.IsAuthor,
                 XP = 0,
-                Roles = { "User" },
-                PhotoPath = picName is null ? null : $"{_config["FileStorage:UsersPicsPath"]}/{picName}"
+                Roles = { "User" }
             };
 
             var creatingResult = await _userManager.CreateAsync(newUser, register.Password);
@@ -128,7 +127,7 @@ namespace SuttorLibrary.Core.Repositories
             return createdUser;
         }
 
-        public async Task<AppUser?> UpdateUser(string id, string? email, string? username, string? fullName, string? picPath)
+        public async Task<AppUser?> UpdateUser(string id, string? email, string? username, string? fullName, string? picPath, string? Bio)
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user is null)
@@ -157,6 +156,9 @@ namespace SuttorLibrary.Core.Repositories
 
             if (!string.IsNullOrWhiteSpace(picPath))
                 user.PhotoPath = picPath;
+
+            if (!string.IsNullOrEmpty(Bio))
+                user.Bio = Bio;
 
             var updateResult = await _userManager.UpdateAsync(user);
             if (!updateResult.Succeeded)

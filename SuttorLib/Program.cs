@@ -14,7 +14,6 @@ using SuttorLib.Core.Repositories;
 using SuttorLib.Core.Services.Blog;
 using SuttorLib.Core.Services.Blogs;
 using SuttorLib.Core.Services.Files;
-using SuttorLib.Core.Services.Statistics;
 using SuttorLib.Data;
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services.aiConversations;
@@ -114,12 +113,6 @@ builder.Services.AddScoped<IBlogServices, BlogService>();
 builder.Services.AddScoped<MongoIndexConfig>();
 
 builder.Services.AddScoped<IConversationService, ConversationService>();
-
-builder.Services.AddScoped<IStatisticsCalculator, StatisticsCalculatorService>();
-
-builder.Services.AddScoped<IRecommendationEngine, RecommendationEngineService>();
-
-builder.Services.AddHostedService<AnalyticsBackgroundService>();
 
 
 //Firebase

@@ -26,7 +26,7 @@ namespace SuttorLibrary.Models
         public DateTime JoinedAt { get; set; }
         public int XP { get; set; }
         public string? PhotoPath { get; set; }
-
+        public string? Bio { get; set; }
         public bool IsAuthor { get; set; }
         
         [NotMapped]

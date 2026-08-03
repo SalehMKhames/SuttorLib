@@ -9,5 +9,7 @@ namespace SuttorLib.Core.Services.Notifications
         Task SaveTokenAsync(FCMToken fcmToken);
         Task DeleteTokenAsync(string userId, string token);
         Task DeleteAllTokensForUserAsync(string userId);
+        Task SaveNotificationToLog(string userId, string title, string body, Dictionary<string, string> type);
+        Task<List<FcmLog>> GetUserNotifications(string userId);
     }
 }

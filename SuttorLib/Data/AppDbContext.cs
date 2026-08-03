@@ -22,6 +22,8 @@ namespace SuttorLibrary.Data
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Languages> Languages { get; set; }
         public DbSet<FCMToken> FCMTokens { get; set; }
+        public DbSet<FcmLog> FcmLog { get; set; }
+        public DbSet<FcmUserLog> FcmUserLog { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -142,10 +144,23 @@ namespace SuttorLibrary.Data
             // FCM Token
             modelBuilder.Entity<FCMToken>()
                 .HasKey(f => f.Id);
-            modelBuilder.Entity<FCMToken>()
+
+            //FCM LOG
+            modelBuilder.Entity<FcmLog>()
+                .HasKey(l => l.Id);
+
+            //FCM USER LOG
+            modelBuilder.Entity<FcmUserLog>()
+                .HasKey(ul => ul.Id);
+            modelBuilder.Entity<FcmUserLog>()
                 .HasOne<AppUser>()
-                .WithOne()
-                .HasForeignKey<FCMToken>(f => f.UserId)
+                .WithMany()
+                .HasForeignKey(ul => ul.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<FcmUserLog>()
+                .HasOne<FcmLog>()
+                .WithMany()
+                .HasForeignKey(ul => ul.logId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // -------- Identity seed data (Users + Roles) ---------

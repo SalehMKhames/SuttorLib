@@ -65,7 +65,6 @@ namespace SuttorLib.Controllers
                         createDTO.Category = category!.Name;
                     }
 
-
                     try
                     {
                         await _unit.CompleteAsync();
@@ -88,7 +87,7 @@ namespace SuttorLib.Controllers
 
                 await _fcm.NotifyNewBlogAsync(blog.PublisherId, blog.Title, blog.Category);
 
-                return CreatedAtAction(nameof(CreateBlog), blog.Id, blog);
+                return CreatedAtAction(nameof(CreateBlog), blog.Id.ToString(), blog);
             }
             catch (Exception ex)
             {
@@ -167,7 +166,49 @@ namespace SuttorLib.Controllers
                 if (comments is null || comments.Count == 0)
                     blogDTO.Comments = [];
                 else
-                    blogDTO.Comments = comments;
+                    
+                {
+                    foreach (var comment in comments)
+                    {
+                                var userData = await _unit.UserRepo.GetById(comment.CommenterId);
+                                string? commentUserName = null, commentUserFullName = null;
+                                IFormFile? commentUserPic = null;
+
+                                if (userData is null)
+                                {
+                                    _logger.LogInformation("The Commenter of the Blog {id} is unknown.", comment.Id.ToString());
+                                    commentUserFullName = "Unknown Commenter";
+                                }
+                                else
+                                {
+                                    commentUserName = userData.UserName;
+                                    commentUserFullName = userData.FullName;
+
+                                    commentUserPic = userData.PhotoPath is null ?
+                                        null : await _fileService.GetPictureAsync(userData.PhotoPath);
+                                }
+
+                                var com = new CommentDTO
+                                {
+                                    Id = comment.Id.ToString(),
+                                    Content = comment.Content,
+                                    CreatedAt = comment.CreatedAt,
+                                    CommenterId = comment.CommenterId,
+                                    CommenterFullName = commentUserFullName,
+                                    CommenterUserName = commentUserName,
+                                    CommenterPhoto = commentUserPic,
+                                    Tags = comment.Tags,
+                                    UpdatedAt = comment.UpdatedAt,
+                                    Likes = comment.Likes,
+                                    Dislikes = comment.Dislikes,
+                                    UserIdsLikes = comment.UserIdsLikes,
+                                    UserIdsDislikes = comment.UserIdsDislikes,
+                                    Replies = comment.Replies
+                                };
+
+                                blogDTO.Comments.Add(com);
+                    }
+                }
 
                 _logger.LogInformation("Blog with id: {ID} retrieved Successfully.", blogDTO.Id.ToString());
                 return Ok(blogDTO);
@@ -259,7 +300,48 @@ namespace SuttorLib.Controllers
                     if (comments is null || comments.Count == 0)
                         blogDTO.Comments = [];
                     else
-                        blogDTO.Comments = comments;
+                    {
+                        foreach (var comment in comments)
+                        {
+                            var userData = await _unit.UserRepo.GetById(comment.CommenterId);
+                            string? commentUserName = null, commentUserFullName = null;
+                            IFormFile? commentUserPic = null;
+
+                            if (userData is null)
+                            {
+                                _logger.LogInformation("The Commenter of the Blog {id} is unknown.", item.Id.ToString());
+                                commentUserFullName = "Unknown Commenter";
+                            }
+                            else
+                            {
+                                commentUserName = userData.UserName;
+                                commentUserFullName = userData.FullName;
+
+                                commentUserPic = userData.PhotoPath is null ?
+                                    null : await _fileService.GetPictureAsync(userData.PhotoPath);
+                            }
+
+                            var com = new CommentDTO
+                            {
+                                Id = comment.Id.ToString(),
+                                Content = comment.Content,
+                                CreatedAt = comment.CreatedAt,
+                                CommenterId = comment.CommenterId,
+                                CommenterFullName = commentUserFullName,
+                                CommenterUserName = commentUserName,
+                                CommenterPhoto = commentUserPic,
+                                Tags = comment.Tags,
+                                UpdatedAt = comment.UpdatedAt,
+                                Likes = comment.Likes,
+                                Dislikes = comment.Dislikes,
+                                UserIdsLikes = comment.UserIdsLikes,
+                                UserIdsDislikes = comment.UserIdsDislikes,
+                                Replies = comment.Replies
+                            };
+
+                            blogDTO.Comments.Add(com);
+                        }
+                    }
 
                     blogs.Add(blogDTO);
                 }
@@ -362,7 +444,48 @@ namespace SuttorLib.Controllers
                 if (comments is null || comments.Count == 0)
                     blogDTO.Comments = [];
                 else
-                    blogDTO.Comments = comments;
+                {
+                    foreach (var comment in comments)
+                    {
+                        var userData = await _unit.UserRepo.GetById(comment.CommenterId);
+                        string? commentUserName = null, commentUserFullName = null;
+                        IFormFile? commentUserPic = null;
+
+                        if (userData is null)
+                        {
+                            _logger.LogInformation("The Commenter of the Blog {id} is unknown.", comment.Id.ToString());
+                            commentUserFullName = "Unknown Commenter";
+                        }
+                        else
+                        {
+                            commentUserName = userData.UserName;
+                            commentUserFullName = userData.FullName;
+
+                            commentUserPic = userData.PhotoPath is null ?
+                                null : await _fileService.GetPictureAsync(userData.PhotoPath);
+                        }
+
+                        var com = new CommentDTO
+                        {
+                            Id = comment.Id.ToString(),
+                            Content = comment.Content,
+                            CreatedAt = comment.CreatedAt,
+                            CommenterId = comment.CommenterId,
+                            CommenterFullName = commentUserFullName,
+                            CommenterUserName = commentUserName,
+                            CommenterPhoto = commentUserPic,
+                            Tags = comment.Tags,
+                            UpdatedAt = comment.UpdatedAt,
+                            Likes = comment.Likes,
+                            Dislikes = comment.Dislikes,
+                            UserIdsLikes = comment.UserIdsLikes,
+                            UserIdsDislikes = comment.UserIdsDislikes,
+                            Replies = comment.Replies
+                        };
+
+                        blogDTO.Comments.Add(com);
+                    }
+                }
 
                 _logger.LogInformation("Blog with the Id: {ID} updated successfully.", blog.Id.ToString());
 
@@ -501,7 +624,48 @@ namespace SuttorLib.Controllers
                     if (comments is null || comments.Count == 0)
                         blogDTO.Comments = [];
                     else
-                        blogDTO.Comments = comments;
+                    {
+                        foreach (var comment in comments)
+                        {
+                            var userData = await _unit.UserRepo.GetById(comment.CommenterId);
+                            string? commentUserName = null, commentUserFullName = null;
+                            IFormFile? commentUserPic = null;
+
+                            if (userData is null)
+                            {
+                                _logger.LogInformation("The Commenter of the Blog {id} is unknown.", comment.Id.ToString());
+                                commentUserFullName = "Unknown Commenter";
+                            }
+                            else
+                            {
+                                commentUserName = userData.UserName;
+                                commentUserFullName = userData.FullName;
+
+                                commentUserPic = userData.PhotoPath is null ?
+                                    null : await _fileService.GetPictureAsync(userData.PhotoPath);
+                            }
+
+                            var com = new CommentDTO
+                            {
+                                Id = comment.Id.ToString(),
+                                Content = comment.Content,
+                                CreatedAt = comment.CreatedAt,
+                                CommenterId = comment.CommenterId,
+                                CommenterFullName = commentUserFullName,
+                                CommenterUserName = commentUserName,
+                                CommenterPhoto = commentUserPic,
+                                Tags = comment.Tags,
+                                UpdatedAt = comment.UpdatedAt,
+                                Likes = comment.Likes,
+                                Dislikes = comment.Dislikes,
+                                UserIdsLikes = comment.UserIdsLikes,
+                                UserIdsDislikes = comment.UserIdsDislikes,
+                                Replies = comment.Replies
+                            };
+
+                            blogDTO.Comments.Add(com);
+                        }
+                    }
 
                     blogs.Add(blogDTO);
                 }
@@ -594,7 +758,48 @@ namespace SuttorLib.Controllers
                     if (comments is null || comments.Count == 0)
                         blogDTO.Comments = [];
                     else
-                        blogDTO.Comments = comments;
+                    {
+                        foreach (var comment in comments)
+                        {
+                            var userData = await _unit.UserRepo.GetById(comment.CommenterId);
+                            string? commentUserName = null, commentUserFullName = null;
+                            IFormFile? commentUserPic = null;
+
+                            if (userData is null)
+                            {
+                                _logger.LogInformation("The Commenter of the Blog {id} is unknown.", comment.Id.ToString());
+                                commentUserFullName = "Unknown Commenter";
+                            }
+                            else
+                            {
+                                commentUserName = userData.UserName;
+                                commentUserFullName = userData.FullName;
+
+                                commentUserPic = userData.PhotoPath is null ?
+                                    null : await _fileService.GetPictureAsync(userData.PhotoPath);
+                            }
+
+                            var com = new CommentDTO
+                            {
+                                Id = comment.Id.ToString(),
+                                Content = comment.Content,
+                                CreatedAt = comment.CreatedAt,
+                                CommenterId = comment.CommenterId,
+                                CommenterFullName = commentUserFullName,
+                                CommenterUserName = commentUserName,
+                                CommenterPhoto = commentUserPic,
+                                Tags = comment.Tags,
+                                UpdatedAt = comment.UpdatedAt,
+                                Likes = comment.Likes,
+                                Dislikes = comment.Dislikes,
+                                UserIdsLikes = comment.UserIdsLikes,
+                                UserIdsDislikes = comment.UserIdsDislikes,
+                                Replies = comment.Replies
+                            };
+
+                            blogDTO.Comments.Add(com);
+                        }
+                    }
 
                     blogs.Add(blogDTO);
                 }
@@ -676,7 +881,48 @@ namespace SuttorLib.Controllers
                     if (comments is null || comments.Count == 0)
                         blogDTO.Comments = [];
                     else
-                        blogDTO.Comments = comments;
+                    {
+                        foreach (var comment in comments)
+                        {
+                            var userData = await _unit.UserRepo.GetById(comment.CommenterId);
+                            string? commentUserName = null, commentUserFullName = null;
+                            IFormFile? commentUserPic = null;
+
+                            if (userData is null)
+                            {
+                                _logger.LogInformation("The Commenter of the Blog {id} is unknown.", comment.Id.ToString());
+                                commentUserFullName = "Unknown Commenter";
+                            }
+                            else
+                            {
+                                commentUserName = userData.UserName;
+                                commentUserFullName = userData.FullName;
+
+                                commentUserPic = userData.PhotoPath is null ?
+                                    null : await _fileService.GetPictureAsync(userData.PhotoPath);
+                            }
+
+                            var com = new CommentDTO
+                            {
+                                Id = comment.Id.ToString(),
+                                Content = comment.Content,
+                                CreatedAt = comment.CreatedAt,
+                                CommenterId = comment.CommenterId,
+                                CommenterFullName = commentUserFullName,
+                                CommenterUserName = commentUserName,
+                                CommenterPhoto = commentUserPic,
+                                Tags = comment.Tags,
+                                UpdatedAt = comment.UpdatedAt,
+                                Likes = comment.Likes,
+                                Dislikes = comment.Dislikes,
+                                UserIdsLikes = comment.UserIdsLikes,
+                                UserIdsDislikes = comment.UserIdsDislikes,
+                                Replies = comment.Replies
+                            };
+
+                            blogDTO.Comments.Add(com);
+                        }
+                    }
 
                     blogs.Add(blogDTO);
                 }
@@ -781,7 +1027,7 @@ namespace SuttorLib.Controllers
 
                     var com = new CommentDTO
                     {
-                        Id = item.Id,
+                        Id = item.Id.ToString(),
                         Content = item.Content,
                         CreatedAt = item.CreatedAt,
                         CommenterId = item.CommenterId,
@@ -877,7 +1123,7 @@ namespace SuttorLib.Controllers
 
                 var com = new CommentDTO
                 {
-                    Id = comment.Id,
+                    Id = comment.Id.ToString(),
                     Content = comment.Content,
                     CreatedAt = comment.CreatedAt,
                     CommenterId = comment.CommenterId,
@@ -1399,7 +1645,7 @@ namespace SuttorLib.Controllers
 
                 var com = new CommentDTO
                 {
-                    Id = reply.Id,
+                    Id = reply.Id.ToString(),
                     Content = reply.Content,
                     CreatedAt = reply.CreatedAt,
                     CommenterId = reply.CommenterId,
@@ -1470,7 +1716,7 @@ namespace SuttorLib.Controllers
 
                     var com = new CommentDTO
                     {
-                        Id = item.Id,
+                        Id = item.Id.ToString(),
                         Content = item.Content,
                         CreatedAt = item.CreatedAt,
                         CommenterId = item.CommenterId,
@@ -1569,7 +1815,7 @@ namespace SuttorLib.Controllers
 
                 var com = new CommentDTO
                 {
-                    Id = reply.Id,
+                    Id = reply.Id.ToString(),
                     Content = reply.Content,
                     CreatedAt = reply.CreatedAt,
                     CommenterId = reply.CommenterId,

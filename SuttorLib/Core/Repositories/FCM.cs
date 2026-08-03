@@ -43,6 +43,8 @@ public class FCM(IUnitOfWork unit, ILogger<FCM> logger) : IFCM
             return;
         }
 
+        await _unit.FCMRepo.SaveNotificationToLog(userId, title, body, data);
+
         await SendMulticastAsync(tokens, title, body, data);
     }
 
@@ -172,5 +174,14 @@ public class FCM(IUnitOfWork unit, ILogger<FCM> logger) : IFCM
         {
             _logger.LogError(ex, "Error sending FCM multicast");
         }
+    }
+
+    public async Task<List<FcmLog>?> NotificationLog(string userId)
+    {
+        var log = await _unit.FCMRepo.GetUserNotifications(userId);
+        if (log is null || log.Count == 0)
+            return null;
+
+        return log;
     }
 }

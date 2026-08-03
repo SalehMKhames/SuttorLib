@@ -1,4 +1,6 @@
-﻿namespace SuttorLib.Core.Interfaces
+﻿using SuttorLib.Models;
+
+namespace SuttorLib.Core.Interfaces
 {
     public interface IFCM
     {
@@ -9,5 +11,6 @@
         Task NotifyNewBookAsync(string bookTitle, List<string> categoryNames, List<string>? authorName = null);
         Task NotifyBlogCommentAsync(string blogId, string commenterName, string blogOwnerId);
         Task NotifyXPRewardAsync(string userId, int xpGained, int totalXp);
+        Task<List<FcmLog>?> NotificationLog(string userId);
     }
 }

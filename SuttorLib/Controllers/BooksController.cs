@@ -7,6 +7,8 @@ using SuttorLibrary.Core;
 using SuttorLibrary.DTOs;
 using System.Security.Claims;
 
+using SuttorLib.Core.Services;
+
 namespace SuttorLib.Controllers
 {
     [Route("api/[controller]")]
