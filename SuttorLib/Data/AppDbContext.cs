@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SuttorLib.Models;
 using SuttorLib.Models.Library;
+using SuttorLib.Models.Recommender;
 using SuttorLibrary.Models;
 
 namespace SuttorLibrary.Data
@@ -24,6 +25,8 @@ namespace SuttorLibrary.Data
         public DbSet<FCMToken> FCMTokens { get; set; }
         public DbSet<FcmLog> FcmLog { get; set; }
         public DbSet<FcmUserLog> FcmUserLog { get; set; }
+        public DbSet<DownloadAnalysis> DownloadsAnalysis { get; set; }
+        public DbSet<ScoredCandidate> ScoredCandidates { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -162,6 +165,14 @@ namespace SuttorLibrary.Data
                 .WithMany()
                 .HasForeignKey(ul => ul.logId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            //Download Analysis
+            modelBuilder.Entity<DownloadAnalysis>()
+                .HasKey(da => new { da.UserId, da.BookId });
+
+            //Scored Candidate
+            modelBuilder.Entity<ScoredCandidate>()
+                .HasKey(sc => new { sc.UserId, sc.BookId});
 
             // -------- Identity seed data (Users + Roles) ---------
 

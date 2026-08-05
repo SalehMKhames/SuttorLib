@@ -1,13 +1,14 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using LibrarySystem.Recommendations.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SuttorLib.Core.Interfaces;
+using SuttorLib.Core.Services;
 using SuttorLib.Core.Services.Files;
+using SuttorLib.Core.Services.Recommends.Mongo;
 using SuttorLib.Models.Library;
 using SuttorLibrary.Core;
 using SuttorLibrary.DTOs;
 using System.Security.Claims;
-
-using SuttorLib.Core.Services;
 
 namespace SuttorLib.Controllers
 {
@@ -20,6 +21,8 @@ namespace SuttorLib.Controllers
         private readonly IFileService _fileService = fileService;
         private readonly IConfiguration _configuration = configuration;
         private readonly IFCM _fcm = fcm;
+        private readonly IRecommendRepo _repository;
+        private readonly RecommendationPipelineService _pipeline;
 
         //Get /api/Books
         [HttpGet(Name = "GetAllBooks")]
@@ -1065,6 +1068,33 @@ namespace SuttorLib.Controllers
                 return Problem("An error occurred while updating category.");
             }
         }
+
+
+        // GET api/Books/Recommendations
+        [Authorize]
+        [HttpGet("Recommendations")]
+        public async Task<IActionResult> GetForUser()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId is null)
+                return Unauthorized();
+
+            var doc = await _repository.GetForUserAsync(userId);
+            if (doc is null)
+                return NotFound(new { message = "No recommendations generated yet for this user." });
+
+            return Ok(doc);
+        }
+
+        //GET api/Books/train
+        [Authorize(Roles = "Admin")]
+        [HttpPost("train")]
+        public async Task<IActionResult> RetrainAndGenerate()
+        {
+            await _pipeline.RunAsync();
+            return Ok(new { message = "Recommendations regenerated." });
+        }
+
 
         private string BuildUrl(string relativePath)
         {

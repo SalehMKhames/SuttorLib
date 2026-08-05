@@ -14,5 +14,11 @@ namespace SuttorLibrary.Core.Interfaces
         public Task<bool> PromoteToAuthor(AppUser user, int xp);
         public Task<List<BookListItemDto>?> SuggestedBooks(string userId);
         public Task<List<AppUser>?> GetUsersByInterests(string categoryId);
+
+        Task<List<InteractionRow>> GetAllDownloadInteractionsAsync();
+        Task<List<UserInterestRow>> GetAllUserInterestsAsync();
     }
+
+    public record InteractionRow(string UserId, string BookId);
+    public record UserInterestRow(string UserId, string CategoryId);
 }

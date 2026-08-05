@@ -288,5 +288,21 @@ namespace SuttorLibrary.Core.Repositories
 
             return users.Count > 0 ? users.Cast<AppUser>().ToList() : null;
         }
+
+        public async Task<List<InteractionRow>> GetAllDownloadInteractionsAsync()
+        {
+            return await _context.Set<Download>()
+                .AsNoTracking()
+                .Select(d => new InteractionRow(d.UserID, d.BookID))
+                .ToListAsync();
+        }
+
+        public async Task<List<UserInterestRow>> GetAllUserInterestsAsync()
+        {
+            return await _context.Set<UserInterests>()
+                .AsNoTracking()
+                .Select(ui => new UserInterestRow(ui.UserId, ui.Category_Id))
+                .ToListAsync();
+        }
     }
 }

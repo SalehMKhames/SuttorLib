@@ -35,9 +35,4 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Core\Services\Recommendation\" />
-    <Folder Include="Models\Analytics\" />
-  </ItemGroup>
-
 </Project>

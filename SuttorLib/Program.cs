@@ -1,5 +1,6 @@
 using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
+using LibrarySystem.Recommendations.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -8,12 +9,15 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.ML;
 using Scalar.AspNetCore;
 using SuttorLib.Core.Interfaces;
 using SuttorLib.Core.Repositories;
 using SuttorLib.Core.Services.Blog;
 using SuttorLib.Core.Services.Blogs;
 using SuttorLib.Core.Services.Files;
+using SuttorLib.Core.Services.Recommends;
+using SuttorLib.Core.Services.Recommends.Mongo;
 using SuttorLib.Data;
 using SuttorLibrary.Core;
 using SuttorLibrary.Core.Services.aiConversations;
@@ -41,6 +45,9 @@ builder.Services.Configure<FormOptions>(options =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// MLContext is fairly heavy - Create one instance app-wide.
+builder.Services.AddSingleton(new MLContext(seed: 0));
+
 //Connect to MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySQL(builder.Configuration.GetConnectionString("Default")!)
@@ -67,6 +74,8 @@ builder.Services.Configure<StatisticsSettings>(
     .AddOptions<StatisticsSettings>()
     .Bind(builder.Configuration.GetSection("StatisticsSettings"))
     .ValidateDataAnnotations();
+
+
 
 builder.Services.AddIdentity<AppUser, IdentityRole>(
     options => {
@@ -114,6 +123,18 @@ builder.Services.AddScoped<MongoIndexConfig>();
 
 builder.Services.AddScoped<IConversationService, ConversationService>();
 
+builder.Services.AddScoped<IRecommendRepo, RecommendRepo>();
+
+// The ML.NET trainer, and the cold-start fallback.
+builder.Services.AddScoped<MatrixFactorizationRecommenderService>();
+builder.Services.AddScoped<InterestsBasedRecommenderService>();
+
+// Orchestrates the two above, and writes the results to Mongo.
+// Used by both the /train end-point and the backgraound job. 
+builder.Services.AddScoped<RecommendationPipelineService>();
+
+// The BackGround Job.
+builder.Services.AddHostedService<RecommendationBackgroundJob>();
 
 //Firebase
 var credentialsPath = builder.Configuration["Firebase:CredentialsPath"];
