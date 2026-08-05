@@ -1,5 +1,4 @@
-﻿using MongoDB.Bson;
-using SuttorLib.Models.Blog;
+﻿using SuttorLib.Models.Blog;
 
 namespace SuttorLib.DTOs
 {

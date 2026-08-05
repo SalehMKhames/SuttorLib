@@ -1,5 +1,4 @@
 ﻿using Google.Apis.Auth.OAuth2;
-using System.Threading.Tasks;
 
 namespace SuttorLib.Helpers
 {
