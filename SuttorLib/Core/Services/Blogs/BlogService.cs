@@ -5,6 +5,7 @@ using SuttorLib.Core.Services.Blog;
 using SuttorLib.Data;
 using SuttorLib.DTOs;
 using SuttorLib.Models.Blog;
+using System.Text.RegularExpressions;
 
 namespace SuttorLib.Core.Services.Blogs
 {
@@ -60,14 +61,19 @@ namespace SuttorLib.Core.Services.Blogs
 
         public async Task<PaginatedBlogResponseDto> GetAllBlogs(BlogFilterDto dto)
         {
+            // Clamp pagination input
+            var page = Math.Max(1, dto.Page);
+            var pageSize = Math.Clamp(dto.PageSize, 1, 50);
+
             var filter = Builders<Models.Blog.Blog>.Filter.Eq(b => b.IsPublished, true);
 
-            // Apply search filter
+            // Apply search filter (escaped so user input can't break or abuse the regex)
             if (!string.IsNullOrWhiteSpace(dto.SearchTerm))
             {
+                var term = Regex.Escape(dto.SearchTerm.Trim());
                 var searchFilter = Builders<Models.Blog.Blog>.Filter.Or(
-                    Builders<Models.Blog.Blog>.Filter.Regex(b => b.Title, dto.SearchTerm),
-                    Builders<Models.Blog.Blog>.Filter.Regex(b => b.Content, dto.SearchTerm)
+                    Builders<Models.Blog.Blog>.Filter.Regex(b => b.Title, new BsonRegularExpression(term, "i")),
+                    Builders<Models.Blog.Blog>.Filter.Regex(b => b.Content, new BsonRegularExpression(term, "i"))
                 );
                 filter &= searchFilter;
             }
@@ -87,7 +93,6 @@ namespace SuttorLib.Core.Services.Blogs
 
             var totalCount = await _blog.CountDocumentsAsync(filter);
 
-            // Apply sorting
             var sort = dto.SortBy.ToLower() switch
             {
                 "popular" => Builders<Models.Blog.Blog>.Sort.Descending(b => b.Likes),
@@ -95,23 +100,20 @@ namespace SuttorLib.Core.Services.Blogs
                 _ => Builders<Models.Blog.Blog>.Sort.Descending(b => b.CreatedAt)
             };
 
-            var skip = (dto.Page - 1) * dto.PageSize;
             var blogs = await _blog
                 .Find(filter)
                 .Sort(sort)
-                .Skip(skip)
-                .Limit(dto.PageSize)
+                .Skip((page - 1) * pageSize)
+                .Limit(pageSize)
                 .ToListAsync();
-
-            var items = blogs.ToList();
 
             return new PaginatedBlogResponseDto
             {
-                Items = items,
+                Items = blogs,
                 TotalCount = (int)totalCount,
-                Page = dto.Page,
-                PageSize = dto.PageSize,
-                TotalPages = (int)Math.Ceiling(totalCount / (double)dto.PageSize)
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
             };
         }
 
@@ -178,24 +180,27 @@ namespace SuttorLib.Core.Services.Blogs
             return blog;
         }
 
-        public async Task<PaginatedBlogResponseDto?> GetBlogsByCategory(string category, int page = 1, int pageSize = 10)
+        private async Task<PaginatedBlogResponseDto> QueryBlogsAsync(
+            FilterDefinition<Models.Blog.Blog> filter, int page, int pageSize)
         {
-            var filter = Builders<Models.Blog.Blog>.Filter.Eq(b => b.Category, category);
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 50);
+
+            // Only published blogs are returned from list endpoints.
+            filter &= Builders<Models.Blog.Blog>.Filter.Eq(b => b.IsPublished, true);
+
             var totalCount = await _blog.CountDocumentsAsync(filter);
 
-            var skip = (page - 1) * pageSize;
             var blogs = await _blog
                 .Find(filter)
                 .Sort(Builders<Models.Blog.Blog>.Sort.Descending(b => b.CreatedAt))
-                .Skip(skip)
+                .Skip((page - 1) * pageSize)
                 .Limit(pageSize)
                 .ToListAsync();
 
-            var items = blogs.ToList();
-
             return new PaginatedBlogResponseDto
             {
-                Items = items,
+                Items = blogs,
                 TotalCount = (int)totalCount,
                 Page = page,
                 PageSize = pageSize,
@@ -203,59 +208,20 @@ namespace SuttorLib.Core.Services.Blogs
             };
         }
 
-        public async Task<PaginatedBlogResponseDto?> GetBlogsByPublisher(string userId, int page = 1, int pageSize = 10)
+        public Task<PaginatedBlogResponseDto> GetBlogsByCategory(string category, int page = 1, int pageSize = 10)
+            => QueryBlogsAsync(Builders<Models.Blog.Blog>.Filter.Eq(b => b.Category, category), page, pageSize);
+
+        public Task<PaginatedBlogResponseDto> GetBlogsByPublisher(string userId, int page = 1, int pageSize = 10)
+            => QueryBlogsAsync(Builders<Models.Blog.Blog>.Filter.Eq(b => b.PublisherId, userId), page, pageSize);
+
+        public Task<PaginatedBlogResponseDto> SearchBlogsByTags(List<string> tags, int page = 1, int pageSize = 10)
         {
-            var filter = Builders<Models.Blog.Blog>.Filter.Eq(b => b.PublisherId, userId);
-            var totalCount = await _blog.CountDocumentsAsync(filter);
+            if (tags is null || tags.Count == 0)
+                throw new ArgumentException("Tags list cannot be empty", nameof(tags));
 
-            var skip = (page - 1) * pageSize;
-            var blogs = await _blog
-                .Find(filter)
-                .Sort(Builders<Models.Blog.Blog>.Sort.Descending(b => b.CreatedAt))
-                .Skip(skip)
-                .Limit(pageSize)
-                .ToListAsync();
-
-            var items = blogs.ToList();
-
-            return new PaginatedBlogResponseDto
-            {
-                Items = items,
-                TotalCount = (int)totalCount,
-                Page = page,
-                PageSize = pageSize,
-                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-            };
-        }
-        
-        public async Task<PaginatedBlogResponseDto?> SearchBlogsByTags(List<string> tags, int page = 1, int pageSize = 10)
-        {
-            if (tags == null || !tags.Any())
-                throw new ArgumentException("Tags list cannot be empty");
-
-            var normalizedTag = NormalizeTags(tags).First();
-            var filter = Builders<Models.Blog.Blog>.Filter.AnyEq(b => b.Tags, normalizedTag);
-
-            var totalCount = await _blog.CountDocumentsAsync(filter);
-
-            var skip = (page - 1) * pageSize;
-            var blogs = await _blog
-                .Find(filter)
-                .Sort(Builders<Models.Blog.Blog>.Sort.Descending(b => b.CreatedAt))
-                .Skip(skip)
-                .Limit(pageSize)
-                .ToListAsync();
-
-            var items = blogs.ToList();
-
-            return new PaginatedBlogResponseDto
-            {
-                Items = items,
-                TotalCount = (int)totalCount,
-                Page = page,
-                PageSize = pageSize,
-                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-            };
+            // Match blogs containing ANY of the supplied tags (previously only the first tag was used).
+            var normalized = NormalizeTags(tags);
+            return QueryBlogsAsync(Builders<Models.Blog.Blog>.Filter.AnyIn(b => b.Tags, normalized), page, pageSize);
         }
 
         // ========================  Comment Operations  =====================================
@@ -327,8 +293,8 @@ namespace SuttorLib.Core.Services.Blogs
 
             foreach (var comId in blogComsId)
             {
-                var com = await _comment.Find(c => c.Id == comId).FirstOrDefaultAsync();
-                comments.Add(com);
+                var com = await _comment.FindAsync(c => c.Id == comId);
+                comments.Add(com.First());
             }
 
             return comments;

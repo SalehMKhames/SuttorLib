@@ -1,9 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
-using MySqlX.XDevAPI.Common;
 using SuttorLib.Core.Interfaces;
-using SuttorLib.Core.Repositories;
 using SuttorLib.Core.Services.Blog;
 using SuttorLib.Core.Services.Files;
 using SuttorLib.DTOs;
@@ -114,7 +112,6 @@ namespace SuttorLib.Controllers
 
                 var user = await _unit.UserRepo.GetById(result.PublisherId);
                 string? userName = null, userFullName = null;
-                IFormFile? userPic = null;
 
                 if (user is null)
                     result.PublisherId = "Unknown Publisher";
@@ -122,21 +119,7 @@ namespace SuttorLib.Controllers
                 {
                     userName = user.UserName;
                     userFullName = user.FullName;
-
-                    userPic = user.PhotoPath is null ?
-                        null : await _fileService.GetPictureAsync(user.PhotoPath);
                 }
-
-                List<IFormFile> ph = new();
-                if (result.Photos is null || result.Photos.Count == 0)
-                    ph = [];
-
-                else
-                    foreach (var photo in result.Photos)
-                    {
-                        var blogPhoto = await _fileService.GetPictureAsync(photo);
-                        ph.Add(blogPhoto);
-                    }
 
                 var blogDTO = new BlogDTO
                 {
@@ -147,12 +130,12 @@ namespace SuttorLib.Controllers
                     publisherId = result.PublisherId,
                     publisherName = userFullName,
                     publisherUserName = userName,
-                    publisherPic = userPic,
+                    publisherPic = user?.PhotoPath ?? "",
                     Tags = result.Tags,
                     Likes = result.Likes,
                     Dislikes = result.Dislikes,
                     Views = result.Views,
-                    Photos = ph
+                    Photos = result.Photos
                 };
 
                 var categories = await _unit.BookRepo.GetCategories();
@@ -164,51 +147,9 @@ namespace SuttorLib.Controllers
 
                 var comments = await _blogService.GetCommentsAsync(blogDTO.Id);
                 if (comments is null || comments.Count == 0)
-                    blogDTO.Comments = [];
+                    blogDTO.CommentCount = 0;
                 else
-                    
-                {
-                    foreach (var comment in comments)
-                    {
-                                var userData = await _unit.UserRepo.GetById(comment.CommenterId);
-                                string? commentUserName = null, commentUserFullName = null;
-                                IFormFile? commentUserPic = null;
-
-                                if (userData is null)
-                                {
-                                    _logger.LogInformation("The Commenter of the Blog {id} is unknown.", comment.Id.ToString());
-                                    commentUserFullName = "Unknown Commenter";
-                                }
-                                else
-                                {
-                                    commentUserName = userData.UserName;
-                                    commentUserFullName = userData.FullName;
-
-                                    commentUserPic = userData.PhotoPath is null ?
-                                        null : await _fileService.GetPictureAsync(userData.PhotoPath);
-                                }
-
-                                var com = new CommentDTO
-                                {
-                                    Id = comment.Id.ToString(),
-                                    Content = comment.Content,
-                                    CreatedAt = comment.CreatedAt,
-                                    CommenterId = comment.CommenterId,
-                                    CommenterFullName = commentUserFullName,
-                                    CommenterUserName = commentUserName,
-                                    CommenterPhoto = commentUserPic,
-                                    Tags = comment.Tags,
-                                    UpdatedAt = comment.UpdatedAt,
-                                    Likes = comment.Likes,
-                                    Dislikes = comment.Dislikes,
-                                    UserIdsLikes = comment.UserIdsLikes,
-                                    UserIdsDislikes = comment.UserIdsDislikes,
-                                    Replies = comment.Replies
-                                };
-
-                                blogDTO.Comments.Add(com);
-                    }
-                }
+                    blogDTO.CommentCount += comments.Count;
 
                 _logger.LogInformation("Blog with id: {ID} retrieved Successfully.", blogDTO.Id.ToString());
                 return Ok(blogDTO);
@@ -234,120 +175,74 @@ namespace SuttorLib.Controllers
             try
             {
                 var result = await _blogService.GetAllBlogs(dto);
-                if (result is null || result.TotalCount == 0)
+
+                if (result.Items.Count == 0)
                 {
-                    _logger.LogInformation("Not blogs found in the GetAllBlogs function");
-                    return NotFound("There is no blogs.");
+                    return Ok(new PaginatedBlogResponseDto
+                    {
+                        TotalCount = result.TotalCount,
+                        Page = result.Page,
+                        PageSize = result.PageSize,
+                        TotalPages = result.TotalPages
+                    });
                 }
 
-                List<BlogDTO> blogs = new List<BlogDTO>();
-                foreach (var item in result.Items)
+                // Fetch categories once — the lookup is identical for every blog.
+                var categories = await _unit.BookRepo.GetCategories();
+                var categoryNames = categories?
+                    .Where(c => c?.Name is not null)
+                    .Select(c => c!.Name)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+
+                // Batch publisher lookups concurrently instead of one query per blog.
+                var publisherIds = result.Items
+                    .Select(b => b.PublisherId)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .Distinct()
+                    .ToList();
+
+                var publisherList = await _unit.UserRepo.GetAllByIds(publisherIds);
+                var publishers = publisherList.ToDictionary(p => p.Id);
+
+                var items = new List<BlogDTO>(result.Items.Count);
+                foreach (var blog in result.Items)
                 {
-                    var user = await _unit.UserRepo.GetById(item.PublisherId);
-                    string? userName = null, userFullName = null;
-                    IFormFile? userPic = null;
+                    publishers.TryGetValue(blog.PublisherId, out var publisher);
 
-                    if (user is null)
+                    if (publisher is null)
+                        _logger.LogInformation("The publisher of blog {BlogId} is unknown.", blog.Id.ToString());
+
+                    items.Add(new BlogDTO
                     {
-                        _logger.LogInformation("The Publisher of the Blog {id} is unknown.", item.Id.ToString());
-                        item.PublisherId = "Unknown Publisher";
-                    }
-                    else
-                    {
-                        userName = user.UserName;
-                        userFullName = user.FullName;
-
-                        userPic = user.PhotoPath is null ?
-                            null : await _fileService.GetPictureAsync(user.PhotoPath);
-                    }
-
-                    List<IFormFile> ph = new();
-                    if (item.Photos is null || item.Photos.Count == 0)
-                        ph = [];
-
-                    else
-                        foreach (var photo in item.Photos)
-                        {
-                            var blogPhoto = await _fileService.GetPictureAsync(photo);
-                            ph.Add(blogPhoto);
-                        }
-
-                    var blogDTO = new BlogDTO
-                    {
-                        Id = item.Id.ToString(),
-                        Title = item.Title,
-                        Content = item.Content,
-                        CreatedAt = item.CreatedAt,
-                        publisherId = item.PublisherId,
-                        publisherName = userFullName,
-                        publisherUserName = userName,
-                        publisherPic = userPic,
-                        Tags = item.Tags,
-                        Likes = item.Likes,
-                        Dislikes = item.Dislikes,
-                        Views = item.Views,
-                        Photos = ph
-                    };
-
-                    var categories = await _unit.BookRepo.GetCategories();
-                    Category cat = categories!.FirstOrDefault(c => c!.Name == item.Category)!;
-                    if (cat is null)
-                        blogDTO.Category = "";
-                    else
-                        blogDTO.Category = cat.Name;
-
-                    var comments = await _blogService.GetCommentsAsync(blogDTO.Id);
-                    if (comments is null || comments.Count == 0)
-                        blogDTO.Comments = [];
-                    else
-                    {
-                        foreach (var comment in comments)
-                        {
-                            var userData = await _unit.UserRepo.GetById(comment.CommenterId);
-                            string? commentUserName = null, commentUserFullName = null;
-                            IFormFile? commentUserPic = null;
-
-                            if (userData is null)
-                            {
-                                _logger.LogInformation("The Commenter of the Blog {id} is unknown.", item.Id.ToString());
-                                commentUserFullName = "Unknown Commenter";
-                            }
-                            else
-                            {
-                                commentUserName = userData.UserName;
-                                commentUserFullName = userData.FullName;
-
-                                commentUserPic = userData.PhotoPath is null ?
-                                    null : await _fileService.GetPictureAsync(userData.PhotoPath);
-                            }
-
-                            var com = new CommentDTO
-                            {
-                                Id = comment.Id.ToString(),
-                                Content = comment.Content,
-                                CreatedAt = comment.CreatedAt,
-                                CommenterId = comment.CommenterId,
-                                CommenterFullName = commentUserFullName,
-                                CommenterUserName = commentUserName,
-                                CommenterPhoto = commentUserPic,
-                                Tags = comment.Tags,
-                                UpdatedAt = comment.UpdatedAt,
-                                Likes = comment.Likes,
-                                Dislikes = comment.Dislikes,
-                                UserIdsLikes = comment.UserIdsLikes,
-                                UserIdsDislikes = comment.UserIdsDislikes,
-                                Replies = comment.Replies
-                            };
-
-                            blogDTO.Comments.Add(com);
-                        }
-                    }
-
-                    blogs.Add(blogDTO);
+                        Id = blog.Id.ToString(),
+                        Title = blog.Title,
+                        Content = blog.Content,
+                        CreatedAt = blog.CreatedAt,
+                        publisherId = blog.PublisherId,
+                        publisherName = publisher?.FullName ?? "Unknown Publisher",
+                        publisherUserName = publisher?.UserName,
+                        publisherPic = publisher?.PhotoPath ?? "",
+                        Photos = blog.Photos ?? new List<string>(),
+                        Tags = blog.Tags,
+                        Likes = blog.Likes,
+                        Dislikes = blog.Dislikes,
+                        Views = blog.Views,
+                        CommentCount = blog.Comments?.Count ?? 0,
+                        Category = categoryNames.Contains(blog.Category) ? blog.Category : string.Empty
+                    });
                 }
 
-                _logger.LogInformation("Blogs returned Successfully from GetAllBlogs");
-                return Ok(new { blogs, result.TotalCount, result.TotalPages, result.PageSize });
+                _logger.LogInformation("Returned {Count} blogs (page {Page} of {TotalPages}).",
+                    items.Count, result.Page, result.TotalPages);
+
+                return Ok(new PaginatedBlogListResponseDto
+                {
+                    Items = items,
+                    TotalCount = result.TotalCount,
+                    Page = result.Page,
+                    PageSize = result.PageSize,
+                    TotalPages = result.TotalPages
+                });
             }
             catch (Exception ex)
             {
@@ -410,7 +305,6 @@ namespace SuttorLib.Controllers
 
                 var user = await _unit.UserRepo.GetById(blog.PublisherId);
                 string? userName = null, userFullName = null;
-                IFormFile? userPic = null;
 
                 if (user is null)
                     blog.PublisherId = "Unknown Publisher";
@@ -418,9 +312,6 @@ namespace SuttorLib.Controllers
                 {
                     userName = user.UserName;
                     userFullName = user.FullName;
-
-                    userPic = user.PhotoPath is null ?
-                        null : await _fileService.GetPictureAsync(user.PhotoPath);
                 }
 
                 var blogDTO = new BlogDTO
@@ -432,7 +323,7 @@ namespace SuttorLib.Controllers
                     publisherId = blog.PublisherId,
                     publisherName = userFullName,
                     publisherUserName = userName,
-                    publisherPic = userPic,
+                    publisherPic = user?.PhotoPath ?? "",
                     Tags = blog.Tags,
                     Likes = blog.Likes,
                     Dislikes = blog.Dislikes,
@@ -442,50 +333,9 @@ namespace SuttorLib.Controllers
 
                 var comments = await _blogService.GetCommentsAsync(blogId);
                 if (comments is null || comments.Count == 0)
-                    blogDTO.Comments = [];
+                    blogDTO.CommentCount = 0;
                 else
-                {
-                    foreach (var comment in comments)
-                    {
-                        var userData = await _unit.UserRepo.GetById(comment.CommenterId);
-                        string? commentUserName = null, commentUserFullName = null;
-                        IFormFile? commentUserPic = null;
-
-                        if (userData is null)
-                        {
-                            _logger.LogInformation("The Commenter of the Blog {id} is unknown.", comment.Id.ToString());
-                            commentUserFullName = "Unknown Commenter";
-                        }
-                        else
-                        {
-                            commentUserName = userData.UserName;
-                            commentUserFullName = userData.FullName;
-
-                            commentUserPic = userData.PhotoPath is null ?
-                                null : await _fileService.GetPictureAsync(userData.PhotoPath);
-                        }
-
-                        var com = new CommentDTO
-                        {
-                            Id = comment.Id.ToString(),
-                            Content = comment.Content,
-                            CreatedAt = comment.CreatedAt,
-                            CommenterId = comment.CommenterId,
-                            CommenterFullName = commentUserFullName,
-                            CommenterUserName = commentUserName,
-                            CommenterPhoto = commentUserPic,
-                            Tags = comment.Tags,
-                            UpdatedAt = comment.UpdatedAt,
-                            Likes = comment.Likes,
-                            Dislikes = comment.Dislikes,
-                            UserIdsLikes = comment.UserIdsLikes,
-                            UserIdsDislikes = comment.UserIdsDislikes,
-                            Replies = comment.Replies
-                        };
-
-                        blogDTO.Comments.Add(com);
-                    }
-                }
+                    blogDTO.CommentCount += comments.Count;
 
                 _logger.LogInformation("Blog with the Id: {ID} updated successfully.", blog.Id.ToString());
 
@@ -564,116 +414,55 @@ namespace SuttorLib.Controllers
                     return NotFound("Sorry, There is no blogs for this category");
 
                 List<BlogDTO> blogs = new List<BlogDTO>();
-
-                foreach (var item in res.Items)
+                if (res.TotalCount > 0)
                 {
-                    AppUser? user = await _unit.UserRepo.GetById(item.PublisherId);
-                    string? userName = null, userFullName = null;
-                    IFormFile? userPic = null;
-
-                    if (user is null)
-                    {
-                        _logger.LogInformation("The Publisher of the Blog {id} is unknown.", item.Id.ToString());
-                        userFullName = "Unknown Publisher";
-                    }
-                    else
-                    {
-                        userName = user.UserName;
-                        userFullName = user.FullName;
-
-                        userPic = user.PhotoPath is null ?
-                            null : await _fileService.GetPictureAsync(user.PhotoPath);
-                    }
-
-                    List<IFormFile> ph = new();
-                    if (item.Photos is null || item.Photos.Count == 0)
-                        ph = [];
-
-                    else
-                        foreach (var photo in item.Photos)
-                        {
-                            var blogPhoto = await _fileService.GetPictureAsync(photo);
-                            ph.Add(blogPhoto);
-                        }
-
-                    var blogDTO = new BlogDTO
-                    {
-                        Id = item.Id.ToString(),
-                        Title = item.Title,
-                        Content = item.Content,
-                        CreatedAt = item.CreatedAt,
-                        publisherId = user.Id,
-                        publisherName = userFullName,
-                        publisherUserName = userName,
-                        publisherPic = userPic,
-                        Tags = item.Tags,
-                        Likes = item.Likes,
-                        Dislikes = item.Dislikes,
-                        Views = item.Views,
-                        Photos = ph
-                    };
-
                     var categories = await _unit.BookRepo.GetCategories();
-                    Category cat = categories!.FirstOrDefault(c => c!.Name == item.Category)!;
-                    if (cat is null)
-                        blogDTO.Category = "";
-                    else
-                        blogDTO.Category = cat.Name;
+                    var categoryNames = categories?
+                        .Where(c => c?.Name is not null)
+                        .Select(c => c!.Name)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
 
-                    var comments = await _blogService.GetCommentsAsync(blogDTO.Id);
-                    if (comments is null || comments.Count == 0)
-                        blogDTO.Comments = [];
-                    else
+                    var publisherIds = res.Items
+                        .Select(b => b.PublisherId)
+                        .Where(id => !string.IsNullOrEmpty(id))
+                        .Distinct()
+                        .ToList();
+
+                    var publisherTasks = publisherIds.ToDictionary(id => id, id => _unit.UserRepo.GetById(id));
+                    await Task.WhenAll(publisherTasks.Values);
+                    var publishers = publisherIds.ToDictionary(id => id, id => publisherTasks[id].Result);
+
+                    foreach (var item in res.Items)
                     {
-                        foreach (var comment in comments)
+                        publishers.TryGetValue(item.PublisherId, out var user);
+                        if (user is null)
+                            _logger.LogInformation("The publisher of blog {BlogId} is unknown.", item.Id.ToString());
+
+                        blogs.Add(new BlogDTO
                         {
-                            var userData = await _unit.UserRepo.GetById(comment.CommenterId);
-                            string? commentUserName = null, commentUserFullName = null;
-                            IFormFile? commentUserPic = null;
-
-                            if (userData is null)
-                            {
-                                _logger.LogInformation("The Commenter of the Blog {id} is unknown.", comment.Id.ToString());
-                                commentUserFullName = "Unknown Commenter";
-                            }
-                            else
-                            {
-                                commentUserName = userData.UserName;
-                                commentUserFullName = userData.FullName;
-
-                                commentUserPic = userData.PhotoPath is null ?
-                                    null : await _fileService.GetPictureAsync(userData.PhotoPath);
-                            }
-
-                            var com = new CommentDTO
-                            {
-                                Id = comment.Id.ToString(),
-                                Content = comment.Content,
-                                CreatedAt = comment.CreatedAt,
-                                CommenterId = comment.CommenterId,
-                                CommenterFullName = commentUserFullName,
-                                CommenterUserName = commentUserName,
-                                CommenterPhoto = commentUserPic,
-                                Tags = comment.Tags,
-                                UpdatedAt = comment.UpdatedAt,
-                                Likes = comment.Likes,
-                                Dislikes = comment.Dislikes,
-                                UserIdsLikes = comment.UserIdsLikes,
-                                UserIdsDislikes = comment.UserIdsDislikes,
-                                Replies = comment.Replies
-                            };
-
-                            blogDTO.Comments.Add(com);
-                        }
+                            Id = item.Id.ToString(),
+                            Title = item.Title,
+                            Content = item.Content,
+                            CreatedAt = item.CreatedAt,
+                            publisherId = item.PublisherId,
+                            publisherName = user?.FullName ?? "Unknown Publisher",
+                            publisherUserName = user?.UserName,
+                            publisherPic = user?.PhotoPath ?? "",
+                            Tags = item.Tags,
+                            Likes = item.Likes,
+                            Dislikes = item.Dislikes,
+                            Views = item.Views,
+                            Photos = item.Photos,
+                            Category = categoryNames.Contains(item.Category) ? item.Category : "",
+                            CommentCount = item.Comments?.Count ?? 0
+                        });
                     }
-
-                    blogs.Add(blogDTO);
                 }
 
-                _logger.LogInformation("The requested books by category page {Page}/{TotalPages} (size {PageSize})",
-                    page, res.TotalPages, pageSize);
+                _logger.LogInformation("Blogs by category {Category}: page {Page}/{TotalPages} (size {PageSize})",
+                    category, res.Page, res.TotalPages, res.PageSize);
 
-                return Ok(new { blogs, res.TotalCount, res.TotalPages, res.PageSize });
+                return Ok(new { blogs, res.TotalCount, res.Page, res.TotalPages, res.PageSize });
             }
             catch (Exception ex)
             {
@@ -689,130 +478,58 @@ namespace SuttorLib.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
             if (string.IsNullOrEmpty(userId))
-                return BadRequest("Caregory Name is required");
+                return BadRequest("Publisher ID is required");
 
             try
             {
-                var res = await _blogService.GetBlogsByCategory(userId, page, pageSize);
-                if (res is null || res.TotalCount == 0)
-                    return NotFound("Sorry, There is no blogs for this category");
+                var res = await _blogService.GetBlogsByPublisher(userId, page, pageSize);
 
                 List<BlogDTO> blogs = new List<BlogDTO>();
-
-                foreach (var item in res.Items)
+                if (res.TotalCount > 0)
                 {
+                    // One publisher for the whole result set — fetch once, not per blog.
                     var user = await _unit.UserRepo.GetById(userId);
-                    string? userName = user!.UserName, userFullName = user.FullName;
-                    IFormFile? userPic = null;
-
                     if (user is null)
-                    {
-                        _logger.LogInformation("The Publisher of the Blog {id} is unknown.", item.Id.ToString());
-                        userFullName = "Unknown Publisher";
-                    }
-                    else
-                    {
-                        userName = user.UserName;
-                        userFullName = user.FullName;
-
-                        userPic = user.PhotoPath is null ?
-                            null : await _fileService.GetPictureAsync(user.PhotoPath);
-                    }
-
-                    List<IFormFile> ph = new();
-                    if (item.Photos is null || item.Photos.Count == 0)
-                        ph = [];
-
-                    else
-                        foreach (var photo in item.Photos)
-                        {
-                            var blogPhoto = await _fileService.GetPictureAsync(photo);
-                            ph.Add(blogPhoto);
-                        }
-
-                    var blogDTO = new BlogDTO
-                    {
-                        Id = item.Id.ToString(),
-                        Title = item.Title,
-                        Content = item.Content,
-                        CreatedAt = item.CreatedAt,
-                        publisherId = item.PublisherId,
-                        publisherName = userFullName,
-                        publisherUserName = userName,
-                        publisherPic = userPic,
-                        Tags = item.Tags,
-                        Likes = item.Likes,
-                        Dislikes = item.Dislikes,
-                        Views = item.Views,
-                        Photos = ph
-                    };
+                        _logger.LogInformation("The publisher with ID {PublisherId} is unknown.", userId);
 
                     var categories = await _unit.BookRepo.GetCategories();
-                    Category cat = categories!.FirstOrDefault(c => c!.Name == item.Category)!;
-                    if (cat is null)
-                        blogDTO.Category = "";
-                    else
-                        blogDTO.Category = cat.Name;
+                    var categoryNames = categories?
+                        .Where(c => c?.Name is not null)
+                        .Select(c => c!.Name)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
 
-                    var comments = await _blogService.GetCommentsAsync(blogDTO.Id);
-                    if (comments is null || comments.Count == 0)
-                        blogDTO.Comments = [];
-                    else
+                    foreach (var item in res.Items)
                     {
-                        foreach (var comment in comments)
+                        blogs.Add(new BlogDTO
                         {
-                            var userData = await _unit.UserRepo.GetById(comment.CommenterId);
-                            string? commentUserName = null, commentUserFullName = null;
-                            IFormFile? commentUserPic = null;
-
-                            if (userData is null)
-                            {
-                                _logger.LogInformation("The Commenter of the Blog {id} is unknown.", comment.Id.ToString());
-                                commentUserFullName = "Unknown Commenter";
-                            }
-                            else
-                            {
-                                commentUserName = userData.UserName;
-                                commentUserFullName = userData.FullName;
-
-                                commentUserPic = userData.PhotoPath is null ?
-                                    null : await _fileService.GetPictureAsync(userData.PhotoPath);
-                            }
-
-                            var com = new CommentDTO
-                            {
-                                Id = comment.Id.ToString(),
-                                Content = comment.Content,
-                                CreatedAt = comment.CreatedAt,
-                                CommenterId = comment.CommenterId,
-                                CommenterFullName = commentUserFullName,
-                                CommenterUserName = commentUserName,
-                                CommenterPhoto = commentUserPic,
-                                Tags = comment.Tags,
-                                UpdatedAt = comment.UpdatedAt,
-                                Likes = comment.Likes,
-                                Dislikes = comment.Dislikes,
-                                UserIdsLikes = comment.UserIdsLikes,
-                                UserIdsDislikes = comment.UserIdsDislikes,
-                                Replies = comment.Replies
-                            };
-
-                            blogDTO.Comments.Add(com);
-                        }
+                            Id = item.Id.ToString(),
+                            Title = item.Title,
+                            Content = item.Content,
+                            CreatedAt = item.CreatedAt,
+                            publisherId = item.PublisherId,
+                            publisherName = user?.FullName ?? "Unknown Publisher",
+                            publisherUserName = user?.UserName,
+                            publisherPic = user?.PhotoPath ?? "",
+                            Tags = item.Tags,
+                            Likes = item.Likes,
+                            Dislikes = item.Dislikes,
+                            Views = item.Views,
+                            Photos = item.Photos,
+                            Category = categoryNames.Contains(item.Category) ? item.Category : "",
+                            CommentCount = item.Comments?.Count ?? 0
+                        });
                     }
-
-                    blogs.Add(blogDTO);
                 }
 
-                _logger.LogInformation("The requested books by user with the ID: {id}. page {Page}/{TotalPages} (size {PageSize})",
-                    userId, page, res.TotalPages, pageSize);
+                _logger.LogInformation("Blogs by publisher {PublisherId}: page {Page}/{TotalPages} (size {PageSize})",
+                    userId, res.Page, res.TotalPages, res.PageSize);
 
-                return Ok(new { blogs, res.TotalCount, res.TotalPages, res.PageSize });
+                return Ok(new { blogs, res.TotalCount, res.Page, res.TotalPages, res.PageSize });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred while fetching all blogs.");
-                return StatusCode(500, "An error occurred while fetching all blogs.");
+                _logger.LogError(ex, "An error occurred while fetching blogs by publisher {PublisherId}.", userId);
+                return StatusCode(500, "An error occurred while fetching blogs by publisher.");
             }
         }
 
@@ -828,109 +545,58 @@ namespace SuttorLib.Controllers
             try
             {
                 var res = await _blogService.SearchBlogsByTags(tags, page, pageSize);
-                if (res is null || res.TotalCount == 0)
-                    return NotFound("Sorry, There is no blogs for this tag");
 
                 List<BlogDTO> blogs = new List<BlogDTO>();
-
-                foreach (var item in res.Items)
+                if (res.TotalCount > 0)
                 {
-                    var user = await _unit.UserRepo.GetById(item.PublisherId);
-
-                    string? userName = user!.UserName, userFullName = user.FullName;
-
-                    IFormFile? userPic = user.PhotoPath is null ?
-                            null : await _fileService.GetPictureAsync(user.PhotoPath);
-
-                    List<IFormFile> ph = new();
-                    if (item.Photos is null || item.Photos.Count == 0)
-                        ph = [];
-
-                    else
-                        foreach (var photo in item.Photos)
-                        {
-                            var blogPhoto = await _fileService.GetPictureAsync(photo);
-                            ph.Add(blogPhoto);
-                        }
-
-                    var blogDTO = new BlogDTO
-                    {
-                        Id = item.Id.ToString(),
-                        Title = item.Title,
-                        Content = item.Content,
-                        CreatedAt = item.CreatedAt,
-                        publisherId = item.PublisherId,
-                        publisherName = userFullName,
-                        publisherUserName = userName,
-                        publisherPic = userPic,
-                        Tags = item.Tags,
-                        Likes = item.Likes,
-                        Dislikes = item.Dislikes,
-                        Views = item.Views,
-                        Photos = ph
-                    };
-
                     var categories = await _unit.BookRepo.GetCategories();
-                    Category cat = categories!.FirstOrDefault(c => c!.Name == item.Category)!;
-                    if (cat is null)
-                        blogDTO.Category = "";
-                    else
-                        blogDTO.Category = cat.Name;
+                    var categoryNames = categories?
+                        .Where(c => c?.Name is not null)
+                        .Select(c => c!.Name)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
 
-                    var comments = await _blogService.GetCommentsAsync(blogDTO.Id);
-                    if (comments is null || comments.Count == 0)
-                        blogDTO.Comments = [];
-                    else
+                    // Batch publisher lookups concurrently instead of one query per blog.
+                    var publisherIds = res.Items
+                        .Select(b => b.PublisherId)
+                        .Where(id => !string.IsNullOrEmpty(id))
+                        .Distinct()
+                        .ToList();
+
+                    var publisherTasks = publisherIds.ToDictionary(id => id, id => _unit.UserRepo.GetById(id));
+                    await Task.WhenAll(publisherTasks.Values);
+                    var publishers = publisherIds.ToDictionary(id => id, id => publisherTasks[id].Result);
+
+                    foreach (var item in res.Items)
                     {
-                        foreach (var comment in comments)
+                        publishers.TryGetValue(item.PublisherId, out var user);
+                        if (user is null)
+                            _logger.LogInformation("The publisher of blog {BlogId} is unknown.", item.Id.ToString());
+
+                        blogs.Add(new BlogDTO
                         {
-                            var userData = await _unit.UserRepo.GetById(comment.CommenterId);
-                            string? commentUserName = null, commentUserFullName = null;
-                            IFormFile? commentUserPic = null;
-
-                            if (userData is null)
-                            {
-                                _logger.LogInformation("The Commenter of the Blog {id} is unknown.", comment.Id.ToString());
-                                commentUserFullName = "Unknown Commenter";
-                            }
-                            else
-                            {
-                                commentUserName = userData.UserName;
-                                commentUserFullName = userData.FullName;
-
-                                commentUserPic = userData.PhotoPath is null ?
-                                    null : await _fileService.GetPictureAsync(userData.PhotoPath);
-                            }
-
-                            var com = new CommentDTO
-                            {
-                                Id = comment.Id.ToString(),
-                                Content = comment.Content,
-                                CreatedAt = comment.CreatedAt,
-                                CommenterId = comment.CommenterId,
-                                CommenterFullName = commentUserFullName,
-                                CommenterUserName = commentUserName,
-                                CommenterPhoto = commentUserPic,
-                                Tags = comment.Tags,
-                                UpdatedAt = comment.UpdatedAt,
-                                Likes = comment.Likes,
-                                Dislikes = comment.Dislikes,
-                                UserIdsLikes = comment.UserIdsLikes,
-                                UserIdsDislikes = comment.UserIdsDislikes,
-                                Replies = comment.Replies
-                            };
-
-                            blogDTO.Comments.Add(com);
-                        }
+                            Id = item.Id.ToString(),
+                            Title = item.Title,
+                            Content = item.Content,
+                            CreatedAt = item.CreatedAt,
+                            publisherId = item.PublisherId,
+                            publisherName = user?.FullName ?? "Unknown Publisher",
+                            publisherUserName = user?.UserName,
+                            publisherPic = user?.PhotoPath ?? "",
+                            Tags = item.Tags,
+                            Likes = item.Likes,
+                            Dislikes = item.Dislikes,
+                            Views = item.Views,
+                            Photos = item.Photos,
+                            Category = categoryNames.Contains(item.Category) ? item.Category : "",
+                            CommentCount = item.Comments?.Count ?? 0
+                        });
                     }
-
-                    blogs.Add(blogDTO);
                 }
 
-                _logger.LogInformation("The requested blog with the Tags: {tags}. page {Page}/{TotalPages} (size {PageSize})",
-                    tags, page, res.TotalPages, pageSize);
+                _logger.LogInformation("Blogs by tags {Tags}: page {Page}/{TotalPages} (size {PageSize})",
+                    tags, res.Page, res.TotalPages, res.PageSize);
 
-                return Ok(new { blogs, res.TotalCount, res.TotalPages, res.PageSize });
+                return Ok(new { blogs, res.TotalCount, res.Page, res.TotalPages, res.PageSize });
             }
             catch (Exception ex)
             {

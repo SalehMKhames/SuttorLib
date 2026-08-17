@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Org.BouncyCastle.Asn1;
 using SuttorLib.Models.Library;
 using SuttorLibrary.Core.Interfaces;
 using SuttorLibrary.Data;
@@ -46,14 +47,14 @@ namespace SuttorLibrary.Core.Repositories
             return true;
         }
 
-        public override Task<IEnumerable<AppUser>> GetAll()
+        public override async Task<IEnumerable<AppUser>> GetAll()
         {
-            return base.GetAll();
+            return await base.GetAll();
         }
 
-        public override Task<AppUser?> GetById (string userid) 
+        public override async Task<AppUser?> GetById (string userid) 
         {
-            return base.GetById(userid);
+            return await base.GetById(userid);
         }
 
         public async Task<GetPublicUserDTO?> GetUserByEmail(string email)
@@ -97,6 +98,18 @@ namespace SuttorLibrary.Core.Repositories
             };
 
             return userDto;
+        }
+
+        public async Task<List<AppUser>> GetAllByIds(IEnumerable<string> ids)
+        {
+            var idList = ids as List<string> ?? ids.ToList();
+            if (idList.Count == 0)
+                return new List<AppUser>();
+
+            return await _context.Users
+                .Where(u => ids.Contains(u.Id))
+                .AsNoTracking()
+                .ToListAsync();
         }
 
         public async Task<bool> PromoteToAuthor(AppUser user, int xp)

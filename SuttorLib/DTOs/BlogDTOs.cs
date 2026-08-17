@@ -1,4 +1,5 @@
 ﻿using SuttorLib.Models.Blog;
+using SuttorLibrary.DTOs;
 
 namespace SuttorLib.DTOs
 {
@@ -29,15 +30,15 @@ namespace SuttorLib.DTOs
         public string publisherId { get; set; } = string.Empty;
         public string? publisherName { get; set; } = string.Empty;
         public string? publisherUserName { get; set; } = string.Empty;
-        public IFormFile? publisherPic { get; set; }
+        public string publisherPic { get; set; } = string.Empty;
         public int Likes { get; set; }
         public int Dislikes { get; set; }
         public int Views { get; set; }
         public DateTime? CreatedAt { get; set; }
         public List<string> Tags { get; set; } = new();
-        public List<CommentDTO> Comments { get; set; } = new();
+        public int? CommentCount { get; set; }
         public string Category { get; set; } = string.Empty;
-        public List<IFormFile>? Photos { get; set; } = new();
+        public List<string>? Photos { get; set; } = new();
     }
 
     public class CreateCommentDTO
@@ -113,6 +114,15 @@ namespace SuttorLib.DTOs
     public class PaginatedBlogResponseDto
     {
         public List<Blog> Items { get; set; } = new();
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages { get; set; }
+    }
+
+    public class PaginatedBlogListResponseDto
+    {
+        public List<BlogDTO> Items { get; set; } = new();
         public int TotalCount { get; set; }
         public int Page { get; set; }
         public int PageSize { get; set; }

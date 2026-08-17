@@ -13,9 +13,9 @@ namespace SuttorLib.Core.Services.Blog
         public Task<bool> DeleteBlogAsync(string blogId, string userId);
 
         //Some specified Gets
-        public Task<PaginatedBlogResponseDto?> GetBlogsByPublisher(string userId, int page = 1, int pageSize = 10);
-        public Task<PaginatedBlogResponseDto?> SearchBlogsByTags(List<string> tags, int page =1, int pageSize = 10);
-        public Task<PaginatedBlogResponseDto?> GetBlogsByCategory(string category, int page = 1, int pageSize = 10);
+        public Task<PaginatedBlogResponseDto> GetBlogsByPublisher(string userId, int page = 1, int pageSize = 10);
+        public Task<PaginatedBlogResponseDto> SearchBlogsByTags(List<string> tags, int page = 1, int pageSize = 10);
+        public Task<PaginatedBlogResponseDto> GetBlogsByCategory(string category, int page = 1, int pageSize = 10);
 
         //Basic Comment operations
         public Task<Comment> CreateCommentAsync(string blogId, string userId, CreateCommentDTO commentDTO);
