@@ -2,6 +2,7 @@
 using SuttorLib.Core.Services.Recommends;
 using SuttorLibrary.Core;
 using SuttorLib.Core.Services.Recommends.Mongo;
+using MongoDB.Bson;
 
 namespace LibrarySystem.Recommendations.Services
 {
@@ -91,13 +92,14 @@ namespace LibrarySystem.Recommendations.Services
 
                 await _repository.UpsertAsync(new BookRecommendationDocument
                 {
+                    Id = ObjectId.GenerateNewId().ToString(),
                     UserId = userId,
                     RecommendedBooks = recommended,
                     Source = source,
                     GeneratedAtUtc = DateTime.UtcNow
                 });
             }
-            
+
         }
     }
 }

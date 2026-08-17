@@ -168,11 +168,14 @@ namespace SuttorLibrary.Data
 
             //Download Analysis
             modelBuilder.Entity<DownloadAnalysis>()
-                .HasKey(da => new { da.UserId, da.BookId });
+                .HasKey(da => da.Id);
+            modelBuilder.Entity<DownloadAnalysis>()
+                .Property(da => da.Label)
+                .HasDefaultValue(0f);
 
             //Scored Candidate
             modelBuilder.Entity<ScoredCandidate>()
-                .HasKey(sc => new { sc.UserId, sc.BookId});
+                .HasKey(da => da.Id);
 
             // -------- Identity seed data (Users + Roles) ---------
 

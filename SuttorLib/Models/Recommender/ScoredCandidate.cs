@@ -1,4 +1,6 @@
-﻿namespace SuttorLib.Models.Recommender
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace SuttorLib.Models.Recommender
 {
     /// <summary>
     /// Raw shape of a row coming back out of model.Transform(). Types must
@@ -7,9 +9,14 @@
     /// </summary>
     public class ScoredCandidate
     {
-        public string UserId { get; set; }
-        public string BookId { get; set; }
-        public float Score { get; set; }
+        [Key]
+        public string Id { get; set; }
+
+        [MaxLength(255)]
+        public string UserId { get; set; } = string.Empty;
+        [MaxLength(255)]
+        public string BookId { get; set; } = string.Empty;
+        public float Score { get; set; } = 0f;
     }
 
     /// <summary>
