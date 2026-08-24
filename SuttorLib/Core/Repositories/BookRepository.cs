@@ -16,7 +16,7 @@ namespace SuttorLibrary.Core.Repositories
             if (!Guid.TryParse(id, out Guid guidId))
                 return null;
 
-            var result = await _context.Books
+            var result = _context.Books
                 .Where(b => b.Id == guidId.ToString())
                 .Select(b => new
                 {
@@ -36,7 +36,7 @@ namespace SuttorLibrary.Core.Repositories
                             _context.Authors,
                             ba => ba.Author_Id,
                             a => a.Id,
-                            (ba, a) => new {a.Id, a.Name, a.Description }
+                            (ba, a) => new { a.Id, a.Name, a.Description }
                         )
                         .ToList(),
                     categories = _context.BookCategories
@@ -50,18 +50,21 @@ namespace SuttorLibrary.Core.Repositories
                         .ToList(),
                     language = _context.Languages
                         .Where(l => l.Id == b.LanguageId)
-                        .Select(l => l.Language )
+                        .Select(l => l.Language)
                         .FirstOrDefault(),
                     downloads = _context.Downloads
                         .Where(d => d.BookID == b.Id)
                         .Count(),
 
+                    IsDownloaded = _context.Downloads
+                        .Where(d => d.BookID == b.Id && d.UserID == userId) == null,
+
                     ratings = _context.BookRatings
                         .Where(r => r.BookId == b.Id)
                         .ToList(),
 
-                    isFinished = 
-                    string.IsNullOrEmpty(userId) ? false : 
+                    isFinished =
+                    string.IsNullOrEmpty(userId) ? false :
                         _context.Downloads
                             .Where(d => d.BookID == b.Id && d.UserID == userId)
                             .Select(d => d.IsFinishReading)
@@ -121,7 +124,6 @@ namespace SuttorLibrary.Core.Repositories
                         .Where(l => l.Id == b.LanguageId)
                         .Select(l => l.Language )
                         .FirstOrDefault(),
-
                     ratings = _context.BookRatings
                         .Where(r => r.BookId == b.Id)
                         .ToList()
@@ -283,13 +285,13 @@ namespace SuttorLibrary.Core.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<bool> IsFinishReading(string bookId)
+        public async Task<bool> IsFinishReading(string bookId, string userId)
         {
             var book = await _context.Books.FirstOrDefaultAsync(b => b.Id == bookId);
             if (book is not null) 
             {
                 var download = await _context.Downloads
-                    .FirstOrDefaultAsync(d => d.Id == book.Id);
+                    .FirstOrDefaultAsync(d => d.BookID == book.Id && d.UserID == userId);
 
                 if (download is not null) { 
                     download.IsFinishReading = true;
@@ -501,6 +503,60 @@ namespace SuttorLibrary.Core.Repositories
                 TotalPages = (int)Math.Ceiling(total / (double)pageSize),
                 Items = items
             };
+        }
+
+        public async Task<bool> AddFavoriteBook(string bookId, string userId)
+        {
+            var existingFavorite = await _context.FavoriteBooks
+                .FirstOrDefaultAsync(fb => fb.BookId == bookId && fb.UserId == userId);
+            if (existingFavorite is not null)
+                throw new InvalidOperationException("This book is already in your favorites.");
+
+            var favoriteBook = new FavoriteBooks
+            { 
+                Id = Guid.NewGuid().ToString(),
+                BookId = bookId,
+                UserId = userId
+            };
+
+            await _context.FavoriteBooks.AddAsync(favoriteBook);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RemoveFavoriteBook(string bookId, string userId)
+        {
+            var existingFavorite = await _context.FavoriteBooks
+                .FirstOrDefaultAsync(fb => fb.BookId == bookId && fb.UserId == userId);
+            if (existingFavorite is null)
+                throw new KeyNotFoundException("This book is not in your favorites.");
+
+            _context.FavoriteBooks.Remove(existingFavorite);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<IEnumerable<object>?> GetFavoriteBooks(string userId)
+        {
+            var existingFavorites = await _context.FavoriteBooks
+                .Where(fb => fb.UserId == userId)
+                .Select(fb => fb.BookId)
+                .ToListAsync();
+
+            if (existingFavorites is null || existingFavorites.Count == 0)
+                throw new KeyNotFoundException("There is no book in your favorites");
+
+            IEnumerable<object>? books = null;
+            foreach (var fav in existingFavorites)
+            {
+                var book = await GetBookWithDetailsAsync(fav, userId);
+                if (book is null)
+                    continue;
+
+                books?.Append(book);
+            }
+
+            return books;
         }
 
         private Expression<Func<Book, BookListItemDto>> BookListProjection => b => new BookListItemDto

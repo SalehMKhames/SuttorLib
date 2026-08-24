@@ -29,10 +29,15 @@ namespace SuttorLibrary.Core.Interfaces
         // Link book to category/author/language (does not save changes; caller should call UnitOfWork.CompleteAsync)
         public Task LinkBookToAuthor(string bookId, string authorId);
         public Task LinkBookToCategory(string bookId, string categoryId);
-        public Task<bool> IsFinishReading(string bookId);
+        public Task<bool> IsFinishReading(string bookId, string userId);
 
         // Update Authot and Category
         public Task<Category?> updateCategory(string catId, string catName, string catIcon);
         public Task<Author?> updateAuthor(string authId, string authName, string authPhoto, string authDesc);
+
+        //Favorite Books
+        public Task<bool> AddFavoriteBook(string bookId, string userId);
+        public Task<bool> RemoveFavoriteBook(string bookId, string userId);
+        public Task<IEnumerable<object>?> GetFavoriteBooks(string userId);
     }
 }

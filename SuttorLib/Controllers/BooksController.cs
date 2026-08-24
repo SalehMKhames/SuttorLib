@@ -7,21 +7,30 @@ using SuttorLib.Core.Services.Recommends.Mongo;
 using SuttorLib.Models.Library;
 using SuttorLibrary.Core;
 using SuttorLibrary.DTOs;
+using System.Net;
 using System.Security.Claims;
 
 namespace SuttorLib.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class BooksController(IUnitOfWork unit, ILogger<BooksController> logger, IFileService fileService, IConfiguration configuration, IFCM fcm) : ControllerBase
+    public class BooksController(
+        IUnitOfWork unit, 
+        ILogger<BooksController> logger, 
+        IFileService fileService, 
+        IConfiguration configuration, 
+        IFCM fcm,
+        IRecommendRepo repo,
+        RecommendationPipelineService pipe
+    ) : ControllerBase
     {
         private readonly IUnitOfWork _unit = unit;
         private readonly ILogger<BooksController> _logger = logger;
         private readonly IFileService _fileService = fileService;
         private readonly IConfiguration _configuration = configuration;
         private readonly IFCM _fcm = fcm;
-        private readonly IRecommendRepo _repository;
-        private readonly RecommendationPipelineService _pipeline;
+        private readonly IRecommendRepo _repository = repo;
+        private readonly RecommendationPipelineService _pipeline = pipe;
 
         //Get /api/Books
         [HttpGet(Name = "GetAllBooks")]
@@ -863,6 +872,7 @@ namespace SuttorLib.Controllers
         }
 
         //Patch /api/Books/{id}/FinishRead
+        [Authorize]
         [HttpPatch("{BookId}/finishReading")]
         public async Task<IActionResult> FinishBookReading([FromRoute] string BookId)
         {
@@ -873,7 +883,11 @@ namespace SuttorLib.Controllers
                 return BadRequest("The Book's ID is required");
 
             try {
-                var res = await _unit.BookRepo.IsFinishReading(BookId);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var res = await _unit.BookRepo.IsFinishReading(BookId, userId);
                 if (!res)
                     return BadRequest("Something went wrong. Please try again later.");
 
@@ -1030,45 +1044,6 @@ namespace SuttorLib.Controllers
             }
         }
 
-        //GET api/Books/suggestions
-        [Authorize]
-        [HttpGet("suggestions")]
-        public async Task<IActionResult> BooksSuggestion()
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId is null)
-                return Unauthorized();
-
-            try {
-                var books = await _unit.UserRepo.SuggestedBooks(userId);
-                if (books is null || books.Count == 0) {
-                    _logger.LogInformation("No suggested books found for the user with the Id: {id}", userId);
-                    return NotFound("No suggested books for you right now.");
-                }
-                var bookDTOs = new List<GetBookDTO>();
-                foreach (var book in books)
-                {
-                    bookDTOs.Add(await BuildBookDtoAsync(book));
-                }
-
-                _logger.LogInformation("Found {count} suggested books for the user with the Id: {id}", bookDTOs.Count, userId);
-                return Ok(bookDTOs);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Cannot get the suggestions for the user with id {ID}", userId);
-                return Problem("An error occurred while updating category.");
-            }
-        }
-
-
         // GET api/Books/Recommendations
         [Authorize]
         [HttpGet("Recommendations")]
@@ -1094,6 +1069,112 @@ namespace SuttorLib.Controllers
             return Ok(new { message = "Recommendations regenerated." });
         }
 
+        // POST api/Books/SetBookAsFavorite
+        [Authorize]
+        [HttpPost("SetBookAsFavorite")]
+        public async Task<IActionResult> SetFavoriteBook([FromBody] string bookId)
+        {
+            if(!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(bookId))
+                return BadRequest("Book Id is required");
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+            try
+            {
+
+                var res = await _unit.BookRepo.AddFavoriteBook(bookId, userId);
+                if (!res) 
+                {
+                    _logger.LogInformation("Cannot adding The Book {book} to favorite list for the user {user}", bookId, userId);
+                    return BadRequest("Something went wrong, Please try again!");
+                }
+
+                _logger.LogInformation("Successfully adding The Book {book} to favorite list for the user {user}", bookId, userId);
+                return Created();
+            }
+            catch (InvalidOperationException io) 
+            {
+                _logger.LogError("Invalid Operation happend in SetFavoriteBook");
+                return BadRequest(io);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot set the favorite book for the user with id {ID}", userId);
+                return Problem("An error occurred while setting favorite book.");
+            }
+        }
+
+        //DELETE api/Books/RemoveFromFavorite
+        [Authorize]
+        [HttpDelete("RemoveBookFromFavorites")]
+        public async Task<IActionResult> RemoveBookFromFavorite([FromBody] string bookId)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            if (string.IsNullOrEmpty(bookId))
+                return BadRequest("Book Id is required");
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            try {
+                var res = await _unit.BookRepo.RemoveFavoriteBook(bookId, userId);
+                if (!res)
+                {
+                    _logger.LogInformation("Cannot remove The Book {book} to favorite list for the user {user}", bookId, userId);
+                    return BadRequest("Something went wrong, Please try again!");
+                }
+
+                _logger.LogInformation("Successfully removing The Book {book} to favorite list for the user {user}", bookId, userId);
+                return Ok();
+            }
+            catch (KeyNotFoundException nf)
+            {
+                _logger.LogError("Invalid Operation happend in SetFavoriteBook");
+                return NotFound(nf);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot set the favorite book for the user with id {ID}", userId);
+                return Problem("An error occurred while setting favorite book.");
+            }
+        }
+
+        //GET api/Books/Favorites
+        [Authorize]
+        [HttpGet("FavoriteBooks")]
+        public async Task<IActionResult> GetFavorites()
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            try {
+                var result = await _unit.BookRepo.GetFavoriteBooks(userId);
+                if (result is null || result.Count() == 0)
+                    return NotFound("No books in your favorites list");
+
+                _logger.LogInformation("Successfully getting books for user {id}", userId);
+                return Ok(result.ToList());
+            }
+            catch (KeyNotFoundException nf)
+            {
+                _logger.LogError("Invalid Operation happend in SetFavoriteBook");
+                return NotFound(nf);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Cannot set the favorite book for the user with id {ID}", userId);
+                return Problem("An error occurred while setting favorite book.");
+            }
+        }
 
         private string BuildUrl(string relativePath)
         {

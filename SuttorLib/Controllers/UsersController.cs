@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SuttorLib.Core.Interfaces;
 using SuttorLib.Core.Services.Files;
 using SuttorLibrary.Core;
+using SuttorLibrary.DTOs;
 using System.Security.Claims;
 
 namespace SuttorLibrary.Controllers
@@ -168,16 +169,16 @@ namespace SuttorLibrary.Controllers
 
         //GET /api/Users?uid={userId}
         [HttpGet]
-        public async Task<IActionResult> GetUser([FromQuery] Guid uid)
+        public async Task<IActionResult> GetUser([FromQuery] string uid)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            if (string.IsNullOrWhiteSpace(uid.ToString()))
+            if (string.IsNullOrWhiteSpace(uid))
                 return BadRequest("The user id is required");
             try
             {
-                var user = await _unit.UserRepo.GetById(uid.ToString());
+                var user = await _unit.UserRepo.GetById(uid);
                 if (user is null)
                     return NotFound($"User with id: '{uid}' not found.");
 
@@ -187,15 +188,18 @@ namespace SuttorLibrary.Controllers
                     photo = await _fileService.GetPictureAsync(user.PhotoPath);
                 }
 
-                var result = new
+                var result = new UserDTO
                 {
-                    Id = (string)user.Id,
-                    FullName = (string)user.FullName,
-                    UserName = (string)user.UserName,
-                    Email = (string)user.Email,
-                    XP = (int)user.XP,
-                    IsAuthor = (bool)user.IsAuthor,
-                    photo
+                    Id = user.Id,
+                    FullName = user.FullName,
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    XP = user.XP,
+                    IsAuthor = user.IsAuthor,
+                    Photo = photo,
+                    Bio = user.Bio,
+                    JoinedAt = user.JoinedAt,
+                    Roles = user.Roles
                 };
 
                 return Ok(result);

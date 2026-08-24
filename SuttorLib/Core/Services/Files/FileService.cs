@@ -68,15 +68,6 @@ namespace SuttorLib.Core.Services.Files
 
                             _context.Downloads.Add(download);
 
-                            var analysis = new DownloadAnalysis 
-                            {
-                                Id = Guid.NewGuid().ToString(),
-                                UserId = userId,
-                                BookId = bookId,
-                                Label = 0f
-                            };
-                            _context.DownloadsAnalysis.Add(analysis);
-
                             await _context.SaveChangesAsync();
                             _logger.LogInformation("Recorded download for user {UserId} and book {BookId}", userId, bookId);
                         }

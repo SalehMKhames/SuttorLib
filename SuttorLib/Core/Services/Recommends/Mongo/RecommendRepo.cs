@@ -33,7 +33,11 @@ namespace SuttorLib.Core.Services.Recommends.Mongo
         public async Task UpsertAsync(BookRecommendationDocument document)
         {
             var filter = Builders<BookRecommendationDocument>.Filter.Eq(d => d.UserId, document.UserId);
-            await _recommend.ReplaceOneAsync(filter, document, new ReplaceOptions { IsUpsert = true });
+            var update = Builders<BookRecommendationDocument>.Update.Set(d => d.RecommendedBooks, document.RecommendedBooks)
+                .Set(d => d.Source, document.Source)
+                .Set(d => d.GeneratedAtUtc, document.GeneratedAtUtc);
+
+            await _recommend.UpdateOneAsync(filter, update, new UpdateOptions { IsUpsert = true });
         }
     }
 }

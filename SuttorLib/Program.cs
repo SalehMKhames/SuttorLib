@@ -136,6 +136,9 @@ builder.Services.AddScoped<RecommendationPipelineService>();
 // The BackGround Job.
 builder.Services.AddHostedService<RecommendationBackgroundJob>();
 
+// Dashboards & data mining (statistics, K-Means segmentation, Apriori rules, anomaly detection)
+builder.Services.AddScoped<SuttorLib.Core.Services.Analytics.IAnalyticsService, SuttorLib.Core.Services.Analytics.AnalyticsService>();
+
 //Firebase
 var credentialsPath = builder.Configuration["Firebase:CredentialsPath"];
 if (!string.IsNullOrWhiteSpace(credentialsPath))

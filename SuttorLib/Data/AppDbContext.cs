@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SuttorLib.Models;
 using SuttorLib.Models.Library;
-using SuttorLib.Models.Recommender;
 using SuttorLibrary.Models;
 
 namespace SuttorLibrary.Data
@@ -20,13 +19,12 @@ namespace SuttorLibrary.Data
         public DbSet<BookAuthors> BookAuthors { get; set; }
         public DbSet<BookCategories> BookCategories { get; set; }
         public DbSet<UserInterests> UserInterests { get; set; }
+        public DbSet<FavoriteBooks> FavoriteBooks { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Languages> Languages { get; set; }
         public DbSet<FCMToken> FCMTokens { get; set; }
         public DbSet<FcmLog> FcmLog { get; set; }
         public DbSet<FcmUserLog> FcmUserLog { get; set; }
-        public DbSet<DownloadAnalysis> DownloadsAnalysis { get; set; }
-        public DbSet<ScoredCandidate> ScoredCandidates { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -166,16 +164,19 @@ namespace SuttorLibrary.Data
                 .HasForeignKey(ul => ul.logId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            //Download Analysis
-            modelBuilder.Entity<DownloadAnalysis>()
-                .HasKey(da => da.Id);
-            modelBuilder.Entity<DownloadAnalysis>()
-                .Property(da => da.Label)
-                .HasDefaultValue(0f);
-
-            //Scored Candidate
-            modelBuilder.Entity<ScoredCandidate>()
-                .HasKey(da => da.Id);
+            // FAvorite Books
+            modelBuilder.Entity<FavoriteBooks>()
+                .HasKey(f => f.Id);
+            modelBuilder.Entity<FavoriteBooks>()
+                .HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(ul => ul.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<FavoriteBooks>()
+                .HasOne<Book>()
+                .WithMany()
+                .HasForeignKey(f => f.BookId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // -------- Identity seed data (Users + Roles) ---------
 

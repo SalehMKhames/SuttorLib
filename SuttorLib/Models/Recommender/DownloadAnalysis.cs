@@ -14,11 +14,7 @@ namespace SuttorLib.Models.Recommender
     /// </summary>
     public class DownloadAnalysis
     {
-        [Key]
-        public string Id { get; set; }
-        [MaxLength(255)]
         public string UserId { get; set; } = string.Empty;
-        [MaxLength(255)]
         public string BookId { get; set; } = string.Empty;
 
         // Every training row IS a positive interaction (a download happened),
