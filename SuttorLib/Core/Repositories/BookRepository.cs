@@ -53,8 +53,7 @@ namespace SuttorLibrary.Core.Repositories
                         .Select(l => l.Language)
                         .FirstOrDefault(),
                     downloads = _context.Downloads
-                        .Where(d => d.BookID == b.Id)
-                        .Count(),
+                        .Count(d => d.BookID == b.Id),
 
                     IsDownloaded = _context.Downloads
                         .Where(d => d.BookID == b.Id && d.UserID == userId) == null,
@@ -64,18 +63,18 @@ namespace SuttorLibrary.Core.Repositories
                         .ToList(),
 
                     isFinished =
-                    string.IsNullOrEmpty(userId) ? false :
-                        _context.Downloads
-                            .Where(d => d.BookID == b.Id && d.UserID == userId)
-                            .Select(d => d.IsFinishReading)
-                            .FirstOrDefault()
+                    !string.IsNullOrEmpty(userId) && _context.Downloads
+                        .Where(d => d.BookID == b.Id && d.UserID == userId)
+                        .Select(d => d.IsFinishReading)
+                        .FirstOrDefault()
                 })
                 .FirstOrDefaultAsync();
 
-            if (result is null)
+            var resolved = await result;
+            if (resolved is null)
                 throw new KeyNotFoundException("Book not found");
 
-            return result;
+            return resolved;
         }
 
         public override Task Add(Book entity)
@@ -129,7 +128,7 @@ namespace SuttorLibrary.Core.Repositories
                         .ToList()
                 })
                 .FirstOrDefaultAsync();
-            
+
             if (book is null)
                 throw new KeyNotFoundException("Book not found");
 

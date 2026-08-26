@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations; 
+﻿using System.ComponentModel.DataAnnotations;
+using SuttorLib.Models.Library;
 
 namespace SuttorLibrary.DTOs
 {
@@ -32,6 +33,9 @@ namespace SuttorLibrary.DTOs
         public string language { get; set; } = string.Empty;
         public List<string> Authors_Names { get; set; } = new List<string>();
         public List<string> Categories_Names { get; set; } = new List<string>();
+        public bool IsFinished { get; set; }
+        public bool IsDownloaded { get; set; }
+        public List<BookRating> Ratings { get; set; }
     }
 
     public class RatingDTO

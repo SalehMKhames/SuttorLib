@@ -34,3 +34,5 @@ Thumbs.db
 # Git LFS pointer files (if you use LFS)
 *.pdf
 *.epub
+data_mining_platform_dashboards.md
+ENDPOINTS.md

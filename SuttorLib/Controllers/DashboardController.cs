@@ -29,17 +29,6 @@ namespace SuttorLib.Controllers
         public async Task<IActionResult> GetBecauseYouRead([FromQuery] int maxSources = 3)
             => Ok(await _analytics.GetBecauseYouReadAsync(CurrentUserId, maxSources));
 
-        /// <summary>Personalized book recommendations produced by the existing recommendation pipeline.</summary>
-        [HttpGet("user/recommendations")]
-        [Authorize]
-        public async Task<IActionResult> GetRecommendations(
-            [FromServices] Core.Services.Recommends.Mongo.IRecommendRepo repo)
-        {
-            var doc = await repo.GetForUserAsync(CurrentUserId);
-            if (doc == null) return NotFound("No recommendations generated yet for this user.");
-            return Ok(doc);
-        }
-
         // ---------------- Author ----------------
 
         /// <summary>Content performance, rating analysis and audience insights for an author.</summary>

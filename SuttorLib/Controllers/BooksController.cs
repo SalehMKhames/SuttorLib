@@ -176,7 +176,10 @@ namespace SuttorLib.Controllers
                     Categories_Names = categoriesNames,
                     // Generate absolute URLs for the frontend
                     FileLink = encodedBookPath,
-                    CoverLink = encodedPhotoPath
+                    CoverLink = encodedPhotoPath,
+                    IsFinished = (bool)type.GetProperty("isFinished")!.GetValue(book, null)!,
+                    IsDownloaded = (bool)type.GetProperty("IsDownloaded")!.GetValue(book, null)!,
+                    Ratings = (List<BookRating>)type.GetProperty("ratings")!.GetValue(book, null)!
                 };
 
                 return Ok(bookDto);
