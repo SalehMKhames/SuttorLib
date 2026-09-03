@@ -317,5 +317,12 @@ namespace SuttorLibrary.Core.Repositories
                 .Select(ui => new UserInterestRow(ui.UserId, ui.Category_Id))
                 .ToListAsync();
         }
+
+        public async Task<Download?> GetUserDownloadHistory(string userId, string bookId)
+        {
+            return await _context.Downloads
+                .Where(d => d.UserID == userId && d.BookID == bookId)
+                .FirstAsync();
+        }
     }
 }

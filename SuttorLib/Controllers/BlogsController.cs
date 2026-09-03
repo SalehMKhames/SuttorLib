@@ -84,7 +84,14 @@ namespace SuttorLib.Controllers
 
                 await _fcm.NotifyNewBlogAsync(blog.PublisherId, blog.Title, blog.Category);
 
-                return CreatedAtAction(nameof(CreateBlog), blog.Id.ToString(), blog);
+                var user = await _unit.UserRepo.GetById(userId);
+
+                await _unit.UserRepo.PromoteToAuthor(user!, 30);
+                return CreatedAtAction(
+                    nameof(CreateBlog), 
+                    new { blogId =  blog.Id.ToString() , XP = 30, message = "New XP Points Added. Congrats!."}, 
+                    blog
+                );
             }
             catch (Exception ex)
             {

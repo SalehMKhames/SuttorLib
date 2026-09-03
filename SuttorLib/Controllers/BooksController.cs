@@ -613,10 +613,16 @@ namespace SuttorLib.Controllers
 
                 await _fcm.NotifyNewBookAsync(book.Title, dto.Categories_Names, dto.Authors_Names);
 
-                return CreatedAtAction("GetBookById", new { bookId = book.Id }, new
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+                var user = await _unit.UserRepo.GetById(uid);
+                await _unit.UserRepo.PromoteToAuthor(user!, 50);
+
+                return CreatedAtAction("GetBookById", new { bookId = book.Id, XP = 50 }, new
                 {
-                    book.Id,
-                    book.Title
+                        book.Id,
+                        book.Title,
+                        XP = 85,
+                        message = "New XP Points added. Congrats!"
                 });
             }
             catch (InvalidOperationException ex)
@@ -664,6 +670,15 @@ namespace SuttorLib.Controllers
                     // Database commit failed — delete the uploaded file
                     _logger.LogError(dbEx, "Unable to add to Download table");
                     throw; // Re-throw to be caught by outer catch
+                }
+
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+                var user = await _unit.UserRepo.GetById(uid);
+                if (user is not null)
+                {
+                    var isDownloaded = await _unit.UserRepo.GetUserDownloadHistory(user.Id, book.Id);
+                    if (isDownloaded is not null)
+                        await _unit.UserRepo.PromoteToAuthor(user, 50);
                 }
 
                 return fileStream;

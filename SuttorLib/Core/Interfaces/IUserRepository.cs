@@ -15,6 +15,7 @@ namespace SuttorLibrary.Core.Interfaces
         public Task<List<BookListItemDto>?> SuggestedBooks(string userId);
         public Task<List<AppUser>?> GetUsersByInterests(string categoryId);
         Task<List<AppUser>> GetAllByIds(IEnumerable<string> ids);
+        Task<Download?> GetUserDownloadHistory(string userId, string bookId);
         Task<List<InteractionRow>> GetAllDownloadInteractionsAsync();
         Task<List<UserInterestRow>> GetAllUserInterestsAsync();
     }
