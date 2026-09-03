@@ -8,7 +8,6 @@ using SuttorLib.DTOs;
 using SuttorLib.Models.Blog;
 using SuttorLib.Models.Library;
 using SuttorLibrary.Core;
-using SuttorLibrary.Models;
 using System.Security.Claims;
 
 namespace SuttorLib.Controllers
@@ -149,7 +148,7 @@ namespace SuttorLib.Controllers
                 if (comments is null || comments.Count == 0)
                     blogDTO.CommentCount = 0;
                 else
-                    blogDTO.CommentCount += comments.Count;
+                    blogDTO.CommentCount = comments.Count;
 
                 _logger.LogInformation("Blog with id: {ID} retrieved Successfully.", blogDTO.Id.ToString());
                 return Ok(blogDTO);
@@ -256,7 +255,7 @@ namespace SuttorLib.Controllers
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(104857600)]
         [HttpPatch("{id}/update")]
-        public async Task<IActionResult> UpdateBlog([FromForm] string blogId, [FromBody] UpdateBlogDTO dto)
+        public async Task<IActionResult> UpdateBlog([FromRoute] string blogId, [FromBody] UpdateBlogDTO dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -381,7 +380,7 @@ namespace SuttorLib.Controllers
                 }
 
                 _logger.LogInformation("DeleteBlog: blog with the {id} deleted by {Caller}", id, userId);
-                return Ok(new { success = true, message = "User deleted successfully." });
+                return Ok(new { success = true, message = "Blog deleted successfully." });
             }
             catch (KeyNotFoundException)
             {
@@ -405,7 +404,7 @@ namespace SuttorLib.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
             if (string.IsNullOrEmpty(category))
-                return BadRequest("Caregory Name is required");
+                return BadRequest("Category Name is required");
 
             try
             {
@@ -631,7 +630,7 @@ namespace SuttorLib.Controllers
                 var res = await _blogService.CreateCommentAsync(blogId, userId, dto);
                 if (res is null)
                 {
-                    _logger.LogError("Cannot create the comment {id} in the blog {blogId}", res.Id, blogId);
+                    _logger.LogError("Cannot create the comment in the blog {blogId}", blogId);
                     return BadRequest("Something went wrong in creating your feed! Please, try again later.");
                 }
 
@@ -722,7 +721,7 @@ namespace SuttorLib.Controllers
 
                 var paginatedComments = new PaginatedCommentResponseDto
                 {
-                    Items = coms,
+                    Items = items,
                     TotalCount = coms.Count,
                     PageSize = pageSize,
                     Page = page,
@@ -756,7 +755,7 @@ namespace SuttorLib.Controllers
             {
                 var blog = await _blogService.GetBlogById(blogId);
                 if (blog is null)
-                    return NotFound($"No blog with the title: {blog?.Title}");
+                    return NotFound($"No blog found");
 
                 if (!ObjectId.TryParse(commentId, out var comId))
                     throw new ArgumentException("Invalid comment ID");
@@ -1231,7 +1230,7 @@ namespace SuttorLib.Controllers
         // POST api/Blog/{blogId}/Comment/{commentId}/createReply
         [Authorize]
         [HttpPost("{blogId}/comment/{commentId}/createReply")]
-        public async Task<IActionResult> createReply([FromRoute] string commentId, CreateCommentDTO dto)
+        public async Task<IActionResult> createReply([FromRoute] string commentId,[FromBody] CreateCommentDTO dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -1248,7 +1247,7 @@ namespace SuttorLib.Controllers
                 var reply = await _blogService.CreateReplyAsync(commentId, userId, dto);
                 if (reply is null)
                 {
-                    _logger.LogError("Cannot create the reply {id} in the comment {commnetId}", reply.Id, commentId);
+                    _logger.LogError("Cannot create the reply in the comment {commnetId}", commentId);
                     return BadRequest("Something went wrong in creating your feed! Please, try again later.");
                 }
 
@@ -1499,7 +1498,7 @@ namespace SuttorLib.Controllers
 
                 _logger.LogInformation("Reply updated successfully: {id}", reply.Id);
 
-                return Ok(reply);
+                return Ok(com);
             }
             catch (ArgumentNullException an)
             {
@@ -1523,7 +1522,7 @@ namespace SuttorLib.Controllers
         // DELETE api/Blog/{blogId}/Comment/{commentId}/reply/rId/delete
         [Authorize]
         [HttpDelete("{blogId}/comment/{commentId}/reply/{replyId}/delete")]
-        public async Task<IActionResult> DeleteReplt([FromRoute] string commentId, [FromRoute] string replyId)
+        public async Task<IActionResult> DeleteReply([FromRoute] string commentId, [FromRoute] string replyId)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -1537,7 +1536,7 @@ namespace SuttorLib.Controllers
                 return Unauthorized();
 
             try {
-                var res = await _blogService.DeleteRelpy(replyId, commentId, userId);
+                var res = await _blogService.DeleteReply(replyId, commentId, userId);
                 if (!res)
                 {
                     _logger.LogError("Can not delete reply {rId} for comment {cId}", replyId, commentId);

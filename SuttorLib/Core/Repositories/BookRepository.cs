@@ -16,7 +16,7 @@ namespace SuttorLibrary.Core.Repositories
             if (!Guid.TryParse(id, out Guid guidId))
                 return null;
 
-            var result = _context.Books
+            var result = await _context.Books
                 .Where(b => b.Id == guidId.ToString())
                 .Select(b => new
                 {
@@ -55,8 +55,9 @@ namespace SuttorLibrary.Core.Repositories
                     downloads = _context.Downloads
                         .Count(d => d.BookID == b.Id),
 
-                    IsDownloaded = _context.Downloads
-                        .Where(d => d.BookID == b.Id && d.UserID == userId) == null,
+                    IsDownloaded = string.IsNullOrEmpty(userId)
+                        ? false
+                        : _context.Downloads.Any(d => d.BookID == b.Id && d.UserID == userId),
 
                     ratings = _context.BookRatings
                         .Where(r => r.BookId == b.Id)
@@ -70,11 +71,10 @@ namespace SuttorLibrary.Core.Repositories
                 })
                 .FirstOrDefaultAsync();
 
-            var resolved = await result;
-            if (resolved is null)
+            if (result is null)
                 throw new KeyNotFoundException("Book not found");
 
-            return resolved;
+            return result;
         }
 
         public override Task Add(Book entity)
@@ -150,8 +150,6 @@ namespace SuttorLibrary.Core.Repositories
             //update authors' rating
             await UpdateBookRating(BookId);
 
-            await _context.SaveChangesAsync();
-
             return existingRating != null;
         }
 
@@ -225,7 +223,7 @@ namespace SuttorLibrary.Core.Repositories
                 {
                     Id = Id,
                     Name = author,
-                    Description = desc ?? "",
+                    Description = desc,
                     IsRegistered = IsReg,
                     Picture = Photo
                 };
@@ -361,9 +359,6 @@ namespace SuttorLibrary.Core.Repositories
 
             IQueryable<Book> query = _context.Books.AsNoTracking();
 
-            if (query is null)
-                throw new KeyNotFoundException("No books found");
-
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var searchLower = search.ToLowerInvariant();
@@ -440,9 +435,6 @@ namespace SuttorLibrary.Core.Repositories
                 .Distinct()
                 .AsNoTracking();
 
-            if (query is null)
-                throw new KeyNotFoundException("No books found for this category");
-
             var total = await query.CountAsync();
 
             var items = await query
@@ -481,9 +473,6 @@ namespace SuttorLibrary.Core.Repositories
                     (ba, b) => b)
                 .Distinct()
                 .AsNoTracking();
-
-            if (query is null)
-                throw new KeyNotFoundException("No books for this author");
 
             var total = await query.CountAsync();
 
@@ -537,23 +526,60 @@ namespace SuttorLibrary.Core.Repositories
 
         public async Task<IEnumerable<object>?> GetFavoriteBooks(string userId)
         {
-            var existingFavorites = await _context.FavoriteBooks
+            var books = await _context.FavoriteBooks
                 .Where(fb => fb.UserId == userId)
-                .Select(fb => fb.BookId)
+                .Join(
+                    _context.Books,
+                    fb => fb.BookId,
+                    b => b.Id,
+                    (fb, b) => b
+                )
+                .Select(b => new
+                {
+                    id = b.Id,
+                    title = b.Title,
+                    description = b.Description,
+                    pageCount = b.PageCount,
+                    publishedAt = b.PublishedAT,
+                    fileType = b.FileType,
+                    uploadedAt = b.UploadedAt,
+                    fileSize = b.FileSize,
+                    filePath = b.FilePath,
+                    photoPath = b.PhotoPath,
+                    authors = _context.BookAuthors
+                        .Where(ba => ba.Book_Id == b.Id)
+                        .Join(
+                            _context.Authors,
+                            ba => ba.Author_Id,
+                            a => a.Id,
+                            (ba, a) => new { a.Id, a.Name, a.Description }
+                        )
+                        .ToList(),
+                    categories = _context.BookCategories
+                        .Where(bc => bc.bookId == b.Id)
+                        .Join(
+                            _context.Categories,
+                            bc => bc.categoryId,
+                            c => c.Id,
+                            (bc, c) => new { c.Id, c.Name }
+                        )
+                        .ToList(),
+                    language = _context.Languages
+                        .Where(l => l.Id == b.LanguageId)
+                        .Select(l => l.Language)
+                        .FirstOrDefault(),
+                    downloads = _context.Downloads.Count(d => d.BookID == b.Id),
+                    IsDownloaded = _context.Downloads.Any(d => d.BookID == b.Id && d.UserID == userId),
+                    ratings = _context.BookRatings.Where(r => r.BookId == b.Id).ToList(),
+                    isFinished = _context.Downloads
+                        .Where(d => d.BookID == b.Id && d.UserID == userId)
+                        .Select(d => d.IsFinishReading)
+                        .FirstOrDefault()
+                })
                 .ToListAsync();
 
-            if (existingFavorites is null || existingFavorites.Count == 0)
+            if (books.Count == 0)
                 throw new KeyNotFoundException("There is no book in your favorites");
-
-            IEnumerable<object>? books = null;
-            foreach (var fav in existingFavorites)
-            {
-                var book = await GetBookWithDetailsAsync(fav, userId);
-                if (book is null)
-                    continue;
-
-                books?.Append(book);
-            }
 
             return books;
         }

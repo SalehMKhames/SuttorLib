@@ -646,7 +646,7 @@ namespace SuttorLib.Controllers
                 if (book is null || string.IsNullOrEmpty(book.FilePath))
                     return NotFound("This book is not found.");
 
-                // Get current user id from Claims (maynnnjkgg ,kbe null if anonymous)
+                // Get current user id from Claims (null if anonymous)
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();

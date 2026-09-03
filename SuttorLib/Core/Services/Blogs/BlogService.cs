@@ -237,6 +237,7 @@ namespace SuttorLib.Core.Services.Blogs
 
             var comment = new Comment
             {
+                Id = ObjectId.GenerateNewId(),
                 Content = commentDTO.Content,
                 CommenterId = userId,
                 CreatedAt = DateTime.UtcNow,
@@ -251,16 +252,16 @@ namespace SuttorLib.Core.Services.Blogs
 
             await _comment.InsertOneAsync(comment);
 
-            var res = await _comment.Find(c => c.Content == comment.Content).FirstOrDefaultAsync();
-
             var update = Builders<Models.Blog.Blog>.Update
-                .Push(b => b.Comments, res.Id);
+                .Push(b => b.Comments, comment.Id);
 
             var result = await _blog.UpdateOneAsync(b => b.Id == objectId, update);
 
             if (result.ModifiedCount == 0)
+            {
+                await _comment.DeleteOneAsync(c => c.Id == comment.Id);
                 throw new KeyNotFoundException("Blog not found");
-
+            }
             return comment;
         }
         
@@ -275,31 +276,25 @@ namespace SuttorLib.Core.Services.Blogs
 
             return comment;
         }
-        
+
         public async Task<List<Comment>?> GetCommentsAsync(string blogId)
         {
             if (!ObjectId.TryParse(blogId, out var objectId))
                 throw new ArgumentException("Invalid blog ID");
 
             var blog = await _blog.Find(b => b.Id == objectId).FirstOrDefaultAsync();
-            if (blog == null)
+            if (blog is null)
                 throw new KeyNotFoundException("Blog not found");
 
-            var blogComsId = blog.Comments;
-            if (blogComsId.Count == 0 || blogComsId is null)
-                return null;
+            if (blog.Comments is null || blog.Comments.Count == 0)
+                return new List<Comment>();
 
-            var comments = new List<Comment>();
-
-            foreach (var comId in blogComsId)
-            {
-                var com = await _comment.FindAsync(c => c.Id == comId);
-                comments.Add(com.First());
-            }
-
-            return comments;
+            return await _comment
+                .Find(c => blog.Comments.Contains(c.Id))
+                .SortByDescending(c => c.CreatedAt)
+                .ToListAsync();
         }
-        
+
         public async Task<Comment> UpdateComment(string commentId, UpdateCommentDto updateDTO, string userId)
         {
             if (!ObjectId.TryParse(commentId, out var commentObjectId))
@@ -317,7 +312,7 @@ namespace SuttorLib.Core.Services.Blogs
 
             comment.Content = updateDTO.Content;
             comment.UpdatedAt = DateTime.UtcNow;
-            if (updateDTO.Tags is not null || updateDTO.Tags!.Count == 0)
+            if (updateDTO.Tags is not null && updateDTO.Tags.Count == 0)
                 comment.Tags = updateDTO.Tags;
             
             var update = Builders<Comment>.Update.Set(c => c, comment);
@@ -339,14 +334,15 @@ namespace SuttorLib.Core.Services.Blogs
             if (com is null)
                 throw new KeyNotFoundException("Comment not found");
 
-            var comment = await _comment.Find(c => c.Id == com).FirstOrDefaultAsync();
-
+            var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
+            if (comment is null)
+                throw new KeyNotFoundException("Comment not found");
             if (comment.CommenterId != userId)
                 throw new UnauthorizedAccessException("You can only delete your own comments");
 
-            await _comment.DeleteOneAsync(c => c.Id == comment.Id);
+            await _comment.DeleteOneAsync(c => c.Id == commentObjectId);
 
-            blog.Comments.Remove((ObjectId)com);
+            blog.Comments.Remove(commentObjectId);
 
             var update = Builders<Models.Blog.Blog>.Update.PullFilter(b => b.Comments, c => c == commentObjectId);
             var result = await _blog.UpdateOneAsync(b => b.Id == blogObjectId, update);
@@ -404,6 +400,14 @@ namespace SuttorLib.Core.Services.Blogs
             if (!ObjectId.TryParse(blogId, out var objectId))
                 throw new ArgumentException("Invalid blog ID");
 
+            var blog = await _blog.Find(b => b.Id == objectId).FirstOrDefaultAsync();
+            if (blog == null)
+                throw new KeyNotFoundException("Blog not found");
+
+            // ✅ Only remove if user actually liked it
+            if (!blog.UserIdsLikes.Contains(userId))
+                return MapToLikeDislikeResponseDto(blog, userId); // No change
+
             var update = Builders<Models.Blog.Blog>.Update
                 .Pull(b => b.UserIdsLikes, userId)
                 .Inc(b => b.Likes, -1);
@@ -413,7 +417,7 @@ namespace SuttorLib.Core.Services.Blogs
             var updatedBlog = await _blog.Find(b => b.Id == objectId).FirstOrDefaultAsync();
             return MapToLikeDislikeResponseDto(updatedBlog, userId);
         }
-        
+
         public async Task<LikeDislikeResponseDto> DislikeBlogAsync(string blogId, string userId)
         {
             if (!ObjectId.TryParse(blogId, out var objectId))
@@ -476,46 +480,61 @@ namespace SuttorLib.Core.Services.Blogs
             if (!ObjectId.TryParse(blogId, out var blogObjectId) || !ObjectId.TryParse(commentId, out var commentObjectId))
                 throw new ArgumentException("Invalid blog or comment ID");
 
+            // Verify blog exists and contains the comment
             var blog = await _blog.Find(b => b.Id == blogObjectId).FirstOrDefaultAsync();
             if (blog == null)
                 throw new KeyNotFoundException("Blog not found");
 
-            ObjectId? com = blog.Comments.FirstOrDefault(c => c == commentObjectId);
-            if (com == null)
-                throw new KeyNotFoundException("Comment not found");
+            if (!blog.Comments.Contains(commentObjectId))
+                throw new KeyNotFoundException("Comment not found in this blog");
 
             var comment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
+            if (comment == null)
+                throw new KeyNotFoundException("Comment not found");
 
+            var updateBuilder = Builders<Comment>.Update;
+            UpdateDefinition<Comment> update;
 
+            // Toggle like
             if (comment.UserIdsLikes.Contains(userId))
             {
-                comment.UserIdsLikes.Remove(userId);
-                comment.Likes--;
+                update = updateBuilder.Combine(
+                    updateBuilder.Pull(c => c.UserIdsLikes, userId),
+                    updateBuilder.Inc(c => c.Likes, -1)
+                );
             }
             else
             {
+                var updates = new List<UpdateDefinition<Comment>>();
+
+                // Remove dislike if exists
                 if (comment.UserIdsDislikes.Contains(userId))
                 {
-                    comment.UserIdsDislikes.Remove(userId);
-                    comment.Dislikes--;
+                    updates.Add(updateBuilder.Pull(c => c.UserIdsDislikes, userId));
+                    updates.Add(updateBuilder.Inc(c => c.Dislikes, -1));
                 }
 
-                comment.UserIdsLikes.Add(userId);
-                comment.Likes++;
+                // Add like
+                updates.Add(updateBuilder.Push(c => c.UserIdsLikes, userId));
+                updates.Add(updateBuilder.Inc(c => c.Likes, 1));
+
+                update = updateBuilder.Combine(updates);
             }
 
-            var update = Builders<Models.Blog.Blog>.Update.Set(b => b.Comments, blog.Comments);
-            await _blog.UpdateOneAsync(b => b.Id == blogObjectId, update);
+            // ✅ Update the COMMENT collection, not the blog
+            await _comment.UpdateOneAsync(c => c.Id == commentObjectId, update);
+
+            var updatedComment = await _comment.Find(c => c.Id == commentObjectId).FirstOrDefaultAsync();
 
             return new LikeDislikeResponseDto
             {
-                LikesCount = comment.Likes,
-                DislikesCount = comment.Dislikes,
-                UserLiked = comment.UserIdsLikes.Contains(userId),
-                UserDisliked = comment.UserIdsDislikes.Contains(userId)
+                LikesCount = updatedComment.Likes,
+                DislikesCount = updatedComment.Dislikes,
+                UserLiked = updatedComment.UserIdsLikes.Contains(userId),
+                UserDisliked = updatedComment.UserIdsDislikes.Contains(userId)
             };
         }
-        
+
         public async Task<LikeDislikeResponseDto> DislikeCommentAsync(string blogId, string commentId, string userId)
         {
             if (!ObjectId.TryParse(blogId, out var blogObjectId) || !ObjectId.TryParse(commentId, out var commentObjectId))
@@ -657,7 +676,7 @@ namespace SuttorLib.Core.Services.Blogs
             var update = Builders<Comment>.Update.Set(c => c, comment);
             await _comment.UpdateOneAsync(b => b.Id == objectId, update);
 
-            return comment;
+            return reply;
         }
 
         public async Task<List<Comment>?> GetRepliesAsync(string commentId)
@@ -683,8 +702,8 @@ namespace SuttorLib.Core.Services.Blogs
             if (comment is null)
                 throw new KeyNotFoundException("Comment not found");
 
-            var reply = comment.Replies.Where(r => r.Id == id).FirstOrDefault();
-            if (comment is null)
+            var reply = comment.Replies.FirstOrDefault(r => r.Id == id);
+            if (reply is null)
                 throw new KeyNotFoundException("Reply not found");
 
             return reply;
@@ -704,24 +723,27 @@ namespace SuttorLib.Core.Services.Blogs
             if (comment is null)
                 throw new KeyNotFoundException("Comment not found");
 
-            if (comment.Replies.Find(r => r.Id == id) is null)
+            // ✅ Find once and reuse
+            var reply = comment.Replies.FirstOrDefault(r => r.Id == id);
+            if (reply is null)
                 throw new KeyNotFoundException("Reply not found");
 
-            if (comment.Replies.Find(r => r.Id == id).CommenterId != userId)
+            if (reply.CommenterId != userId)
                 throw new UnauthorizedAccessException("You can only update your own reply");
 
-            comment.Replies.Find(r => r.Id == id)!.Content = updateDTO.Content;
-            comment.Replies.Find(r => r.Id == id)!.UpdatedAt = DateTime.UtcNow;
-            if (updateDTO.Tags is not null || updateDTO.Tags!.Count == 0)
-                comment.Replies.Find(r => r.Id == id)!.Tags = updateDTO.Tags;
+            reply.Content = updateDTO.Content;
+            reply.UpdatedAt = DateTime.UtcNow;
 
-            var update = Builders<Comment>.Update.Set(c => c, comment);
-            await _comment.UpdateOneAsync(b => b.Id == commentObjectId, update);
+            if (updateDTO.Tags is not null && updateDTO.Tags.Count > 0)  // ✅ Fixed logic
+                reply.Tags = updateDTO.Tags;
 
-            return comment.Replies.Find(r => r.Id == id)!;
+            var update = Builders<Comment>.Update.Set(c => c.Replies, comment.Replies);
+            await _comment.UpdateOneAsync(c => c.Id == commentObjectId, update);
+
+            return reply;
         }
 
-        public async Task<bool> DeleteRelpy(string replyId, string commentId, string userId)
+        public async Task<bool> DeleteReply(string replyId, string commentId, string userId)
         {
             if (!ObjectId.TryParse(commentId, out var commentObjectId))
                 throw new ArgumentException("Invalid comment ID");

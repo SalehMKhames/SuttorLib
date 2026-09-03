@@ -29,7 +29,7 @@ namespace SuttorLib.Core.Services.Blog
         public Task<List<Comment>?> GetRepliesAsync(string commentId);
         public Task<Comment> GetReplyById(string replyId, string commentId);
         public Task<Comment> UpdateReply(string commentId, string replyId, UpdateReplyDTO updateDTO, string userId);
-        public Task<bool> DeleteRelpy(string replyId, string commentId, string userId);
+        public Task<bool> DeleteReply(string replyId, string commentId, string userId);
 
         // Like/Dislike Operations
         Task<LikeDislikeResponseDto> LikeBlogAsync(string blogId, string userId);
