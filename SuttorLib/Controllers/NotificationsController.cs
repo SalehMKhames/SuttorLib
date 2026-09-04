@@ -34,7 +34,7 @@ namespace SuttorLib.Controllers
         }
 
         [HttpPost("unregister")]
-        public async Task<IActionResult> UnregisterToken([FromBody] string token)
+        public async Task<IActionResult> UnregisterToken([FromBody] UnregisterFCMTokenDto dto)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
@@ -42,7 +42,7 @@ namespace SuttorLib.Controllers
 
             try
             {
-                await _fcmService.UnregisterTokenAsync(userId, token);
+                await _fcmService.UnregisterTokenAsync(userId, dto.Token);
                 return Ok(new { success = true, message = "Token unregistered" });
             }
             catch (Exception ex)
@@ -53,6 +53,7 @@ namespace SuttorLib.Controllers
         }
 
         [HttpPost("send-test")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SendTest([FromBody] SendNotificationDto dto)
         {
             try
@@ -67,24 +68,25 @@ namespace SuttorLib.Controllers
             }
         }
 
-        [HttpGet("Notification-Log")]
-        public async Task<IActionResult> NotificationLog([FromBody] string userId)
+        [HttpGet("notification-log")]
+        public async Task<IActionResult> NotificationLog()
         {
-            try {
-                if (userId is null)
-                    return BadRequest("User ID is required");
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
-                var log = await _fcmService.NotificationLog(userId);
-                if (log is null || log.Count == 0)
-                    return NotFound("No notification for you");
+            try
+            {
+                var log = await _fcmService.GetNotificationLogAsync(userId);
+                if (log.Count == 0)
+                    return NotFound("No notifications found");
 
-                _logger.LogInformation("Getting notifications for user {userId} successfully", userId);
+                _logger.LogInformation("Retrieved {Count} notifications for user {UserId}", log.Count, userId);
                 return Ok(log);
-            
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting notifications for user {userId}", userId);
+                _logger.LogError(ex, "Error getting notifications for user {UserId}", userId);
                 return Problem("An error occurred while getting notifications");
             }
         }

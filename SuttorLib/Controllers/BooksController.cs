@@ -1087,10 +1087,10 @@ namespace SuttorLib.Controllers
             return Ok(new { message = "Recommendations regenerated." });
         }
 
-        // POST api/Books/SetBookAsFavorite
+        // POST api/Books/{id}/SetBookAsFavorite
         [Authorize]
-        [HttpPost("SetBookAsFavorite")]
-        public async Task<IActionResult> SetFavoriteBook([FromBody] string bookId)
+        [HttpPost("{bookId}/SetBookAsFavorite")]
+        public async Task<IActionResult> SetFavoriteBook([FromRoute] string bookId)
         {
             if(!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -1127,8 +1127,8 @@ namespace SuttorLib.Controllers
 
         //DELETE api/Books/RemoveFromFavorite
         [Authorize]
-        [HttpDelete("RemoveBookFromFavorites")]
-        public async Task<IActionResult> RemoveBookFromFavorite([FromBody] string bookId)
+        [HttpDelete("{bookId}/RemoveBookFromFavorites")]
+        public async Task<IActionResult> RemoveBookFromFavorite([FromRoute] string bookId)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);

@@ -15,7 +15,7 @@ public class FCM(IUnitOfWork unit, ILogger<FCM> logger) : IFCM
     public async Task RegisterTokenAsync(string userId, string token, string? deviceName = null, string? platform = null)
     {
         if (string.IsNullOrWhiteSpace(token))
-            throw new ArgumentException("FCM token is required");
+            throw new ArgumentException("FCM token is required", nameof(token));
 
         await _unit.FCMRepo.SaveTokenAsync(new FCMToken
         {
@@ -30,6 +30,9 @@ public class FCM(IUnitOfWork unit, ILogger<FCM> logger) : IFCM
 
     public async Task UnregisterTokenAsync(string userId, string token)
     {
+        if (string.IsNullOrWhiteSpace(token))
+            throw new ArgumentException("FCM token is required", nameof(token));
+
         await _unit.FCMRepo.DeleteTokenAsync(userId, token);
         await _unit.CompleteAsync();
     }
@@ -43,73 +46,84 @@ public class FCM(IUnitOfWork unit, ILogger<FCM> logger) : IFCM
             return;
         }
 
-        await _unit.FCMRepo.SaveNotificationToLog(userId, title, body, data);
+        // Log first, then attempt delivery; stale tokens are cleaned up after the send.
+        await _unit.FCMRepo.SaveNotificationToLogAsync(new[] { userId }, title, body, data);
 
-        await SendMulticastAsync(tokens, title, body, data);
+        await SendMulticastAsync(userId, tokens, title, body, data);
+    }
+
+    public async Task SendToUsersAsync(IEnumerable<string> userIds, string title, string body, Dictionary<string, string>? data = null)
+    {
+        foreach (var userId in userIds.Distinct())
+            await SendToUserAsync(userId, title, body, data);
     }
 
     public async Task NotifyNewBlogAsync(string blogPublisherName, string blogTitle, string category)
     {
         var categories = await _unit.BookRepo.GetCategories();
-        var cat = categories!
-            .Where(c => c!.Name.Equals(category, StringComparison.CurrentCultureIgnoreCase))
-            .ToList()
-            .FirstOrDefault();
+        var cat = categories?
+            .FirstOrDefault(c => c!.Name.Equals(category, StringComparison.OrdinalIgnoreCase));
 
-        var users = await _unit.UserRepo.GetUsersByInterests(cat!.Id);
+        if (cat is null)
+        {
+            _logger.LogWarning("NotifyNewBlogAsync: category {Category} not found, skipping notification", category);
+            return;
+        }
+
+        var users = await _unit.UserRepo.GetUsersByInterests(cat.Id);
         if (users is null || users.Count == 0)
             return;
-        
+
         var title = $"{blogPublisherName} published a new blog";
         var body = string.IsNullOrWhiteSpace(category)
             ? blogTitle
             : $"{blogTitle} in {category}";
 
-        foreach (var user in users)
+        await SendToUsersAsync(users.Select(u => u.Id), title, body, new Dictionary<string, string>
         {
-            await SendToUserAsync(user.Id, title, body, new Dictionary<string, string>
-            {
-                { "type", "new_blog" }
-            });
-        }
+            { "type", "new_blog" }
+        });
     }
 
     public async Task NotifyNewBookAsync(string bookTitle, List<string> categoryNames, List<string>? authorNames = null)
     {
         var categories = await _unit.BookRepo.GetCategories();
-        var cat = new List<Category>();
-        var users = new List<AppUser>();
+        var userIds = new HashSet<string>();
 
         foreach (var name in categoryNames)
-            cat.Add(categories!
-                .Where(c => c!.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase))
-                .ToList()
-                .FirstOrDefault()!
-            );
-
-        foreach (var c in cat)
         {
-            var user = await _unit.UserRepo.GetUsersByInterests(c!.Id);
-            if (user is null || user.Count == 0)
-                return;
-            users.AddRange(user);
+            var cat = categories?
+                .FirstOrDefault(c => c!.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+            if (cat is null)
+            {
+                _logger.LogWarning("NotifyNewBookAsync: category {Category} not found, skipping", name);
+                continue; // don't abort the whole fan-out for one bad category
+            }
+
+            var users = await _unit.UserRepo.GetUsersByInterests(cat.Id);
+            if (users is null || users.Count == 0)
+                continue; // check remaining categories instead of returning
+
+            foreach (var u in users)
+                userIds.Add(u.Id);
         }
+
+        if (userIds.Count == 0)
+            return;
 
         var title = "New book available";
-        var body = authorNames is null || authorNames.Any()
-            ? $"{bookTitle}"
-            : $"{bookTitle} by {authorNames}";
+        var body = authorNames is { Count: > 0 }
+            ? $"{bookTitle} by {string.Join(", ", authorNames)}"
+            : bookTitle;
 
-        if (categoryNames.Any())
+        if (categoryNames.Count > 0)
             body += $" in {string.Join(", ", categoryNames)}";
 
-        foreach (var user in users)
+        await SendToUsersAsync(userIds, title, body, new Dictionary<string, string>
         {
-            await SendToUserAsync(user.Id, title, body, new Dictionary<string, string>
-            {
-                { "type", "new_book" }
-            });
-        }
+            { "type", "new_book" }
+        });
     }
 
     public async Task NotifyBlogCommentAsync(string blogId, string commenterName, string blogOwnerId)
@@ -131,7 +145,7 @@ public class FCM(IUnitOfWork unit, ILogger<FCM> logger) : IFCM
         });
     }
 
-    private async Task SendMulticastAsync(List<string> tokens, string title, string body, Dictionary<string, string>? data)
+    private async Task SendMulticastAsync(string userId, List<string> tokens, string title, string body, Dictionary<string, string>? data)
     {
         var message = new MulticastMessage
         {
@@ -162,12 +176,31 @@ public class FCM(IUnitOfWork unit, ILogger<FCM> logger) : IFCM
             _logger.LogInformation("FCM multicast sent: {SuccessCount} successful, {FailureCount} failed",
                 response.SuccessCount, response.FailureCount);
 
+            // SendEachForMulticastAsync preserves response order matching Tokens order.
+            var deadTokens = new List<string>();
             for (int i = 0; i < response.Responses.Count; i++)
             {
-                if (!response.Responses[i].IsSuccess)
+                var r = response.Responses[i];
+                if (r.IsSuccess)
+                    continue;
+
+                _logger.LogWarning(r.Exception, "Failed to send FCM to token {Token}", tokens[i]);
+
+                // Remove tokens FCM reports as permanently invalid so they stop
+                // consuming quota and filling the table.
+                if (r.Exception is FirebaseMessagingException fex &&
+                    fex.MessagingErrorCode is MessagingErrorCode.Unregistered
+                        or MessagingErrorCode.InvalidArgument)
                 {
-                    _logger.LogWarning(response.Responses[i].Exception, "Failed to send FCM to token {Token}", tokens[i]);
+                    deadTokens.Add(tokens[i]);
                 }
+            }
+
+            if (deadTokens.Count > 0)
+            {
+                await _unit.FCMRepo.DeleteTokensAsync(deadTokens);
+                await _unit.CompleteAsync();
+                _logger.LogInformation("Removed {Count} stale FCM tokens for user {UserId}", deadTokens.Count, userId);
             }
         }
         catch (Exception ex)
@@ -176,12 +209,8 @@ public class FCM(IUnitOfWork unit, ILogger<FCM> logger) : IFCM
         }
     }
 
-    public async Task<List<FcmLog>?> NotificationLog(string userId)
+    public async Task<List<FcmLog>> GetNotificationLogAsync(string userId)
     {
-        var log = await _unit.FCMRepo.GetUserNotifications(userId);
-        if (log is null || log.Count == 0)
-            return null;
-
-        return log;
+        return await _unit.FCMRepo.GetUserNotificationsAsync(userId);
     }
 }

@@ -9,8 +9,8 @@ namespace SuttorLib.Models
         [Required]
         public Guid Id { get; set; }
         [Required]
-        public string UserId { get; set; }
+        public string UserId { get; set; } = string.Empty;
         [Required]
-        public Guid logId { get; set; }
+        public Guid LogId { get; set; }
     }
 }

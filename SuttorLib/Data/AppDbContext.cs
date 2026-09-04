@@ -149,6 +149,9 @@ namespace SuttorLibrary.Data
             //FCM LOG
             modelBuilder.Entity<FcmLog>()
                 .HasKey(l => l.Id);
+            modelBuilder.Entity<FcmLog>()
+                .Property(l => l.Data)
+                .HasColumnType("longtext");
 
             //FCM USER LOG
             modelBuilder.Entity<FcmUserLog>()
@@ -161,7 +164,7 @@ namespace SuttorLibrary.Data
             modelBuilder.Entity<FcmUserLog>()
                 .HasOne<FcmLog>()
                 .WithMany()
-                .HasForeignKey(ul => ul.logId)
+                .HasForeignKey(ul => ul.LogId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // FAvorite Books
