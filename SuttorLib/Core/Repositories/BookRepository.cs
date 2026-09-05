@@ -87,52 +87,15 @@ namespace SuttorLibrary.Core.Repositories
             base.Update(entity);
         }
 
-        public async Task<object?> GetBookByName(string bookName)
+        public async Task<BookListItemDto?> GetBookByNameAsync(string bookName)
         {
-            var book = await _context.Books.Where(b => b.Title == bookName)
-                .Select(b => new
-                {
-                    id = b.Id,
-                    title = b.Title,
-                    description = b.Description,
-                    pageCount = b.PageCount,
-                    publishedAt = b.PublishedAT,
-                    uploadedAt = b.UploadedAt,
-                    fileSize = b.FileSize,
-                    filePath = b.FilePath,
-                    photoPath = b.PhotoPath,
-                    authors = _context.BookAuthors
-                        .Where(ba => ba.Book_Id == b.Id)
-                        .Join(
-                            _context.Authors,
-                            ba => ba.Author_Id,
-                            a => a.Id,
-                            (ba, a) => new { a.Id, a.Name, a.Description }
-                        )
-                        .ToList(),
-                    categories = _context.BookCategories
-                        .Where(bc => bc.bookId == b.Id)
-                        .Join(
-                            _context.Categories,
-                            bc => bc.categoryId,
-                            c => c.Id,
-                            (bc, c) => new { c.Name }
-                        )
-                        .ToList(),
-                    language = _context.Languages
-                        .Where(l => l.Id == b.LanguageId)
-                        .Select(l => l.Language )
-                        .FirstOrDefault(),
-                    ratings = _context.BookRatings
-                        .Where(r => r.BookId == b.Id)
-                        .ToList()
-                })
+            var book = await _context.Books
+                .AsNoTracking()
+                .Where(b => b.Title.ToLower().Contains(bookName.ToLower()))
+                .Select(BookListProjection)
                 .FirstOrDefaultAsync();
 
-            if (book is null)
-                throw new KeyNotFoundException("Book not found");
-
-            return book;
+            return book ?? throw new KeyNotFoundException($"No book found matching '{bookName}'.");
         }
 
         public async Task<bool> AddRating(string BookId, RatingDTO dto, string userId)

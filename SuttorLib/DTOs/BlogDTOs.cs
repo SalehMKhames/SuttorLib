@@ -37,7 +37,7 @@ namespace SuttorLib.DTOs
         public List<string> Tags { get; set; } = new();
         public int? CommentCount { get; set; }
         public string Category { get; set; } = string.Empty;
-        public List<string>? Photos { get; set; } = new();
+        public List<string> Photos { get; set; } = new();
     }
 
     public class CreateCommentDTO

@@ -116,6 +116,17 @@ namespace SuttorLib.Controllers
                 if (result is null)
                     return NotFound("There is No Blogs");
 
+                List<IFormFile> pictures = new();
+
+                if(result.Photos != null && result.Photos.Count > 0)
+                {
+                    // Process the photos if needed
+                    foreach (var photo in result.Photos) { 
+                        var pic = await _fileService.GetPictureAsync(photo);
+                        pictures.Add(pic);
+                    }
+                }
+
                 var user = await _unit.UserRepo.GetById(result.PublisherId);
                 string? userName = null, userFullName = null;
 
@@ -141,7 +152,7 @@ namespace SuttorLib.Controllers
                     Likes = result.Likes,
                     Dislikes = result.Dislikes,
                     Views = result.Views,
-                    Photos = result.Photos
+                    Photos = BuildPhotoUrls(result.Photos)
                 };
 
                 var categories = await _unit.BookRepo.GetCategories();
@@ -228,7 +239,7 @@ namespace SuttorLib.Controllers
                         publisherName = publisher?.FullName ?? "Unknown Publisher",
                         publisherUserName = publisher?.UserName,
                         publisherPic = publisher?.PhotoPath ?? "",
-                        Photos = blog.Photos ?? new List<string>(),
+                        Photos = BuildPhotoUrls(blog.Photos),
                         Tags = blog.Tags,
                         Likes = blog.Likes,
                         Dislikes = blog.Dislikes,
@@ -458,7 +469,7 @@ namespace SuttorLib.Controllers
                             Likes = item.Likes,
                             Dislikes = item.Dislikes,
                             Views = item.Views,
-                            Photos = item.Photos,
+                            Photos = BuildPhotoUrls(item.Photos),
                             Category = categoryNames.Contains(item.Category) ? item.Category : "",
                             CommentCount = item.Comments?.Count ?? 0
                         });
@@ -520,7 +531,7 @@ namespace SuttorLib.Controllers
                             Likes = item.Likes,
                             Dislikes = item.Dislikes,
                             Views = item.Views,
-                            Photos = item.Photos,
+                            Photos = BuildPhotoUrls(item.Photos),
                             Category = categoryNames.Contains(item.Category) ? item.Category : "",
                             CommentCount = item.Comments?.Count ?? 0
                         });
@@ -592,7 +603,7 @@ namespace SuttorLib.Controllers
                             Likes = item.Likes,
                             Dislikes = item.Dislikes,
                             Views = item.Views,
-                            Photos = item.Photos,
+                            Photos = BuildPhotoUrls(item.Photos),
                             Category = categoryNames.Contains(item.Category) ? item.Category : "",
                             CommentCount = item.Comments?.Count ?? 0
                         });
@@ -610,6 +621,49 @@ namespace SuttorLib.Controllers
                 return StatusCode(500, "An error occurred while fetching all blogs.");
             }
         }
+
+        // Streams a single blog photo by its stored path. JSON endpoints return
+        // URLs pointing here; clients fetch the actual bytes from this endpoint.
+        // GET api/Blogs/photo?path=...
+        [HttpGet("photo")]
+        public IActionResult GetBlogPhoto([FromQuery] string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return BadRequest("Photo path is required.");
+
+            try
+            {
+                var resolved = _fileService.ResolveStoragePath(path);
+                if (!System.IO.File.Exists(resolved))
+                    return NotFound("Photo not found.");
+
+                var provider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+                if (!provider.TryGetContentType(resolved, out var contentType))
+                    contentType = "application/octet-stream";
+
+                // enableRangeProcessing lets browsers/clients stream and resume.
+                return PhysicalFile(resolved, contentType, enableRangeProcessing: true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error streaming blog photo {Path}", path);
+                return Problem("An error occurred while retrieving the photo.");
+            }
+        }
+
+        // Maps stored photo paths to URLs served by the photo endpoint.
+        private List<string> BuildPhotoUrls(IEnumerable<string>? photoPaths)
+        {
+            if (photoPaths is null)
+                return new List<string>();
+
+            return photoPaths
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Select(p => Url.Action(nameof(GetBlogPhoto), "Blogs", new { path = p }, Request.Scheme) ?? string.Empty)
+                .Where(u => !string.IsNullOrEmpty(u))
+                .ToList();
+        }
+
 
 
         // ================== Comment Operations ====================

@@ -206,69 +206,10 @@ namespace SuttorLib.Controllers
 
             try
             {
-                var book = await _unit.BookRepo.GetBookByName(name);
-
-                Type type = book.GetType();
-
-                string? photoPath = (string)type.GetProperty("photoPath")!.GetValue(book, null)!;
-                IFormFile? bookCover = null;
-
-                // extract authors names (authors is a list of anonymous objects { Name, Description })
-                var authorsNames = new List<string>();
-                var authorsObj = type.GetProperty("authors")?.GetValue(book, null);
-                if (authorsObj is System.Collections.IEnumerable authorsEnum)
-                {
-                    foreach (var a in authorsEnum)
-                    {
-                        var aType = a?.GetType();
-                        var nameVal = aType?.GetProperty("Name")?.GetValue(a, null)?.ToString();
-                        if (!string.IsNullOrEmpty(nameVal))
-                            authorsNames.Add(nameVal);
-                    }
-                }
-
-                // extract categories names (categories is a list of anonymous objects { Name })
-                var categoriesNames = new List<string>();
-                var categoriesObj = type.GetProperty("categories")?.GetValue(book, null);
-                if (categoriesObj is System.Collections.IEnumerable catsEnum)
-                {
-                    foreach (var c in catsEnum)
-                    {
-                        var cType = c?.GetType();
-                        var nameVal = cType?.GetProperty("Name")?.GetValue(c, null)?.ToString();
-                        if (!string.IsNullOrEmpty(nameVal))
-                            categoriesNames.Add(nameVal);
-                    }
-                }
-
-                if (!string.IsNullOrEmpty(photoPath))
-                {
-                    bookCover = await _fileService.GetPictureAsync(photoPath);
-                }
-
-                var encodedBookPath = BuildUrl((string)type.GetProperty("filePath")!.GetValue(book, null)!);
-                var encodedPhotoPath = BuildUrl(photoPath);
-
-                var bookDto = new GetBookDTO
-                {
-                    Id = (string)type.GetProperty("id")!.GetValue(book, null)!,
-                    Title = (string)type.GetProperty("title")!.GetValue(book, null)!,
-                    Description = (string)type.GetProperty("description")!.GetValue(book, null)!,
-                    Photo = bookCover!,
-                    FilePath = (string)type.GetProperty("filePath")!.GetValue(book, null)!,
-                    PageCount = (int)type.GetProperty("pageCount")!.GetValue(book, null)!,
-                    PublishedAT = (int)type.GetProperty("publishedAt")!.GetValue(book, null)!,
-                    FileSize = (double)type.GetProperty("fileSize")!.GetValue(book, null)! / (1024 * 1024),
-                    UploadedAt = (DateTime)type.GetProperty("uploadedAt")!.GetValue(book, null)!,
-                    language = (string)type.GetProperty("language")!.GetValue(book, null)!,
-                    Authors_Names = authorsNames,
-                    Categories_Names = categoriesNames,
-                    // Generate absolute URLs for the frontend
-                    FileLink = encodedBookPath,
-                    CoverLink = encodedPhotoPath
-                };
-
-                return Ok(bookDto);
+                var book = await _unit.BookRepo.GetBookByNameAsync(name);
+                if(book is null)
+                    return NotFound($"No book found matching '{name}'.");
+                return Ok(await BuildBookDtoAsync(book));
             }
             catch (KeyNotFoundException nf)
             {
@@ -283,12 +224,16 @@ namespace SuttorLib.Controllers
 
         //GET /api/Books/ByCategory?category=...
         [HttpGet("ByCategory", Name = "GetBooksByCategory")]
-        public async Task<IActionResult> GetBooksByCategory([FromQuery] string category, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+        public async Task<IActionResult> GetBooksByCategory(
+            [FromQuery] string category,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
-            if (!ModelState.IsValid)
-                return BadRequest();
-            if (string.IsNullOrEmpty(category))
+            if (string.IsNullOrWhiteSpace(category))
                 return BadRequest("Category name is required.");
+
+            if (page < 1 || pageSize < 1)
+                return BadRequest("Page and pageSize must be positive integers.");
 
             const int maxPageSize = 200;
             pageSize = Math.Min(pageSize, maxPageSize);
@@ -302,27 +247,20 @@ namespace SuttorLib.Controllers
 
                 var items = new List<GetBookDTO>();
                 foreach (var book in paged.Items)
-                {
                     items.Add(await BuildBookDtoAsync(book));
-                }
 
-                _logger.LogInformation("The requested books by category page {Page}/{TotalPages} (size {PageSize}) category={Category}",
+                _logger.LogInformation(
+                    "Books by category page {Page}/{TotalPages} (size {PageSize}) category={Category}",
                     paged.Page, paged.TotalPages, paged.PageSize, category);
 
-                var result = new
+                return Ok(new
                 {
-                    Total = (int)paged.Total,
-                    Page = (int)paged.Page,
-                    PageSize = (int)paged.PageSize,
-                    TotalPages = (int)paged.TotalPages,
+                    Total = paged.Total,
+                    Page = paged.Page,
+                    PageSize = paged.PageSize,
+                    TotalPages = paged.TotalPages,
                     Items = items
-                };
-
-                return Ok(result);
-            }
-            catch (KeyNotFoundException nf)
-            {
-                return NotFound(nf.Message);
+                });
             }
             catch (Exception ex)
             {
@@ -331,15 +269,15 @@ namespace SuttorLib.Controllers
             }
         }
 
-        //GET /api/Books/ByAuthos?author?=...
-        [HttpGet("ByAuthor")]
-        public async Task<IActionResult> GetBooksByAuthor([FromQuery] string author, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+        //GET /api/Books/ByAuthor?author?=...
+        [HttpGet("ByAuthor", Name = "GetBooksByAuthor")]
+        public async Task<IActionResult> GetBooksByAuthor(
+            [FromQuery] string author,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
-            if (!ModelState.IsValid)
-                return BadRequest();
-
-            if (string.IsNullOrEmpty(author))
-                return BadRequest("Author name is required");
+            if (string.IsNullOrWhiteSpace(author))
+                return BadRequest("Author name is required.");
 
             if (page < 1 || pageSize < 1)
                 return BadRequest("Page and pageSize must be positive integers.");
@@ -356,27 +294,20 @@ namespace SuttorLib.Controllers
 
                 var items = new List<GetBookDTO>();
                 foreach (var book in paged.Items)
-                {
                     items.Add(await BuildBookDtoAsync(book));
-                }
 
-                _logger.LogInformation("The requested books by author page {Page}/{TotalPages} (size {PageSize}) author={Author}",
+                _logger.LogInformation(
+                    "Books by author page {Page}/{TotalPages} (size {PageSize}) author={Author}",
                     paged.Page, paged.TotalPages, paged.PageSize, author);
 
-                var result = new
+                return Ok(new
                 {
-                    Total =(int) paged.Total,
-                    Page =(int) paged.Page,
-                    PageSize =(int) paged.PageSize,
-                    TotalPages =(int) paged.TotalPages,
+                    Total = paged.Total,
+                    Page = paged.Page,
+                    PageSize = paged.PageSize,
+                    TotalPages = paged.TotalPages,
                     Items = items
-                };
-
-                return Ok(result);
-            }
-            catch (KeyNotFoundException nf)
-            {
-                return NotFound(nf.Message);
+                });
             }
             catch (Exception ex)
             {
