@@ -74,7 +74,7 @@ namespace SuttorLib.Controllers
 
         /// <summary>"Frequently read together" rules (FP-Growth over-book transactions).</summary>
         [HttpGet("admin/books/rules")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Author, Admin")]
         public async Task<IActionResult> GetBookRules([FromQuery] double minSupport = 0.02, [FromQuery] double minConfidence = 0.3)
             => Ok(await _analytics.GetBookAssociationRulesAsync(minSupport, minConfidence));
 

@@ -91,7 +91,7 @@ namespace SuttorLibrary.Core.Repositories
         {
             var book = await _context.Books
                 .AsNoTracking()
-                .Where(b => b.Title.ToLower().Contains(bookName.ToLower()))
+                .Where(b => b.Title.ToLower() == bookName.ToLower())
                 .Select(BookListProjection)
                 .FirstOrDefaultAsync();
 
@@ -247,23 +247,17 @@ namespace SuttorLibrary.Core.Repositories
 
         public async Task<bool> IsFinishReading(string bookId, string userId)
         {
-            var book = await _context.Books.FirstOrDefaultAsync(b => b.Id == bookId);
-            if (book is not null) 
-            {
-                var download = await _context.Downloads
-                    .FirstOrDefaultAsync(d => d.BookID == book.Id && d.UserID == userId);
+            var download = await _context.Downloads
+                .FirstOrDefaultAsync(d => d.BookID == bookId && d.UserID == userId);
 
-                if (download is not null) { 
-                    download.IsFinishReading = true;
+            if (download is null)
+                throw new InvalidOperationException("You must download the book before marking it as finished.");
 
-                    _context.Update(download);
-                    await _context.SaveChangesAsync();
 
-                    return true;
-                }
-            }
+            download.IsFinishReading = true;
+            _context.Update(download);
 
-            return false;
+            return true;
         }
 
         public async Task<Category?> updateCategory(string catId, string catName, string? catIcon)

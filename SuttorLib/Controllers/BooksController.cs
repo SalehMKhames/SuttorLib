@@ -197,11 +197,11 @@ namespace SuttorLib.Controllers
 
         //GET /api/Books/ByName?name=...
         [HttpGet("ByName", Name = "GetBooksByName")]
-        public async Task<IActionResult> GetBooksByName([FromQuery] string name)
+        public async Task<IActionResult> GetBooksByName([FromQuery] string? name)
         {
             if (!ModelState.IsValid)
                 return BadRequest();
-            if (string.IsNullOrEmpty(name))
+            if (string.IsNullOrWhiteSpace(name))
                 return BadRequest("Book name is required.");
 
             try
@@ -209,6 +209,7 @@ namespace SuttorLib.Controllers
                 var book = await _unit.BookRepo.GetBookByNameAsync(name);
                 if(book is null)
                     return NotFound($"No book found matching '{name}'.");
+
                 return Ok(await BuildBookDtoAsync(book));
             }
             catch (KeyNotFoundException nf)
@@ -825,37 +826,31 @@ namespace SuttorLib.Controllers
         [HttpPatch("{BookId}/finishReading")]
         public async Task<IActionResult> FinishBookReading([FromRoute] string BookId)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
 
-            if (BookId is null || string.IsNullOrEmpty(BookId) || string.IsNullOrWhiteSpace(BookId))
-                return BadRequest("The Book's ID is required");
+            if (string.IsNullOrWhiteSpace(BookId))
+                return BadRequest("The Book's ID is required.");
 
-            try {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                    return Unauthorized();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
-                var res = await _unit.BookRepo.IsFinishReading(BookId, userId);
-                if (!res)
-                    return BadRequest("Something went wrong. Please try again later.");
+            try
+            {
+                var result = await _unit.BookRepo.IsFinishReading(BookId, userId);
+                if (!result)
+                    return BadRequest("Failed to update reading status.");
 
-                try
-                {
-                    await _unit.CompleteAsync();
-                }
-                catch (Exception dbEx)
-                {
-                    _logger.LogError(dbEx, "Failed to make IsFinished prop for the BOOK with the ID: {BookID}", BookId);
-                    throw; // Re-throw to be caught by outer catch
-                }
-
-                return Ok();
+                await _unit.CompleteAsync();
+                return Ok(new { message = "Book marked as finished." });
+            }
+            catch (InvalidOperationException ioEx)
+            {
+                return BadRequest(ioEx.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Cannot read for book ID {BookId}", BookId);
-                return Problem("An error occurred while reading.");
+                _logger.LogError(ex, "Failed to mark book {BookId} as finished for user {UserId}", BookId, userId);
+                return Problem("An error occurred while updating reading status.");
             }
         }
 
@@ -1011,7 +1006,7 @@ namespace SuttorLib.Controllers
 
         //GET api/Books/train
         [Authorize(Roles = "Admin")]
-        [HttpPost("train")]
+        [HttpPost("train")]t
         public async Task<IActionResult> RetrainAndGenerate()
         {
             await _pipeline.RunAsync();
